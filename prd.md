@@ -421,9 +421,10 @@ The PR must disclose material fidelity gaps. A run cannot claim full validation 
 
 ### 11.2 Suggested implementation stack
 
-- Python 3.12 service.
-- FastAPI for webhook and run APIs.
-- LangGraph for durable agent orchestration.
+- Rust for the core service, event ingestion, and infrastructure orchestration.
+- Python 3.12 for the agentic layer.
+- Axum or Actix Web (Rust) for webhook and run APIs.
+- LangGraph (Python) for durable agent orchestration.
 - PostgreSQL for tenant, configuration, run, and audit metadata.
 - Object storage for encrypted logs and artifacts.
 - Redis or a managed queue for event buffering and background work.
