@@ -2,6 +2,8 @@
 
 These tests are for **you** to run while the controller is up. They exercise each feature, stress it, and try to break it.
 
+**Full install / kind / env / API guide:** [`../README.md`](../README.md) (sandbox detailed README).
+
 ## 1. Start the controller
 
 ```bash

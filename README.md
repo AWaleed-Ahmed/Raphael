@@ -1,42 +1,89 @@
 # Raphael
 
-Self-healing deployment agent (see `prd.md`).
+**Raphael** is a self-healing deployment agent for Kubernetes teams.
 
-## Current status
+When a deploy fails in CI or a workload goes unhealthy, Raphael’s job is to:
 
-Sandbox subsystem (Engineer A) is implemented under `sandbox/` with frozen contracts in `contracts/sandbox/`.
+1. **Detect** the failure from CI / Kubernetes signals  
+2. **Investigate** with logs, events, manifests, and commit context  
+3. **Reproduce** the failure in an isolated sandbox (not production)  
+4. **Propose** a minimal, reviewable fix  
+5. **Validate** that fix in the same sandbox  
+6. **Open a pull request** with evidence, risk notes, and rollback guidance  
 
-Coding and architecture rules: [`CODING_RULE.md`](CODING_RULE.md)  
-Decision log (why we chose things): [`decision.md`](decision.md)
+Production stays **read-only** in the MVP. Durable changes only enter through your normal Git review and CI path.
 
-### Run the sandbox controller (mock backend)
+Full product intent: [`prd.md`](prd.md).
 
-```bash
-cd sandbox/controller
-RAPHAEL_CLUSTER_BACKEND=mock cargo run
+---
+
+## What exists today
+
+| Area | Status |
+|------|--------|
+| **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
+| **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) |
+| **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
+| **LangGraph agent / GitHub PRs** | Not started yet (separate track) |
+
+The sandbox is the safe “reproduce + prove the fix” engine. A future agent will call it with a few typed HTTP verbs instead of free-form `kubectl`.
+
+---
+
+## Repo map
+
+```text
+Raphael/
+├── README.md                 ← you are here (what & why)
+├── prd.md                    ← product requirements
+├── CODING_RULE.md            ← engineering rules for this codebase
+├── decision.md               ← architecture decision log
+├── contracts/sandbox/        ← frozen API schemas
+└── sandbox/                  ← Engineer A implementation
+    ├── README.md             ← detailed how-to / all commands
+    ├── controller/           ← Rust HTTP service
+    ├── tests/                ← manual feature / stress suite
+    ├── harness/              ← scenarios + contract tests
+    ├── kind/                 ← local kind bootstrap
+    └── fixtures/             ← synthetic secrets, expected signatures
 ```
 
-### Run harness tests
+---
+
+## Quick start (mock — no Docker)
 
 ```bash
-cd sandbox/harness
-python3 -m venv .venv && source .venv/bin/activate
-pip install httpx jsonschema pytest
-pytest -q
-```
+cd ~/Documents/work/Projects/Raphael
 
-### Run manual feature / stress / break tests (recommended for you)
+# Terminal 1 — controller
+RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
+  cargo run --manifest-path sandbox/controller/Cargo.toml
 
-```bash
-# terminal 1
-cd sandbox/controller && RAPHAEL_CLUSTER_BACKEND=mock cargo run
-
-# terminal 2
-sandbox/tests/.venv/bin/python sandbox/tests/test.py --list
+# Terminal 2 — tests
+python3 -m venv sandbox/tests/.venv
+sandbox/tests/.venv/bin/pip install httpx
 sandbox/tests/.venv/bin/python sandbox/tests/test.py
-sandbox/tests/.venv/bin/python sandbox/tests/test.py observe --failfast
 ```
 
-See [`sandbox/tests/README.md`](sandbox/tests/README.md).
+For kind (real local Kubernetes), env vars, APIs, and troubleshooting, see the detailed guide:
 
-Agent / LangGraph work is intentionally not started until explicitly requested.
+**→ [`sandbox/README.md`](sandbox/README.md)**
+
+---
+
+## Design principles (short)
+
+- **Evidence before action** — diagnosis cites signals  
+- **Reproduce before repair** — fix is validated in a sandbox  
+- **Smallest safe change** — prefer narrow config/code patches  
+- **Human-controlled delivery** — PRs, not silent production edits  
+- **Uncertainty is visible** — escalate instead of guessing  
+
+Rules that implementers must follow: [`CODING_RULE.md`](CODING_RULE.md).  
+Why we chose things: [`decision.md`](decision.md).
+
+---
+
+## Status
+
+Sandbox P0–P2 is complete. Next major track is the **agent** (LangGraph diagnosis, patch loop, draft GitHub PR from a frozen `result_id`).
