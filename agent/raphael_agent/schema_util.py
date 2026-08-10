@@ -87,7 +87,10 @@ def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
         "correlation",
     }
     out: dict[str, Any] = {}
+    ephemeral = {"validation_retryable"}
     for key, value in state.items():
+        if key in ephemeral:
+            continue
         if key in skip_if_none and value is None:
             continue
         out[key] = value

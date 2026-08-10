@@ -46,6 +46,8 @@ class RunState(TypedDict, total=False):
     audit_events: list[dict[str, Any]]
     failure_fingerprint: str
     correlation: dict[str, Any]
+    # Ephemeral graph routing flag (stripped before run_record schema validation)
+    validation_retryable: bool
 
 
 def append_audit(state: RunState, node: str, event: str, detail: str | None = None) -> list[dict[str, Any]]:

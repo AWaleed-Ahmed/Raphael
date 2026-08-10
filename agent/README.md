@@ -1,8 +1,8 @@
 # Raphael Agent (Engineer B)
 
-Phase 1 ingest + Phase 0 LangGraph stub. Sandbox HTTP client talks to the frozen controller under `sandbox/`.
+Phase 2: deterministic diagnosis + constrained patch loop. Phase 1 ingest + Phase 0 graph remain.
 
-**Non-goals still:** K8s watcher, LLM diagnosis, opening PRs, production writes.
+**Still non-goals:** opening GitHub PRs, K8s watcher, production writes. LLM diagnosis is **off by default**.
 
 ---
 
@@ -12,42 +12,33 @@ Phase 1 ingest + Phase 0 LangGraph stub. Sandbox HTTP client talks to the frozen
 agent/
   pyproject.toml
   README.md
-  fixtures/                 # fixture + GitHub webhook samples + recorded sandbox
+  fixtures/
   tests/
   raphael_agent/
-    ingest/                 # normalize, GitHub HMAC, policy, accept/persist
-    store/                  # durable JSON run_record + ingest decisions
-    evidence/               # adapters + redaction + fixture stub
-    diagnosis/              # structured diagnosis (stub)
-    patch/                  # constrained patch proposal (stub)
+    ingest/                 # GitHub HMAC, policy, accept/persist
+    store/                  # durable JSON run_record
+    evidence/               # adapters + redaction
+    diagnosis/              # deterministic analyzers (+ optional LLM)
+    patch/                  # fix templates + allowlist policy
     publish/                # PR publish — no-op; requires result_id
-    graph/                  # LangGraph happy-path stub
-    sandbox_client/         # typed HTTP client → sandbox controller
-    http_api/               # /health + GitHub webhook + GET run
-    scripts/smoke.py        # smoke CLI
+    graph/                  # LangGraph (validate may retry patch)
+    sandbox_client/
+    http_api/
+    scripts/smoke.py
 ```
 
-Graph nodes: `ingest → evidence → diagnose → reproduce → patch → validate → publish_or_escalate`
+Graph: `ingest → evidence → diagnose → reproduce → patch → validate ⇄ patch → publish_or_escalate`
 
-Terminal statuses: `success_draft_pr_ready` | `escalated` | `failed_closed`
-
-Ingest decisions: `accepted` | `ignored` | `duplicate` | `cooldown` | `concurrency_limit` | `unauthorized` | `invalid`
+Terminals: `success_draft_pr_ready` | `escalated` | `failed_closed`
 
 ---
 
 ## Setup
 
-Use **Python 3.12+**.
-
 ```bash
 cd agent
 py -3.12 -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-# Unix
-# source .venv/bin/activate
-
+.venv\Scripts\activate   # Windows
 pip install -e .
 ```
 
@@ -56,76 +47,56 @@ pip install -e .
 | `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Sandbox controller |
 | `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | Agent HTTP bind |
 | `RAPHAEL_AGENT_DATA_DIR` | `.raphael-agent-data` | Run + raw event store |
-| `RAPHAEL_GITHUB_WEBHOOK_SECRET` | unset | If set, require `X-Hub-Signature-256` |
+| `RAPHAEL_GITHUB_WEBHOOK_SECRET` | unset | If set, require HMAC |
 | `RAPHAEL_INGEST_COOLDOWN_SECONDS` | `900` | FR-006 cooldown |
 | `RAPHAEL_INGEST_MAX_CONCURRENT_RUNS` | `2` | FR-006 concurrency |
-| `RAPHAEL_INGEST_RUN_GRAPH` | unset | If `1`, webhook also runs stub graph |
-| `RAPHAEL_AGENT_TENANT_ID` | `local-dev` | Tenant for fingerprints |
+| `RAPHAEL_INGEST_RUN_GRAPH` | unset | If `1`, webhook runs graph |
+| `RAPHAEL_DIAGNOSIS_CONFIDENCE_THRESHOLD` | `0.7` | Select hypothesis only above this |
+| `RAPHAEL_LLM_DIAGNOSIS` | `0` | `1` enables optional LLM refine |
+| `RAPHAEL_OPENAI_API_KEY` / `OPENAI_API_KEY` | unset | Required only if LLM on |
+| `RAPHAEL_MAX_PATCH_ATTEMPTS` | `3` | Patch loop budget |
+| `RAPHAEL_PATCH_ALLOWLIST` | deploy/,k8s/,… | Comma-separated path prefixes |
 
 ---
 
 ## Smoke path
 
-### Offline graph (Phase 0 path)
-
 ```bash
 cd agent
+
+# Offline — recorded sandbox stubs (no LLM)
 python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
-```
 
-### Via Phase 1 ingest (persist + policy + graph)
-
-```bash
+# Via ingest
 python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub --via-ingest
-```
 
-### Live sandbox (optional)
-
-```bash
-# Terminal 1 — repo root
-RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
-  cargo run --manifest-path sandbox/controller/Cargo.toml
-
-# Terminal 2
-cd agent
+# Live mock controller (optional)
+# Terminal 1 (repo root):
+#   RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
+#     cargo run --manifest-path sandbox/controller/Cargo.toml
 python -m raphael_agent.scripts.smoke --sandbox-mode live
-```
 
-### pytest
-
-```bash
-cd agent
 pytest -q
 ```
+
+Default pytest path does **not** call any LLM / API keys.
 
 ---
 
 ## GitHub webhook server
 
 ```bash
-cd agent
-# optional: set RAPHAEL_GITHUB_WEBHOOK_SECRET
 python -m raphael_agent.http_api.app
-# or: raphael-agent-serve
 ```
 
-```bash
-curl -s -X POST http://127.0.0.1:8091/v1/webhooks/github \
-  -H "Content-Type: application/json" \
-  -H "X-GitHub-Event: workflow_run" \
-  -H "X-GitHub-Delivery: local-1" \
-  --data-binary @fixtures/github_workflow_run_failure.json
-```
-
-Supported events: `workflow_run`, `check_run`, `deployment_status` (failure/error only).  
-K8s watcher: not in Phase 1.
+See Phase 1 notes in git history / `decision.md` D-20260810-03.
 
 ---
 
-## Phase 2 handoff (diagnose + patch)
+## Phase 3 handoff (validate + publish)
 
-- Real deterministic analyzers + structured LLM hypotheses (still schema-bound)
-- Constrained patch workspace generation (diagnosis/patch leave stub mode)
-- Optional LangGraph checkpointer; keep `run_record` as inspectable source of truth
-- Evidence: optional GitHub Actions API log download behind the existing adapter
-- Do not open PRs yet; publish stays gated on sandbox `result_id`
+- Open **draft** GitHub PR from frozen sandbox `result_id` (GitHub App)
+- PR body: diagnosis, evidence, validation matrix, risk, rollback
+- Branch naming `raphael/<run-id>-<summary>`; still no production writes
+- Keep publish gated on mandatory validation pass + `result_id`
+- Optional: observe human/merge outcome later (FR-065)

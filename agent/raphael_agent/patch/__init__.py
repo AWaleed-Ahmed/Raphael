@@ -1,43 +1,95 @@
-"""Patch stubs — Phase 2 will generate constrained repo patches."""
+"""Constrained patch proposal generation (FR-040–045)."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
+from raphael_agent.patch.config import max_patch_attempts
+from raphael_agent.patch.policy import apply_policy
+from raphael_agent.patch.templates import generate_files_for_diagnosis
+from raphael_agent.schema_util import validate_agent
+from raphael_agent.timeutil import utc_now
 
-def stub_propose_patch(run: dict[str, Any]) -> dict[str, Any]:
-    """Propose a constrained path change (fixture: switch to fixed manifests)."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+__all__ = [
+    "propose_patch",
+    "stub_propose_patch",
+    "max_patch_attempts",
+    "apply_policy",
+]
+
+
+def propose_patch(run: dict[str, Any]) -> dict[str, Any]:
+    """Build a constrained patch_proposal for the selected diagnosis."""
     diagnosis = run.get("diagnosis") or {}
     hypothesis_id = diagnosis.get("selected_hypothesis_id") or "hyp-unknown"
     attempt = int((run.get("attempt_count") or {}).get("patch", 0)) + 1
+    evidence_ids = [e["evidence_id"] for e in run.get("evidence") or [] if e.get("evidence_id")]
     manifests = run.get("manifests") or {}
-    fixed_path = manifests.get("fixed_path") or "deploy/manifests_fixed"
-    return {
+    manifests_path = manifests.get("path") or "deploy/manifests"
+
+    files, summary = generate_files_for_diagnosis(run)
+    if not files:
+        # Fallback for fixture workspaces that ship a parallel fixed tree (recorded/live probe).
+        fixed_path = manifests.get("fixed_path")
+        if fixed_path and (diagnosis.get("classification") or {}).get("failure_class") == (
+            "probe_misconfiguration"
+        ):
+            files = [
+                {
+                    "path": f"{fixed_path}/.raphael-use-fixed-tree",
+                    "action": "modify",
+                    "content": "# deploy hint: use fixed manifests path\n",
+                    "unified_diff_hunk": None,
+                }
+            ]
+            summary = (
+                "Align readiness probe port (deploy via fixed manifests path hint)"
+            )
+            deploy_hint = {
+                "manifests_path": fixed_path,
+                "use_files_as_patch": False,
+            }
+        else:
+            files = [
+                {
+                    "path": f"{manifests_path}/.raphael-empty-patch",
+                    "action": "modify",
+                    "content": "# no deterministic fix generated\n",
+                    "unified_diff_hunk": None,
+                }
+            ]
+            summary = "No deterministic file fix available"
+            deploy_hint = {
+                "manifests_path": manifests_path,
+                "use_files_as_patch": False,
+            }
+    else:
+        deploy_hint = {
+            "manifests_path": manifests_path,
+            "use_files_as_patch": True,
+        }
+
+    proposal: dict[str, Any] = {
         "patch_id": f"patch-{attempt}",
         "attempt": attempt,
         "hypothesis_id": hypothesis_id,
-        "files": [
-            {
-                "path": f"{fixed_path}/.raphael-stub",
-                "action": "modify",
-                "content": "# stub marker: use fixed manifests path in sandbox deploy\n",
-                "unified_diff_hunk": None,
-            }
-        ],
+        "files": files,
         "unified_diff": None,
         "rationale": {
-            "summary": "Align readiness probe port with container port (stub uses fixed manifests dir)",
-            "evidence_ids": [e["evidence_id"] for e in run.get("evidence") or []],
-            "risk_notes": "Config-only change; no secret or RBAC edits",
-            "rollback_notes": "Revert to previous probe port",
+            "summary": summary,
+            "evidence_ids": evidence_ids,
+            "risk_notes": "Config/manifest-only change within allowlisted paths",
+            "rollback_notes": "Revert the patched file(s) to the failing commit contents",
         },
-        "policy_status": "allowed",
+        "policy_status": "pending",
         "policy_violations": [],
-        "sandbox_deploy_hint": {
-            "manifests_path": fixed_path,
-            "use_files_as_patch": False,
-        },
-        "created_at": now,
+        "sandbox_deploy_hint": deploy_hint,
+        "created_at": utc_now(),
     }
+    proposal = apply_policy(proposal)
+    validate_agent("patch_proposal.json", proposal)
+    return proposal
+
+
+def stub_propose_patch(run: dict[str, Any]) -> dict[str, Any]:
+    return propose_patch(run)

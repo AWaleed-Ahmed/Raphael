@@ -47,6 +47,11 @@ def test_smoke_graph_recorded_stub():
     assert final["result_id"] == "res-recorded-001"
     assert final["pull_request_url"] is None
     assert final["sandbox_mode"] == "recorded_stub"
+    assert (
+        final["diagnosis"]["classification"]["failure_class"]
+        == "probe_misconfiguration"
+    )
+    assert final["diagnosis"]["analyzer"]["mode"] in {"deterministic", "hybrid", "stub"}
     nodes = [e["node"] for e in final["audit_events"]]
     assert "ingest" in nodes
     assert "evidence" in nodes

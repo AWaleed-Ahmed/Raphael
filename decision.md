@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-04 — Agent Phase 2: analyzer-first diagnosis + optional LLM + patch allowlist
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Diagnosis runs **deterministic analyzers first** (probe/port, bad image, missing ConfigMap key, Helm/Kustomize render, blocked secret/privilege). Optional structured LLM refine is behind `RAPHAEL_LLM_DIAGNOSIS` (default `0`); malformed/unkeyed LLM output is ignored (fail closed to deterministic). Patch generation uses deterministic fix templates within default allowlisted prefixes (`deploy/`, `k8s/`, `manifests/`, `charts/`, `overlays/`, `.github/workflows/`, overridable via `RAPHAEL_PATCH_ALLOWLIST`). Policy rejects secret-like strings and privilege/host escapes in code. Max patch attempts: `RAPHAEL_MAX_PATCH_ATTEMPTS` (default 3). Graph may loop validate→patch within budget. Publish remains a no-op requiring `result_id` (no GitHub PR).
+- **Why:** Matches FR-020–025 / FR-040–045 and CODING_RULE “deterministic before LLM”; keeps CI/tests free of API keys.
+- **Alternatives:** LLM-first diagnosis — rejected (nondeterministic, costly). Always require fixed_path tree — weaker than real file patches. Durable LangGraph checkpointer — deferred; RunStore + run_record remain SoT.
+- **Consequences:** Phase 3 can open draft PRs from frozen `result_id` without changing diagnosis/patch contracts. Supplements D-20260810-02/03.
+
 ### D-20260810-03 — Agent Phase 1: GitHub ingest + JSON run store + policy gates
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -224,6 +233,8 @@
 | ID | Topic |
 |---|---|
 | D-20260810-03 | Agent Phase 1 GitHub ingest + run store/policy |
+| D-20260810-04 | Agent Phase 2 analyzers + optional LLM + patch allowlist |
+| D-20260810-03 | Agent Phase 1 GitHub ingest + RunStore |
 | D-20260810-02 | Agent Phase 0 `agent/` + in-memory LangGraph |
 | D-20260810-01 | P0 clone-at-SHA / fixtures / Docker sudo gate |
 | D-20260809-00 | Product baseline (PRD) |
