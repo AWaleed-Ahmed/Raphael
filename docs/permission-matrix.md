@@ -78,4 +78,6 @@ Implement evidence adapters with a dedicated ServiceAccount that omits `secrets`
 
 - Install: [`pilot-install.md`](pilot-install.md)  
 - Acceptance: [`pilot-acceptance.md`](pilot-acceptance.md)  
-- Coding rules §1 / §13: [`../CODING_RULE.md`](../CODING_RULE.md)
+- Pilot week: [`pilot-week-runbook.md`](pilot-week-runbook.md)  
+- Coding rules §1 / §13: [`../CODING_RULE.md`](../CODING_RULE.md)  
+- Guardrail tests: `agent/tests/test_guardrails.py`

@@ -196,6 +196,7 @@ def publish(
             "committed_files": [f["path"] for f in files],
         }
         validate_agent("publish_result.json", result)
+        _maybe_record_publish_feedback(run, result)
         return result
 
     # live mode
@@ -272,6 +273,7 @@ def publish(
             "committed_files": committed,
         }
         validate_agent("publish_result.json", result)
+        _maybe_record_publish_feedback(run, result)
         return result
     except GitHubApiError as exc:
         return _fail(
@@ -291,6 +293,24 @@ def publish(
             base=base,
             mode=mode,
         )
+
+
+def _maybe_record_publish_feedback(run: dict[str, Any], result: dict[str, Any]) -> None:
+    from raphael_agent.feedback import (
+        default_feedback_recorder,
+        feedback_from_run,
+        feedback_on_publish_enabled,
+    )
+
+    if not feedback_on_publish_enabled() or not result.get("ok"):
+        return
+    outcome = "dry_run_prepared" if result.get("dry_run") else "draft_opened"
+    merged = {**run, "publish": result, "pull_request_url": result.get("pull_request_url")}
+    event = feedback_from_run(merged, outcome=outcome, source="publish")
+    try:
+        default_feedback_recorder().record(event)
+    except Exception:  # noqa: BLE001 — feedback must not break publish
+        return
 
 
 def stub_publish(run: dict[str, Any]) -> dict[str, Any]:

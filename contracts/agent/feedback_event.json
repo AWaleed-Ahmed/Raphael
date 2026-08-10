@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/feedback_event.json",
+  "title": "FeedbackEvent",
+  "description": "FR-065 lightweight human / PR outcome feedback (jsonl). No learning loop — audit only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "outcome",
+    "recorded_at",
+    "source"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "draft_opened",
+        "dry_run_prepared",
+        "accepted",
+        "edited",
+        "rejected",
+        "merged",
+        "closed_unmerged",
+        "deploy_succeeded",
+        "deploy_failed",
+        "other"
+      ]
+    },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "string",
+      "enum": ["cli", "http", "publish", "github_webhook", "manual", "test"]
+    },
+    "run_id": { "type": ["string", "null"] },
+    "result_id": { "type": ["string", "null"] },
+    "pull_request_url": { "type": ["string", "null"] },
+    "pull_request_number": { "type": ["integer", "null"] },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "failure_class": { "type": ["string", "null"] },
+    "actor": {
+      "type": ["string", "null"],
+      "description": "GitHub login or operator id when known"
+    },
+    "notes": { "type": ["string", "null"] },
+    "raw_ref": {
+      "type": ["string", "null"],
+      "description": "Pointer to stored raw webhook/payload if any"
+    }
+  }
+}

@@ -41,7 +41,7 @@ Raphael/
 ├── contracts/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── docs/                     ← pilot install / permissions / acceptance
+├── docs/                     ← pilot install / permissions / acceptance / week runbook
 ├── agent/                    ← Engineer B (Phase 0–5 pilot)
 │   └── README.md             ← partner dry-run + allowlist
 └── sandbox/                  ← Engineer A implementation

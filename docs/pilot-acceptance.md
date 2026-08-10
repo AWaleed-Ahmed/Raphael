@@ -36,6 +36,8 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 - [ ] Confirm GitHub token **not** required for dry-run
 - [ ] Confirm production kubeconfig used by observer (if any) cannot patch/delete or read Secret data
 - [ ] Optional: enable **one** class live — `probe_misconfiguration` only — after security review
+- [ ] Follow day-by-day plan: [`pilot-week-runbook.md`](pilot-week-runbook.md)
+- [ ] Capture accept/reject/merge via `record_feedback` or `pull_request` webhook → `feedback.jsonl`
 
 ---
 

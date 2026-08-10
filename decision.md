@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-08 — Pilot week: runbook + FR-065 feedback + guardrail tests
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Add `docs/pilot-week-runbook.md` (5-day partner plan + go/no-go). Expand FR-065 to schema `feedback_event.json`, CLI `record_feedback`, `POST /v1/feedback`, optional `RAPHAEL_FEEDBACK_ON_PUBLISH`, and `pull_request` webhook → jsonl. Centralize permission-matrix checks in `guardrails.py` + `tests/test_guardrails.py` / `pilot_go_nogo` / `GET /v1/pilot/go-nogo`. Still no auto-merge / production writes / learning loop.
+- **Why:** Option A after Phase 5 — ops path must be enforceable in tests, not docs-only.
+- **Alternatives:** Docs-only runbook — drifts. Full FR-065 ML loop — premature.
+- **Consequences:** Option B (K8s watcher / App JWT) can wait for pilot gaps. Supplements D-20260810-07.
+
 ### D-20260810-07 — Pilot: partner dry-run default + failure-class live allowlist
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -259,6 +268,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-08 | Pilot week runbook + FR-065 feedback + guardrail tests |
 | D-20260810-07 | Pilot partner dry-run default + live failure-class allowlist |
 | D-20260810-06 | Agent Phase 4 budgets + injection tests + metrics |
 | D-20260810-05 | Agent Phase 3 draft PR publish (dry_run default) |
