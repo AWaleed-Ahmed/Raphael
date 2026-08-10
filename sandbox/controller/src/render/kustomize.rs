@@ -53,14 +53,14 @@ pub fn render_kustomize(
                         render_path: format!("kustomize:{overlay}"),
                     });
                 }
+                let err2 = String::from_utf8_lossy(&out2.stderr).to_string();
+                return Err(DomainError::RenderFailed(if err2.trim().is_empty() {
+                    stderr
+                } else {
+                    err2
+                }));
             }
-            // Demo fallback: if overlay contains all.yaml or resources as plain files
-            if let Ok(fallback) = fallback_overlay(&root) {
-                return Ok(RenderResult {
-                    yaml: fallback,
-                    render_path: format!("kustomize-fallback:{overlay}"),
-                });
-            }
+            // Tools present but build failed — do not silently concat files (hides broken refs).
             return Err(DomainError::RenderFailed(stderr));
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

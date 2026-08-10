@@ -47,10 +47,15 @@ fn render_helm_sync(workspace: &str, manifests: &ManifestSpec) -> Result<RenderR
         }
     }
 
-    // Lint first (non-fatal if helm missing lint plugin issues — still fail closed if helm missing)
-    let lint = std::process::Command::new("helm")
-        .arg("lint")
-        .arg(&chart_path)
+    let mut lint_cmd = std::process::Command::new("helm");
+    lint_cmd.arg("lint").arg(&chart_path);
+    if let Some(values) = &manifests.values {
+        for v in values {
+            let vp = PathBuf::from(workspace).join(v);
+            lint_cmd.arg("-f").arg(&vp);
+        }
+    }
+    let lint = lint_cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output();
@@ -58,14 +63,26 @@ fn render_helm_sync(workspace: &str, manifests: &ManifestSpec) -> Result<RenderR
     match lint {
         Ok(out) if !out.status.success() => {
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-            // Allow lint warnings; fail on hard errors
-            if stderr.to_lowercase().contains("error") {
-                return Err(DomainError::RenderFailed(format!("helm lint failed: {stderr}")));
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            let combined = format!("{stdout}\n{stderr}");
+            // Schema / type errors and hard lint failures
+            if combined.to_lowercase().contains("error")
+                || combined.to_lowercase().contains("invalid type")
+                || combined.to_lowercase().contains("values don't meet")
+            {
+                return Err(DomainError::RenderFailed(format!(
+                    "helm lint/schema failed: {combined}"
+                )));
             }
         }
         Err(e) => {
             // Fallback: if helm is not installed, try to render a simple charts/templates concat for demos
             if e.kind() == std::io::ErrorKind::NotFound {
+                if chart_path.join("values.schema.json").exists() {
+                    return Err(DomainError::RenderFailed(
+                        "helm binary required to validate values.schema.json".into(),
+                    ));
+                }
                 return fallback_chart_concat(workspace, chart, &release);
             }
             return Err(DomainError::RenderFailed(e.to_string()));

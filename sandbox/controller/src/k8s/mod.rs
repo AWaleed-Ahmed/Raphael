@@ -12,6 +12,14 @@ use crate::domain::models::ResourceRef;
 
 pub use types::*;
 
+#[derive(Debug, Clone)]
+pub struct ManagedNamespace {
+    pub name: String,
+    pub sandbox_id: Option<String>,
+    pub run_id: Option<String>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 #[async_trait]
 pub trait ClusterBackend: Send + Sync {
     fn name(&self) -> &'static str;
@@ -50,6 +58,38 @@ pub trait ClusterBackend: Send + Sync {
         expected_status: i32,
         timeout: Duration,
     ) -> Result<HttpHealthResult, DomainError>;
+
+    /// Apply synthetic secret fixtures (must already include raphael.secret_fixture=true).
+    async fn apply_secret_fixtures(
+        &self,
+        namespace: &str,
+        secrets_yaml: &str,
+    ) -> Result<(), DomainError>;
+
+    /// Collect bounded pod logs for artifact capture.
+    async fn collect_pod_logs(
+        &self,
+        namespace: &str,
+        max_bytes_per_pod: usize,
+    ) -> Result<Vec<LogArtifact>, DomainError>;
+
+    /// Best-effort resolve running container image digests (imageID) in the namespace.
+    async fn resolve_image_digests(&self, namespace: &str) -> Result<Vec<String>, DomainError> {
+        let _ = namespace;
+        Ok(vec![])
+    }
+
+    /// List namespaces labeled raphael.managed=true (for leak reconciliation).
+    async fn list_managed_namespaces(&self) -> Result<Vec<ManagedNamespace>, DomainError> {
+        Ok(vec![])
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LogArtifact {
+    pub pod: String,
+    pub container: String,
+    pub content: String,
 }
 
 pub fn create_backend(name: &str) -> anyhow::Result<Arc<dyn ClusterBackend>> {

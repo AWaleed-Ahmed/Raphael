@@ -71,6 +71,13 @@ pub async fn destroy_sandbox(
     Ok(Json(service.destroy_sandbox(&sandbox_id, req).await?))
 }
 
+pub async fn force_cleanup(
+    State(service): State<Arc<SandboxService>>,
+    Json(req): Json<ForceCleanupRequest>,
+) -> Result<Json<ForceCleanupResponse>, ApiError> {
+    Ok(Json(service.force_cleanup(req).await?))
+}
+
 pub struct ApiError(DomainError);
 
 impl From<DomainError> for ApiError {

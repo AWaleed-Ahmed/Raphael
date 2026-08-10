@@ -24,6 +24,6 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/raphael/demo:does-not-exist
+          image: hashicorp/http-echo:does-not-exist
           ports:
             - containerPort: 8080

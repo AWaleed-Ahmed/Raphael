@@ -1,6 +1,32 @@
-sandbox/controller/target/
+# --- Python virtualenvs (NEVER commit these) ---
+.venv/
+venv/
+env/
+**/.venv/
+**/venv/
 sandbox/harness/.venv/
-sandbox/harness/**/__pycache__/
-sandbox/harness/.pytest_cache/
-*.pyc
+sandbox/tests/.venv/
+
+# --- Python junk ---
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Raphael local runtime data ---
+.raphael-data/
+.raphael-artifacts/
+sandbox/controller/.raphael-data/
+sandbox/controller/.raphael-artifacts/
+
+# --- Rust ---
+sandbox/controller/target/
+**/target/
+
+# --- OS / editor ---
 .DS_Store
+*.swp
+*~

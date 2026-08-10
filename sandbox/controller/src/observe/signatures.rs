@@ -39,6 +39,9 @@ pub fn analyze_rendered_yaml(yaml: &str) -> Option<AnalyzedSignature> {
 
     for dep in &deployments {
         let name = meta_name(dep).unwrap_or("deployment").to_string();
+        if let Some(sig) = liveness_too_early(dep, &name) {
+            return Some(sig);
+        }
         if let Some(sig) = probe_port_mismatch(dep, &name) {
             return Some(sig);
         }
@@ -287,6 +290,59 @@ fn containers(dep: &Value) -> Vec<&Value> {
         .and_then(|v| v.as_sequence())
         .map(|s| s.iter().collect())
         .unwrap_or_default()
+}
+
+fn liveness_too_early(dep: &Value, name: &str) -> Option<AnalyzedSignature> {
+    for c in containers(dep) {
+        let marked = c
+            .get("env")
+            .and_then(|e| e.as_sequence())
+            .map(|envs| {
+                envs.iter().any(|env| {
+                    env.get("name").and_then(|v| v.as_str()) == Some("RAPHAEL_LIVENESS_EARLY")
+                        && env.get("value").and_then(|v| v.as_str()) == Some("true")
+                })
+            })
+            .unwrap_or(false);
+
+        let initial = yaml_get(c, "/livenessProbe/initialDelaySeconds").and_then(|v| v.as_i64());
+        let failure = yaml_get(c, "/livenessProbe/failureThreshold").and_then(|v| v.as_i64());
+        let period = yaml_get(c, "/livenessProbe/periodSeconds").and_then(|v| v.as_i64());
+
+        let aggressive = matches!(initial, Some(i) if i <= 0)
+            && matches!(failure, Some(f) if f <= 1)
+            && matches!(period, Some(p) if p <= 1);
+
+        if marked || aggressive {
+            let delay = initial.unwrap_or(0);
+            let mut attrs = serde_json::Map::new();
+            attrs.insert("initial_delay_seconds".into(), delay.into());
+            if let Some(f) = failure {
+                attrs.insert("failure_threshold".into(), f.into());
+            }
+            if let Some(p) = period {
+                attrs.insert("period_seconds".into(), p.into());
+            }
+            return Some(AnalyzedSignature {
+                class: "probe_misconfiguration".into(),
+                key: format!("liveness_too_early:{name}:delay={delay}"),
+                reason: "LivenessProbeTooEarly".into(),
+                message: Some(format!(
+                    "liveness probe initialDelaySeconds={delay} is too aggressive"
+                )),
+                resource_kind: "Deployment".into(),
+                resource_name: name.to_string(),
+                container: c
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                attributes: attrs,
+                summary: Some("liveness probe starts too early".into()),
+                confidence: 0.9,
+            });
+        }
+    }
+    None
 }
 
 fn probe_port_mismatch(dep: &Value, name: &str) -> Option<AnalyzedSignature> {

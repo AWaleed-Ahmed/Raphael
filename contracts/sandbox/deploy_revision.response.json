@@ -33,6 +33,11 @@
       "items": { "type": "string" }
     },
     "fidelity": { "$ref": "fidelity_report.json" },
+    "tool_versions": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Client tool versions used during deploy (helm/kubectl/kustomize)"
+    },
     "message": { "type": "string" },
     "deployed_at": { "type": "string", "format": "date-time" }
   }

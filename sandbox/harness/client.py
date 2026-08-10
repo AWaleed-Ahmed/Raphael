@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-DEFAULT_BASE = os.environ.get("RAPHAEL_SANDBOX_URL", "http://127.0.0.1:8080")
+DEFAULT_BASE = os.environ.get("RAPHAEL_SANDBOX_URL", "http://127.0.0.1:8090")
 
 
 class SandboxClient:

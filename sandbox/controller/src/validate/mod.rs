@@ -16,6 +16,7 @@ pub async fn run_validation(
     plan: &ValidationPlan,
     before_signature: Option<&FailureSignature>,
     after_signature: Option<&FailureSignature>,
+    fidelity: Option<&crate::domain::models::FidelityReport>,
 ) -> Result<ValidationResults, DomainError> {
     let mut checks = Vec::new();
     let mut fail_closed = false;
@@ -78,7 +79,7 @@ pub async fn run_validation(
     if let Some(health_checks) = &plan.health_checks {
         for hc in health_checks {
             let start = Instant::now();
-            let timeout = Duration::from_secs(hc.timeout_seconds.unwrap_or(60) as u64);
+            let timeout = Duration::from_secs(hc.timeout_seconds.unwrap_or(90) as u64);
             match hc.check_type.as_str() {
                 "rollout" => {
                     let resource = hc
@@ -245,14 +246,51 @@ pub async fn run_validation(
         _ => None,
     };
 
+    // Material fidelity gaps mean we must not claim full validation (PRD §10.3).
+    let material_gaps = fidelity
+        .map(|f| f.material_gaps.clone())
+        .unwrap_or_default();
+    let has_material_gaps = !material_gaps.is_empty();
+    if has_material_gaps {
+        checks.push(ValidationCheck {
+            name: "fidelity_full_claim".into(),
+            kind: "fidelity".into(),
+            status: "failed".into(),
+            mandatory: Some(false),
+            duration_ms: 0,
+            command: None,
+            exit_code: Some(1),
+            message: Some(format!(
+                "material fidelity gaps prevent full validation claim: {}",
+                material_gaps.join("; ")
+            )),
+            artifact_refs: vec![],
+        });
+    } else {
+        checks.push(ValidationCheck {
+            name: "fidelity_full_claim".into(),
+            kind: "fidelity".into(),
+            status: "passed".into(),
+            mandatory: Some(false),
+            duration_ms: 0,
+            command: None,
+            exit_code: Some(0),
+            message: Some("no material fidelity gaps".into()),
+            artifact_refs: vec![],
+        });
+    }
+
+    let checks_passed = !failed && !fail_closed;
     Ok(ValidationResults {
         sandbox_id: sandbox_id.to_string(),
-        passed: !failed && !fail_closed,
+        passed: checks_passed,
         fail_closed,
+        full_validation: checks_passed && !has_material_gaps,
         checks,
         before_signature_key,
         after_signature_key,
         signature_cleared,
+        tool_versions: None,
         completed_at: Utc::now(),
     })
 }

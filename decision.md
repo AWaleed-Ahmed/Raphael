@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-01 — P0: clone-at-SHA, secret fixtures, observe artifacts; Docker blocked without sudo
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer A + coding agent
+- **Decision:** Implement FR-030 clone-at-SHA via `repository.clone_url`, apply synthetic secret fixtures on create, capture bounded event/log artifacts on observe. Install kubectl/kind/helm to `~/.local/bin`. Docker install left to the user (`sandbox/kind/install-docker.sh`) because sudo password is required.
+- **Why:** Unblocks P0 code paths without waiting on Docker; kind bake-off remains the remaining P0 gate.
+- **Alternatives:** Block all P0 until Docker works — slower. Embed a rootless container runtime — out of MVP scope.
+- **Consequences:** Mock tests cover new P0 features; kind verification still required before demo claims.
+
 ### D-20260809-11 — Add `finalize_result` as sixth sandbox verb (Option B)
 - **Status:** accepted
 - **Date:** 2026-08-09

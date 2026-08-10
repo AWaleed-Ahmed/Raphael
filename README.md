@@ -25,4 +25,18 @@ pip install httpx jsonschema pytest
 pytest -q
 ```
 
+### Run manual feature / stress / break tests (recommended for you)
+
+```bash
+# terminal 1
+cd sandbox/controller && RAPHAEL_CLUSTER_BACKEND=mock cargo run
+
+# terminal 2
+sandbox/tests/.venv/bin/python sandbox/tests/test.py --list
+sandbox/tests/.venv/bin/python sandbox/tests/test.py
+sandbox/tests/.venv/bin/python sandbox/tests/test.py observe --failfast
+```
+
+See [`sandbox/tests/README.md`](sandbox/tests/README.md).
+
 Agent / LangGraph work is intentionally not started until explicitly requested.

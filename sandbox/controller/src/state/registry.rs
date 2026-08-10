@@ -1,20 +1,23 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 use crate::domain::models::{
     ArtifactRecord, FailureSignature, FidelityReport, PatchSpec, ResourceRef, ValidatedFixRecord,
     ValidationResults,
 };
+use crate::state::sqlite::SqliteStore;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SandboxStatus {
     Ready,
     Destroyed,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxRecord {
     pub sandbox_id: String,
     pub run_id: String,
@@ -23,6 +26,9 @@ pub struct SandboxRecord {
     pub commit_sha: String,
     pub repository_owner: String,
     pub repository_name: String,
+    pub clone_url: Option<String>,
+    /// Local path produced by clone-at-SHA (controller-managed).
+    pub cloned_workspace: Option<String>,
     pub target_environment: Option<String>,
     pub secret_fixture_set: Option<String>,
     pub status: SandboxStatus,
@@ -48,13 +54,42 @@ pub struct SandboxRecord {
 
 pub struct SandboxRegistry {
     inner: RwLock<HashMap<String, SandboxRecord>>,
+    store: Option<Arc<SqliteStore>>,
 }
 
 impl SandboxRegistry {
     pub fn new() -> Self {
         Self {
             inner: RwLock::new(HashMap::new()),
+            store: None,
         }
+    }
+
+    pub fn with_store(store: Arc<SqliteStore>) -> Result<Self, String> {
+        let reg = Self {
+            inner: RwLock::new(HashMap::new()),
+            store: Some(store.clone()),
+        };
+        for record in store.load_all()? {
+            let mut guard = reg
+                .inner
+                .write()
+                .map_err(|_| "registry lock poisoned".to_string())?;
+            guard.insert(record.sandbox_id.clone(), record);
+        }
+        Ok(reg)
+    }
+
+    fn persist(&self, record: &SandboxRecord) {
+        if let Some(store) = &self.store {
+            if let Err(e) = store.upsert(record) {
+                tracing::warn!(error = %e, sandbox_id = %record.sandbox_id, "sqlite upsert failed");
+            }
+        }
+    }
+
+    pub fn store_path(&self) -> Option<std::path::PathBuf> {
+        self.store.as_ref().map(|s| s.path().to_path_buf())
     }
 
     pub fn insert(&self, record: SandboxRecord) -> Result<(), String> {
@@ -71,6 +106,7 @@ impl SandboxRegistry {
         }) {
             return Err(format!("active sandbox already exists for run_id={}", record.run_id));
         }
+        self.persist(&record);
         guard.insert(record.sandbox_id.clone(), record);
         Ok(())
     }
@@ -94,7 +130,10 @@ impl SandboxRegistry {
             .get_mut(sandbox_id)
             .ok_or_else(|| format!("sandbox not found: {sandbox_id}"))?;
         mutator(record);
-        Ok(record.clone())
+        let cloned = record.clone();
+        drop(guard);
+        self.persist(&cloned);
+        Ok(cloned)
     }
 
     pub fn list_expired(&self, now: DateTime<Utc>) -> Vec<SandboxRecord> {
@@ -103,6 +142,18 @@ impl SandboxRegistry {
             .map(|g| {
                 g.values()
                     .filter(|r| r.status == SandboxStatus::Ready && r.expires_at <= now)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn list_ready(&self) -> Vec<SandboxRecord> {
+        self.inner
+            .read()
+            .map(|g| {
+                g.values()
+                    .filter(|r| r.status == SandboxStatus::Ready)
                     .cloned()
                     .collect()
             })

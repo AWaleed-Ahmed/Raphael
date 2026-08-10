@@ -8,16 +8,19 @@ use serde_yaml::Value;
 use crate::domain::errors::DomainError;
 use crate::domain::models::ResourceRef;
 use crate::k8s::{
-    ApplyResult, ClusterBackend, DestroyOutcome, HttpHealthResult, NamespaceSpec, ObservedContainerStatus,
-    ObservedEvent, ObservedPod, RolloutStatus, WorkloadObservation,
+    ApplyResult, ClusterBackend, DestroyOutcome, HttpHealthResult, LogArtifact, NamespaceSpec,
+    ObservedContainerStatus, ObservedEvent, ObservedPod, RolloutStatus, WorkloadObservation,
 };
 use crate::observe::signatures::analyze_rendered_yaml;
 
-#[derive(Default)]
 struct MockNs {
     exists: bool,
     rendered_yaml: Option<String>,
+    secret_fixtures_applied: bool,
     healthy_override: bool,
+    sandbox_id: String,
+    run_id: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 pub struct MockCluster {
@@ -62,7 +65,11 @@ impl ClusterBackend for MockCluster {
             MockNs {
                 exists: true,
                 rendered_yaml: None,
+                secret_fixtures_applied: false,
                 healthy_override: false,
+                sandbox_id: spec.sandbox_id.clone(),
+                run_id: spec.run_id.clone(),
+                expires_at: spec.expires_at,
             },
         );
         tracing::info!(
@@ -218,6 +225,87 @@ impl ClusterBackend for MockCluster {
                 message: format!("mock http {url} unavailable while workload unhealthy"),
             })
         }
+    }
+
+    async fn apply_secret_fixtures(
+        &self,
+        namespace: &str,
+        secrets_yaml: &str,
+    ) -> Result<(), DomainError> {
+        let mut guard = self
+            .namespaces
+            .write()
+            .map_err(|_| DomainError::Internal("mock lock poisoned".into()))?;
+        let ns = guard
+            .get_mut(namespace)
+            .ok_or_else(|| DomainError::NotFound(format!("namespace not found: {namespace}")))?;
+        if !ns.exists {
+            return Err(DomainError::NotFound(format!(
+                "namespace destroyed: {namespace}"
+            )));
+        }
+        // Validate YAML parses, but do NOT treat fixtures as the deployed workload.
+        let _ = parse_resources(secrets_yaml)?;
+        ns.secret_fixtures_applied = true;
+        tracing::info!(%namespace, "mock: applied synthetic secret fixtures");
+        Ok(())
+    }
+
+    async fn collect_pod_logs(
+        &self,
+        namespace: &str,
+        max_bytes_per_pod: usize,
+    ) -> Result<Vec<LogArtifact>, DomainError> {
+        let obs = self.observe_workload(namespace, Duration::from_secs(1)).await?;
+        let mut out = Vec::new();
+        for pod in obs.pods {
+            let mut content = format!(
+                "mock log for {} phase={} events_hint=synthetic\n",
+                pod.name, pod.phase
+            );
+            if let Some(c) = pod.container_statuses.first() {
+                if let Some(msg) = &c.waiting_message {
+                    content.push_str(msg);
+                    content.push('\n');
+                }
+                if let Some(reason) = &c.waiting_reason {
+                    content.push_str(&format!("waiting_reason={reason}\n"));
+                }
+            }
+            if content.len() > max_bytes_per_pod {
+                content.truncate(max_bytes_per_pod);
+            }
+            out.push(LogArtifact {
+                pod: pod.name,
+                container: "app".into(),
+                content,
+            });
+        }
+        Ok(out)
+    }
+
+    async fn resolve_image_digests(&self, _namespace: &str) -> Result<Vec<String>, DomainError> {
+        // Mock has no runtime digests; tags-only gap is disclosed by fidelity.
+        Ok(vec![])
+    }
+
+    async fn list_managed_namespaces(
+        &self,
+    ) -> Result<Vec<crate::k8s::ManagedNamespace>, DomainError> {
+        let guard = self
+            .namespaces
+            .read()
+            .map_err(|_| DomainError::Internal("mock lock poisoned".into()))?;
+        Ok(guard
+            .iter()
+            .filter(|(_, ns)| ns.exists)
+            .map(|(name, ns)| crate::k8s::ManagedNamespace {
+                name: name.clone(),
+                sandbox_id: Some(ns.sandbox_id.clone()),
+                run_id: Some(ns.run_id.clone()),
+                expires_at: Some(ns.expires_at),
+            })
+            .collect())
     }
 }
 

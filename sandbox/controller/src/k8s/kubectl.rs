@@ -9,8 +9,8 @@ use tokio::time::timeout;
 use crate::domain::errors::DomainError;
 use crate::domain::models::ResourceRef;
 use crate::k8s::{
-    ApplyResult, ClusterBackend, DestroyOutcome, HttpHealthResult, NamespaceSpec, ObservedContainerStatus,
-    ObservedEvent, ObservedPod, RolloutStatus, WorkloadObservation,
+    ApplyResult, ClusterBackend, DestroyOutcome, HttpHealthResult, LogArtifact, NamespaceSpec,
+    ObservedContainerStatus, ObservedEvent, ObservedPod, RolloutStatus, WorkloadObservation,
 };
 use crate::k8s::types::default_labels;
 
@@ -89,6 +89,21 @@ impl ClusterBackend for KubectlCluster {
                 )
                 .await?;
         }
+        // Pod Security Admission labels (best-effort; ignore errors on older clusters)
+        // Pod Security Admission labels
+        let enforce = std::env::var("RAPHAEL_PSA_ENFORCE").unwrap_or_else(|_| "restricted".into());
+        for psa in [
+            format!("pod-security.kubernetes.io/enforce={enforce}"),
+            "pod-security.kubernetes.io/enforce-version=latest".into(),
+            "pod-security.kubernetes.io/warn=restricted".into(),
+        ] {
+            let _ = self
+                .run(
+                    &["label", "namespace", &spec.namespace, &psa, "--overwrite"],
+                    Duration::from_secs(10),
+                )
+                .await;
+        }
 
         let isolation = isolation_manifest(spec);
         apply_yaml(self, &spec.namespace, &isolation).await?;
@@ -118,9 +133,17 @@ impl ClusterBackend for KubectlCluster {
         rendered_yaml: &str,
         timeout_d: Duration,
     ) -> Result<ApplyResult, DomainError> {
-        apply_yaml(self, namespace, rendered_yaml).await?;
-        let resources = list_resources_from_yaml(rendered_yaml);
-        let image_refs = crate::render::common::extract_images(rendered_yaml);
+        let yaml = if std::env::var("RAPHAEL_INJECT_RESTRICTED_SC")
+            .unwrap_or_else(|_| "1".into())
+            != "0"
+        {
+            crate::security_context::inject_restricted_pod_security(rendered_yaml)?
+        } else {
+            rendered_yaml.to_string()
+        };
+        apply_yaml(self, namespace, &yaml).await?;
+        let resources = list_resources_from_yaml(&yaml);
+        let image_refs = crate::render::common::extract_images(&yaml);
         // Best-effort wait
         let _ = timeout_d;
         Ok(ApplyResult {
@@ -196,38 +219,264 @@ impl ClusterBackend for KubectlCluster {
 
     async fn http_health(
         &self,
-        _namespace: &str,
+        namespace: &str,
         url: &str,
         expected_status: i32,
         max: Duration,
     ) -> Result<HttpHealthResult, DomainError> {
-        // In-cluster URLs are not reachable from controller host without port-forward.
-        // Fail closed for mandatory checks when we cannot reach them from kubectl backend
-        // unless URL is localhost / loopback.
-        if !(url.contains("127.0.0.1") || url.contains("localhost")) {
-            return Err(DomainError::ValidationUnavailable(format!(
-                "http health to {url} requires in-cluster probe or port-forward; fail closed"
-            )));
+        let (fetch_url, mut pf) = prepare_http_target(self, namespace, url).await?;
+        let result = curl_status(&fetch_url, expected_status, max).await;
+        if let Some(mut child) = pf.take() {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
         }
-        let client = tokio::time::timeout(max, async {
-            // Minimal fetch without extra deps: use kubectl run wget? Prefer reqwest-less approach via curl.
-            let mut cmd = Command::new("curl");
-            cmd.args(["-s", "-o", "/dev/null", "-w", "%{http_code}", url]);
-            cmd.output().await
-        })
-        .await
-        .map_err(|_| DomainError::Timeout(format!("curl {url}")))?
-        .map_err(|e| DomainError::ValidationUnavailable(e.to_string()))?;
-
-        let code_str = String::from_utf8_lossy(&client.stdout).trim().to_string();
-        let status_code = code_str.parse::<i32>().ok();
-        let ok = status_code == Some(expected_status);
-        Ok(HttpHealthResult {
-            ok,
-            status_code,
-            message: format!("curl {url} => {code_str}"),
-        })
+        result
     }
+
+    async fn apply_secret_fixtures(
+        &self,
+        namespace: &str,
+        secrets_yaml: &str,
+    ) -> Result<(), DomainError> {
+        apply_yaml(self, namespace, secrets_yaml).await
+    }
+
+    async fn collect_pod_logs(
+        &self,
+        namespace: &str,
+        max_bytes_per_pod: usize,
+    ) -> Result<Vec<LogArtifact>, DomainError> {
+        let (code, pods_json, stderr) = self
+            .run(&["get", "pods", "-n", namespace, "-o", "json"], Duration::from_secs(30))
+            .await?;
+        if code != 0 {
+            return Err(DomainError::ObservationFailed(stderr));
+        }
+        let pods = parse_pods_json(&pods_json);
+        let mut out = Vec::new();
+        for pod in pods {
+            let container = pod
+                .container_statuses
+                .first()
+                .map(|c| c.name.clone())
+                .unwrap_or_else(|| "app".into());
+            let (code, stdout, stderr) = self
+                .run(
+                    &[
+                        "logs",
+                        "-n",
+                        namespace,
+                        &pod.name,
+                        "-c",
+                        &container,
+                        "--tail=200",
+                        "--timestamps=true",
+                    ],
+                    Duration::from_secs(30),
+                )
+                .await?;
+            let mut content = if code == 0 {
+                stdout
+            } else {
+                format!("log_unavailable: {stderr}")
+            };
+            if content.len() > max_bytes_per_pod {
+                content.truncate(max_bytes_per_pod);
+            }
+            out.push(LogArtifact {
+                pod: pod.name,
+                container,
+                content,
+            });
+        }
+        Ok(out)
+    }
+
+    async fn resolve_image_digests(&self, namespace: &str) -> Result<Vec<String>, DomainError> {
+        let (code, pods_json, _) = self
+            .run(&["get", "pods", "-n", namespace, "-o", "json"], Duration::from_secs(20))
+            .await?;
+        if code != 0 {
+            return Ok(vec![]);
+        }
+        Ok(parse_image_digests(&pods_json))
+    }
+
+    async fn list_managed_namespaces(
+        &self,
+    ) -> Result<Vec<crate::k8s::ManagedNamespace>, DomainError> {
+        let (code, stdout, stderr) = self
+            .run(
+                &[
+                    "get",
+                    "namespaces",
+                    "-l",
+                    "raphael.managed=true",
+                    "-o",
+                    "json",
+                ],
+                Duration::from_secs(30),
+            )
+            .await?;
+        if code != 0 {
+            return Err(DomainError::ClusterUnavailable(stderr));
+        }
+        Ok(parse_managed_namespaces(&stdout))
+    }
+}
+
+/// Parse `svc/name:port/path` or `service://name:port/path` into port-forward target.
+fn parse_service_url(url: &str) -> Option<(String, u16, String)> {
+    let rest = url
+        .strip_prefix("service://")
+        .or_else(|| url.strip_prefix("svc/"))?;
+    let (name_port, path) = match rest.split_once('/') {
+        Some((np, p)) => (np, format!("/{p}")),
+        None => (rest, "/".to_string()),
+    };
+    let (name, port_s) = name_port.split_once(':')?;
+    let port: u16 = port_s.parse().ok()?;
+    if name.is_empty() {
+        return None;
+    }
+    Some((name.to_string(), port, path))
+}
+
+async fn prepare_http_target(
+    cluster: &KubectlCluster,
+    namespace: &str,
+    url: &str,
+) -> Result<(String, Option<tokio::process::Child>), DomainError> {
+    if url.contains("127.0.0.1") || url.contains("localhost") {
+        return Ok((url.to_string(), None));
+    }
+    let Some((svc, port, path)) = parse_service_url(url) else {
+        return Err(DomainError::ValidationUnavailable(format!(
+            "http health URL must be localhost or svc/name:port/path (got {url})"
+        )));
+    };
+    let local_port = 18080 + (std::process::id() % 1000) as u16;
+    let mut cmd = cluster.base_cmd();
+    cmd.args([
+        "port-forward",
+        "-n",
+        namespace,
+        &format!("svc/{svc}"),
+        &format!("{local_port}:{port}"),
+    ]);
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
+    let child = cmd
+        .spawn()
+        .map_err(|e| DomainError::ValidationUnavailable(format!("port-forward spawn: {e}")))?;
+    // Give port-forward a moment to bind.
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    Ok((format!("http://127.0.0.1:{local_port}{path}"), Some(child)))
+}
+
+async fn curl_status(
+    url: &str,
+    expected_status: i32,
+    max: Duration,
+) -> Result<HttpHealthResult, DomainError> {
+    let client = timeout(max, async {
+        let mut cmd = Command::new("curl");
+        cmd.args(["-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "10", url]);
+        cmd.output().await
+    })
+    .await
+    .map_err(|_| DomainError::Timeout(format!("curl {url}")))?
+    .map_err(|e| DomainError::ValidationUnavailable(e.to_string()))?;
+
+    let code_str = String::from_utf8_lossy(&client.stdout).trim().to_string();
+    let status_code = code_str.parse::<i32>().ok();
+    let ok = status_code == Some(expected_status);
+    Ok(HttpHealthResult {
+        ok,
+        status_code,
+        message: format!("curl {url} => {code_str}"),
+    })
+}
+
+fn parse_image_digests(raw: &str) -> Vec<String> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return vec![];
+    };
+    let mut out = Vec::new();
+    let Some(items) = v.get("items").and_then(|i| i.as_array()) else {
+        return out;
+    };
+    for item in items {
+        let statuses = item
+            .pointer("/status/containerStatuses")
+            .and_then(|x| x.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for c in statuses {
+            let image = c.get("image").and_then(|x| x.as_str()).unwrap_or("");
+            let image_id = c.get("imageID").and_then(|x| x.as_str()).unwrap_or("");
+            if let Some(digest) = image_id_to_digest(image, image_id) {
+                out.push(digest);
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn image_id_to_digest(image: &str, image_id: &str) -> Option<String> {
+    // imageID forms: docker-pullable://repo@sha256:..., or sha256:...
+    let digest = if let Some(idx) = image_id.find("sha256:") {
+        Some(&image_id[idx..])
+    } else {
+        None
+    }?;
+    let digest = digest.split_whitespace().next()?.to_string();
+    if image.is_empty() {
+        return Some(digest);
+    }
+    // Prefer repo@sha256:...
+    let repo = image.split('@').next()?.split(':').next()?;
+    Some(format!("{repo}@{digest}"))
+}
+
+fn parse_managed_namespaces(raw: &str) -> Vec<crate::k8s::ManagedNamespace> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return vec![];
+    };
+    let Some(items) = v.get("items").and_then(|i| i.as_array()) else {
+        return vec![];
+    };
+    items
+        .iter()
+        .filter_map(|item| {
+            let name = item
+                .pointer("/metadata/name")?
+                .as_str()?
+                .to_string();
+            let labels = item.pointer("/metadata/labels");
+            let sandbox_id = labels
+                .and_then(|l| l.get("raphael.sandbox_id"))
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string());
+            let run_id = labels
+                .and_then(|l| l.get("raphael.run_id"))
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string());
+            let expires_at = labels
+                .and_then(|l| l.get("raphael.expires_at"))
+                .and_then(|x| x.as_str())
+                .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| dt.with_timezone(&chrono::Utc));
+            Some(crate::k8s::ManagedNamespace {
+                name,
+                sandbox_id,
+                run_id,
+                expires_at,
+            })
+        })
+        .collect()
 }
 
 async fn apply_yaml(
@@ -290,13 +539,30 @@ metadata:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-all
+  name: default-deny-egress
+  namespace: {ns}
+spec:
+  podSelector: {{}}
+  # Egress-only deny: keeps isolation without risking kubelet probe quirks on kind.
+  policyTypes:
+    - Egress
+---
+# DNS egress so pods can resolve (image pulls are node-side; this helps app traffic later).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
   namespace: {ns}
 spec:
   podSelector: {{}}
   policyTypes:
-    - Ingress
     - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
 "#,
         ns = spec.namespace,
         sa = spec.service_account

@@ -26,7 +26,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/raphael/demo:1.0.0
+          image: hashicorp/http-echo:1.0
+          args: ["-listen=:8080", "-text=ok"]
           ports:
             - containerPort: 8080
           readinessProbe:

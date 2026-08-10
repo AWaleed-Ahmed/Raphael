@@ -26,6 +26,35 @@ spec:
 }
 
 #[test]
+fn detects_liveness_too_early() {
+    let yaml = r#"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: hashicorp/http-echo:1.0
+          env:
+            - name: RAPHAEL_LIVENESS_EARLY
+              value: "true"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            failureThreshold: 1
+"#;
+    let sig = analyze_rendered_yaml(yaml).expect("sig");
+    assert_eq!(sig.class, "probe_misconfiguration");
+    assert!(sig.key.contains("liveness_too_early"));
+}
+
+#[test]
 fn detects_missing_configmap_key() {
     let yaml = r#"
 apiVersion: v1

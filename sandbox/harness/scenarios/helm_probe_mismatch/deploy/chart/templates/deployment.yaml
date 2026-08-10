@@ -17,10 +17,14 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/raphael/demo:1.0.0
+          image: {{ .Values.image }}
+          args:
+{{- range .Values.imageArgs }}
+            - {{ . | quote }}
+{{- end }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.containerPort }}
           readinessProbe:
             httpGet:
               path: /healthz
-              port: 9090
+              port: {{ .Values.probePort }}

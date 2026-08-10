@@ -36,6 +36,10 @@ pub fn router(service: Arc<SandboxService>) -> Router {
             "/v1/sandboxes/{sandbox_id}/destroy",
             post(handlers::destroy_sandbox),
         )
+        .route(
+            "/v1/admin/force-cleanup",
+            post(handlers::force_cleanup),
+        )
         .layer(TraceLayer::new_for_http())
         .with_state(service)
 }

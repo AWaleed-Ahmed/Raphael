@@ -135,6 +135,8 @@ pub struct DeployRevisionResponse {
     pub image_refs: Vec<String>,
     pub fidelity: FidelityReport,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_versions: Option<std::collections::BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     pub deployed_at: DateTime<Utc>,
 }
@@ -257,6 +259,9 @@ pub struct ValidationResults {
     pub sandbox_id: String,
     pub passed: bool,
     pub fail_closed: bool,
+    /// True only when checks passed AND there are no material fidelity gaps.
+    #[serde(default)]
+    pub full_validation: bool,
     pub checks: Vec<ValidationCheck>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub before_signature_key: Option<String>,
@@ -264,6 +269,8 @@ pub struct ValidationResults {
     pub after_signature_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signature_cleared: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_versions: Option<std::collections::BTreeMap<String, String>>,
     pub completed_at: DateTime<Utc>,
 }
 
@@ -351,10 +358,32 @@ pub struct ErrorEnvelope {
     pub error: ErrorBody,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactRecord {
     pub id: String,
     pub kind: String,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForceCleanupRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub namespace: Option<String>,
+    #[serde(default = "default_true")]
+    pub reconcile_leaks: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForceCleanupResponse {
+    pub destroyed_sandboxes: Vec<String>,
+    pub destroyed_namespaces: Vec<String>,
+    pub message: Option<String>,
+    pub completed_at: DateTime<Utc>,
 }
