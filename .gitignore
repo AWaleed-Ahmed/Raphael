@@ -1,0 +1,6 @@
+sandbox/controller/target/
+sandbox/harness/.venv/
+sandbox/harness/**/__pycache__/
+sandbox/harness/.pytest_cache/
+*.pyc
+.DS_Store

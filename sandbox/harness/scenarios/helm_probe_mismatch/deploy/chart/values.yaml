@@ -1,0 +1,5 @@
+replicaCount: 1
+image: ghcr.io/raphael/demo:1.0.0
+servicePort: 80
+containerPort: 8080
+probePort: 9090
