@@ -46,6 +46,7 @@
         "github_workflow_run",
         "github_check_run",
         "github_deployment_status",
+        "github_issue",
         "k8s_workload",
         "fixture",
         "manual"

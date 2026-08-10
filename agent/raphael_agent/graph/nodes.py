@@ -12,6 +12,7 @@ from raphael_agent.evidence import collect_evidence
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
 from raphael_agent.publish import publish
+from raphael_agent.rules import load_or_derive_fix_rules
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
@@ -209,6 +210,27 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
     return updates
 
 
+def _is_issue_route(state: RunState) -> bool:
+    return (state.get("trigger") or {}).get("kind") == "github_issue" or state.get(
+        "delivery_mode"
+    ) == "issue_snippet"
+
+
+def _ensure_fix_rules(state: RunState, updates: dict[str, Any]) -> dict[str, Any]:
+    if state.get("fix_rules") or updates.get("fix_rules"):
+        return updates
+    workspace = state.get("workspace_path") or updates.get("workspace_path")
+    rules = load_or_derive_fix_rules(workspace)
+    updates["fix_rules"] = rules
+    updates["audit_events"] = append_audit(
+        {**state, **updates},
+        updates.get("current_node") or "reproduce",
+        "fix_rules",
+        f"source={rules.get('source')}",
+    )
+    return updates
+
+
 def node_reproduce(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -216,6 +238,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
     if halt:
         return halt
     updates = _touch(state, "reproduce")
+    updates = _ensure_fix_rules(state, updates)
     mode = state.get("sandbox_mode") or "skipped"
 
     if mode == "recorded_stub":
@@ -233,6 +256,20 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         }
         updates["audit_events"] = append_audit(
             {**state, **updates}, "reproduce", "recorded_stub", create["sandbox_id"]
+        )
+        return updates
+
+    if mode == "skipped" and _is_issue_route(state):
+        # Issue path without live sandbox: still allow rules+model patch → snippet.
+        updates["reproduction_result"] = {
+            "reproduced": True,
+            "matched_expected": None,
+            "signature_key": "issue_route_skipped_sandbox",
+            "artifact_ids": [],
+            "message": "issue route: sandbox skipped; clone/rules only",
+        }
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "reproduce", "issue_skipped_sandbox", "ok"
         )
         return updates
 
@@ -319,6 +356,8 @@ def node_patch(state: RunState) -> dict[str, Any]:
     if halt:
         return halt
     updates = _touch(state, "patch")
+    updates = _ensure_fix_rules(state, updates)
+    merged_for_patch = {**state, **updates}
     repro = state.get("reproduction_result") or {}
     if not repro.get("reproduced"):
         updates["status"] = "escalated"
@@ -371,7 +410,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
         )
         return updates
 
-    proposal = propose_patch(state)
+    proposal = propose_patch(merged_for_patch)
     if proposal.get("policy_status") == "rejected":
         # Count the rejected attempt toward budget, then escalate if exhausted next loop
         patches = list(state.get("candidate_patches") or [])
@@ -381,6 +420,11 @@ def node_patch(state: RunState) -> dict[str, Any]:
         updates["candidate_patches"] = patches
         updates["active_patch_id"] = proposal["patch_id"]
         updates["attempt_count"] = attempts
+        reason = "model_required" if any(
+            v.get("rule") == "model_required"
+            for v in (proposal.get("policy_violations") or [])
+            if isinstance(v, dict)
+        ) else "policy_blocked"
         updates["policy_decisions"] = list(state.get("policy_decisions") or []) + [
             {
                 "rule": "patch_policy",
@@ -392,43 +436,29 @@ def node_patch(state: RunState) -> dict[str, Any]:
                 "at": utc_now(),
             }
         ]
-        if int(attempts["patch"]) >= max_patch_attempts():
-            updates["status"] = "escalated"
-            updates["terminal_reason"] = "policy_blocked"
-            updates["escalation_report"] = _escalation(
-                {**state, **updates},
-                reason_code="policy_blocked",
-                summary="Patch rejected by policy and budget exhausted",
-                what_happened="Constrained patch failed allowlist/secret/privilege checks",
-                why_no_fix="Policy rejected candidate patches",
-                attempts=[
-                    {
-                        "kind": "patch",
-                        "status": "blocked",
-                        "detail": "policy_rejected",
-                        "patch_id": proposal["patch_id"],
-                    }
-                ],
-            )
-        else:
-            # Mark retryable so validate can skip and route back — actually better escalate on policy
-            updates["status"] = "escalated"
-            updates["terminal_reason"] = "policy_blocked"
-            updates["escalation_report"] = _escalation(
-                {**state, **updates},
-                reason_code="policy_blocked",
-                summary="Patch rejected by policy",
-                what_happened="Constrained patch failed allowlist/secret/privilege checks",
-                why_no_fix="Policy rejected the candidate patch",
-                attempts=[
-                    {
-                        "kind": "patch",
-                        "status": "blocked",
-                        "detail": "policy_rejected",
-                        "patch_id": proposal["patch_id"],
-                    }
-                ],
-            )
+        updates["status"] = "escalated"
+        updates["terminal_reason"] = reason
+        updates["escalation_report"] = _escalation(
+            {**state, **updates},
+            reason_code=reason,
+            summary="Patch rejected by policy"
+            if reason == "policy_blocked"
+            else "Issue fix requires model or known failure class",
+            what_happened="Constrained patch failed allowlist/secret/privilege checks"
+            if reason == "policy_blocked"
+            else "No LLM patch and no template for issue route",
+            why_no_fix="Policy rejected the candidate patch"
+            if reason == "policy_blocked"
+            else "Enable RAPHAEL_LLM_DIAGNOSIS + RAPHAEL_LLM_PATCH or set raphael-failure-class",
+            attempts=[
+                {
+                    "kind": "patch",
+                    "status": "blocked",
+                    "detail": reason,
+                    "patch_id": proposal["patch_id"],
+                }
+            ],
+        )
         updates["audit_events"] = append_audit(
             {**state, **updates}, "patch", "policy_rejected", proposal["patch_id"]
         )
@@ -446,7 +476,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
         {
             "rule": "patch_allowlist_and_secrets",
             "decision": "allow",
-            "message": "Phase 2 patch policy allow",
+            "message": "Phase 2/6 patch policy allow",
             "at": utc_now(),
         }
     ]
@@ -454,7 +484,6 @@ def node_patch(state: RunState) -> dict[str, Any]:
         {**state, **updates}, "patch", "proposed", proposal["patch_id"]
     )
     return updates
-
 
 def _deploy_body_for_patch(
     state: RunState, patch: dict[str, Any] | None
@@ -519,6 +548,28 @@ def node_validate(state: RunState) -> dict[str, Any]:
         updates["validation_retryable"] = False
         updates["audit_events"] = append_audit(
             {**state, **updates}, "validate", "recorded_stub", finalized["result_id"]
+        )
+        return updates
+
+    if mode == "skipped" and _is_issue_route(state):
+        # Local/CI issue path without live sandbox: mint a local result_id for snippet delivery.
+        if not patch or patch.get("policy_status") != "allowed":
+            updates["status"] = "escalated"
+            updates["terminal_reason"] = "validation_failed"
+            updates["validation_retryable"] = False
+            updates["escalation_report"] = _escalation(
+                {**state, **updates},
+                reason_code="validation_failed",
+                summary="No allowed patch to propose on issue route",
+                what_happened="Skipped-sandbox issue validate requires an allowed patch",
+                why_no_fix="Cannot deliver a fix snippet without an allowed patch",
+            )
+            return updates
+        result_id = f"issue-local-{state['run_id']}"
+        updates["result_id"] = result_id
+        updates["validation_retryable"] = False
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "validate", "issue_skipped_sandbox", result_id
         )
         return updates
 
@@ -671,6 +722,20 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
             {**state, **updates},
             "publish_or_escalate",
             "fail_closed",
+            published.get("message"),
+        )
+    elif published.get("delivery") == "issue_snippet":
+        updates["status"] = "success_fix_proposed"
+        updates["terminal_reason"] = (
+            "fix_snippet_dry_run" if published.get("dry_run") else "fix_snippet_posted"
+        )
+        updates["issue_comment_url"] = published.get("issue_comment_url")
+        updates["pull_request_url"] = None
+        updates["pull_request_branch"] = None
+        updates["audit_events"] = append_audit(
+            {**state, **updates},
+            "publish_or_escalate",
+            "success_fix_proposed",
             published.get("message"),
         )
     else:

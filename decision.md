@@ -30,6 +30,51 @@
 
 ## Decision log (newest first)
 
+### D-20260810-13 — Phase 6: dual-path CI templates + labeled Issues with optional model
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer A + coding agent
+- **Decision:** Keep **Route A** (CI `workflow_run`/`check_run` → deterministic templates → sandbox → draft PR under partner gates). Add **Route B**: GitHub `issues` events with a developer-configured label (`RAPHAEL_ISSUE_TRIGGER_LABEL`, default `raphael:fix`). Route B loads preset `.raphael/issue-fix.yaml` or **derives ephemeral fix_rules** from bounded repo files (`.raphael/config.yaml`, `CONTRIBUTING.md`, `CODEOWNERS`); derived rules cannot widen global allowlist or disable budgets/redaction. Optional OpenAI-compatible model (`RAPHAEL_LLM_BASE_URL` / `RAPHAEL_LLM_MODEL` / API key) with `RAPHAEL_LLM_DIAGNOSIS` + `RAPHAEL_LLM_PATCH` may propose patches on Route B only; templates remain the only patch source on Route A. Route B **posts a fix snippet as an issue comment** and terminates `success_fix_proposed` — developer opens the PR; Raphael never opens a PR on Route B. Commit SHA from issue body `raphael-sha:` or default-branch HEAD (API/env fallback).
+- **Why:** Partners who bring a custom model need an Issues-driven fix loop; partners who only want deploy CI healing keep the safe template path.
+- **Alternatives:** Replace CI path with Issues-only — rejected. Always auto-open draft PRs from Issues — rejected (human owns PR on model path). Require model always on Route B — rejected; escalate when model/patch unavailable and no template class.
+- **Consequences:** Contracts add `github_issue` trigger, `fix_rules`, `delivery_mode`, terminal `success_fix_proposed`. Supplements D-20260810-02…08.
+
+### D-20260810-12 — Agent runtime defaults: terminals, confidence, ports, store, ingest
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Graph terminals are `success_draft_pr_ready` | `success_fix_proposed` | `escalated` | `failed_closed` (not the full PRD §9.3 set). Default diagnosis confidence threshold `0.7` (`RAPHAEL_DIAGNOSIS_CONFIDENCE_THRESHOLD`). Agent HTTP listens on `:8091` (Starlette); sandbox controller on `:8090`. `sandbox_mode` is `live` | `recorded_stub` | `skipped`. Partner triad includes `diagnosis_only`. Durable agent state is JSON `RunStore` under `RAPHAEL_AGENT_DATA_DIR` (Postgres deferred). Ingest defaults: cooldown 900s, max concurrent 2. HMAC optional when webhook secret unset (local/dev only).
+- **Why:** Freeze MVP inspectable outcomes and local-dev ergonomics without inventing SaaS persistence.
+- **Alternatives:** Full PRD terminal taxonomy — deferred. Always-require webhook secret — blocks curl demos.
+- **Consequences:** Phase 6 issue delivery uses `success_fix_proposed`; CI path keeps draft-PR terminal. Supplements D-20260810-02/03/07.
+
+### D-20260810-11 — Sandbox P2: JSON durable store, PSA restricted, admin cleanup, artifacts
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer A + coding agent
+- **Decision:** Durable sandbox state is a **JSON document store** with a SQLite-shaped API (`SqliteStore` → files under data dir); real SQLite/Postgres deferred. Enforce PSA `restricted` + inject restricted `securityContext` when enabled (`RAPHAEL_PSA_ENFORCE` / `RAPHAEL_INJECT_RESTRICTED_SC`). Admin `POST /v1/admin/force-cleanup` for operator TTL cleanup. Artifact disk retention default 48h (`RAPHAEL_ARTIFACT_RETENTION_HOURS`). Finalize invalidates on redeploy/re-validate until re-finalize. Cluster id `raphael-sandbox`; namespaces `raphael-run-<run_id>`; default TTL 20 minutes. No free-form kubectl API; kubeconfig stays controller-side. Layering: `api → domain → adapters`.
+- **Why:** P2 hardening without blocking on crates.io SQLite; strong isolation for kind demos.
+- **Alternatives:** Real SQLite in P2 — deferred. Soft isolation without PSA — weaker demo claims.
+- **Consequences:** CHECKLIST P2 complete except optional real SQLite. Supplements D-20260809-08/09/11.
+
+### D-20260810-10 — Sandbox P1 fidelity: listen :8090, svc health, full_validation gate
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer A + coding agent
+- **Decision:** Controller default listen **`:8090`** (not `:8080`) so kubectl’s localhost fallback cannot hit Axum. HTTP health checks use `svc/<name>:<port>/<path>` via port-forward. Material fidelity gaps force `full_validation=false`. Record tool versions and image digests when available on fidelity/artifacts.
+- **Why:** Avoided a real footgun (cluster_unavailable when kubeconfig missing and port=8080). Fidelity honesty is required by PRD.
+- **Alternatives:** Stay on 8080 — rejected after incident. Claim full_validation under mock gaps — rejected.
+- **Consequences:** Docs/tests/README use 8090; agent default `RAPHAEL_SANDBOX_URL=http://127.0.0.1:8090`.
+
+### D-20260810-09 — Explicit pilot / Phase 6 deferrals
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Product / both engineers
+- **Decision:** Still deferred: in-cluster K8s watcher (FR-002), GitHub App JWT as primary auth (PAT first), full FR-065 learning loop (jsonl audit only), multi-tenant SaaS, auto-merge / production remediation (forever out for MVP), GitLab/other CI hosts (Post-MVP). Real design-partner week (≥5 dry-run failures + permission approval) remains an ops exit for PRD Phase 5, not a code gate for Phase 6 dual-path work.
+- **Why:** Keep MVP shippable; Option B waits for real pilot gaps.
+- **Alternatives:** Block Phase 6 until partner week — slower product learning on Issues+model path.
+- **Consequences:** README/CHECKLIST list these as open; do not invent ADRs that pretend they shipped.
+
 ### D-20260810-08 — Pilot week: runbook + FR-065 feedback + guardrail tests
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -268,6 +313,11 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-13 | Phase 6 dual-path CI + labeled Issues + optional model |
+| D-20260810-12 | Agent terminals / confidence / ports / RunStore / ingest defaults |
+| D-20260810-11 | Sandbox P2 JSON store / PSA / admin cleanup / artifacts |
+| D-20260810-10 | Sandbox P1 :8090 / svc health / full_validation gate |
+| D-20260810-09 | Explicit pilot / Phase 6 deferrals |
 | D-20260810-08 | Pilot week runbook + FR-065 feedback + guardrail tests |
 | D-20260810-07 | Pilot partner dry-run default + live failure-class allowlist |
 | D-20260810-06 | Agent Phase 4 budgets + injection tests + metrics |

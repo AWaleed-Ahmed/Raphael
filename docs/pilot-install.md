@@ -36,6 +36,12 @@ cd Raphael
 | `RAPHAEL_PUBLISH_MODE` | `dry_run` | Raw publish preference |
 | `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | _(empty)_ | Empty ⇒ **no** live PRs; set e.g. `probe_misconfiguration` when ready |
 | `RAPHAEL_LLM_DIAGNOSIS` | `0` | Keep off unless explicitly enabling |
+| `RAPHAEL_LLM_PATCH` | `0` | Route B model patches; requires diagnosis=1 + key |
+| `RAPHAEL_LLM_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible root (Ollama/LM Studio OK) |
+| `RAPHAEL_LLM_MODEL` | `gpt-4o-mini` | Model id for chat/completions |
+| `RAPHAEL_OPENAI_API_KEY` / `OPENAI_API_KEY` | unset | Bearer token when LLM on |
+| `RAPHAEL_ISSUE_TRIGGER_LABEL` | `raphael:fix` | Issues label that starts Route B |
+| `RAPHAEL_DEFAULT_COMMIT_SHA` | unset | Fallback SHA if issue omits `raphael-sha:` |
 | `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Sandbox controller |
 | `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | Webhook/metrics server |
 | `RAPHAEL_AGENT_DATA_DIR` | `.raphael-agent-data` | RunStore |

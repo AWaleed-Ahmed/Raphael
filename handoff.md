@@ -3,7 +3,7 @@
 **Audience:** teammate picking up the repo  
 **Repo:** https://github.com/AWaleed-Ahmed/Raphael (private)  
 **Branch:** `main` (tracking `origin/main`)  
-**Last agent work:** Pilot-week Option A — runbook, FR-065 feedback, guardrail tests (`036f9fb`)
+**Last agent work:** Phase 6 dual-path (CI templates + labeled Issues / optional model)
 
 This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [`CODING_RULE.md`](CODING_RULE.md), [`decision.md`](decision.md).
 
@@ -13,12 +13,12 @@ This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [
 
 Self-healing **deployment** agent for Kubernetes + GitHub:
 
-1. Detect CI / workload failure  
+1. Detect CI / workload failure **or** a labeled GitHub Issue  
 2. Collect evidence (redacted)  
 3. Reproduce in an **isolated sandbox** (not production)  
-4. Propose a **minimal** config/manifest fix  
+4. Propose a **minimal** config/manifest fix (templates on CI path; optional model on Issues path)  
 5. Validate in the same sandbox → freeze `result_id`  
-6. Open a **draft** GitHub PR (human merges)  
+6. Deliver via **draft PR** (Route A) or **issue fix snippet** (Route B; human opens PR)  
 
 **Never:** auto-merge, production cluster writes, reading Kubernetes Secret payloads, free-form `kubectl` from the agent.
 
@@ -29,7 +29,7 @@ Self-healing **deployment** agent for Kubernetes + GitHub:
 | Track | Owner role | Location | Status |
 |-------|------------|----------|--------|
 | **Engineer A — Sandbox** | Reproduce / prove fixes | `sandbox/` + `contracts/sandbox/` | **Done** (P0–P2) |
-| **Engineer B — Agent** | Ingest → diagnose → patch → publish | `agent/` + `contracts/agent/` | **Done** Phases 0–5 + pilot-week Option A |
+| **Engineer B — Agent** | Ingest → diagnose → patch → publish | `agent/` + `contracts/agent/` | **Done** Phases 0–6; Option B next |
 
 Agent talks to sandbox **only** via typed HTTP (`create` → `deploy` → `observe` → `validate` → `finalize` → `destroy`). Sandbox never opens PRs.
 
@@ -49,17 +49,18 @@ Details: [`sandbox/CHECKLIST.md`](sandbox/CHECKLIST.md), [`sandbox/README.md`](s
 
 ### Agent (Engineer B)
 
-| Phase | What | Commit (approx) | Status |
-|-------|------|-----------------|--------|
-| **0** | `agent/` skeleton, `contracts/agent/`, LangGraph stub, sandbox client | `dd9ad79` | Done |
-| **1** | GitHub webhooks, RunStore, dedupe/cooldown/concurrency | `ab3adb2` | Done |
-| **2** | Deterministic analyzers + constrained patch loop (LLM off by default) | `a17a1dd` | Done |
-| **3** | Draft PR publish (`dry_run` default / live optional) | `7a4d0c0` | Done |
-| **4** | Budgets, injection fixtures, metrics | `8467e14` | Done |
-| **5** | Pilot docs + `PARTNER_MODE` / live failure-class allowlist | `73e2ae0` | Done |
-| **Pilot week (Option A)** | 5-day runbook, FR-065 feedback jsonl, guardrail tests | `036f9fb` | Done |
+| Phase | What | Status |
+|-------|------|--------|
+| **0** | `agent/` skeleton, `contracts/agent/`, LangGraph stub, sandbox client | Done |
+| **1** | GitHub webhooks, RunStore, dedupe/cooldown/concurrency | Done |
+| **2** | Deterministic analyzers + constrained patch loop (LLM off by default) | Done |
+| **3** | Draft PR publish (`dry_run` default / live optional) | Done |
+| **4** | Budgets, injection fixtures, metrics | Done |
+| **5** | Pilot docs + `PARTNER_MODE` / live failure-class allowlist | Done |
+| **Pilot week (Option A)** | 5-day runbook, FR-065 feedback jsonl, guardrail tests | Done (scaffolding) |
+| **6** | Dual-path: CI templates → draft PR; labeled Issues → optional model → fix snippet | Done |
 
-Decisions: `D-20260810-02` … `D-20260810-08` in [`decision.md`](decision.md).
+Decisions: `D-20260810-02` … `D-20260810-13` in [`decision.md`](decision.md).
 
 ### Happy-path graph
 
@@ -67,7 +68,18 @@ Decisions: `D-20260810-02` … `D-20260810-08` in [`decision.md`](decision.md).
 ingest → evidence → diagnose → reproduce → patch → validate → publish_or_escalate
 ```
 
-Terminals: `success_draft_pr_ready` | `escalated` | `failed_closed`
+Terminals: `success_draft_pr_ready` | `success_fix_proposed` | `escalated` | `failed_closed`
+
+---
+
+## Dual path (Phase 6)
+
+| Route | Trigger | Patch | Delivery |
+|-------|---------|-------|----------|
+| **A — CI** | `workflow_run` / `check_run` / deployment-status | Deterministic templates | Draft PR (partner gates) |
+| **B — Issues** | `issues` + `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`) | Optional LLM (`RAPHAEL_LLM_PATCH`) or `raphael-failure-class:` template | Issue comment snippet; human opens PR |
+
+Model env: `RAPHAEL_LLM_BASE_URL`, `RAPHAEL_LLM_MODEL`, `RAPHAEL_OPENAI_API_KEY`, `RAPHAEL_LLM_DIAGNOSIS`, `RAPHAEL_LLM_PATCH`.
 
 ---
 
@@ -82,12 +94,12 @@ Raphael/
 ├── decision.md                ← architecture decision log (append-only)
 ├── contracts/
 │   ├── sandbox/               ← frozen sandbox HTTP schemas
-│   └── agent/                 ← run_record, diagnosis, publish, feedback, …
+│   └── agent/                 ← run_record, diagnosis, publish, feedback, fix_rules, …
 ├── docs/
 │   ├── pilot-install.md
 │   ├── permission-matrix.md
 │   ├── pilot-acceptance.md
-│   └── pilot-week-runbook.md  ← 5-day partner plan
+│   ├── pilot-week-runbook.md  ← 5-day partner plan
 ├── agent/                     ← Python package `raphael_agent`
 └── sandbox/                   ← Rust Axum controller + kind + tests
 ```
@@ -109,7 +121,7 @@ python -m raphael_agent.scripts.pilot_go_nogo
 pytest -q
 ```
 
-Expect: `status=success_draft_pr_ready`, PR URL with `raphael_dry_run=1`, go/no-go `go=True`, **~75 passed / 1 skipped**.
+Expect: `status=success_draft_pr_ready`, PR URL with `raphael_dry_run=1`, go/no-go `go=True`, agent suite green.
 
 ### Sandbox mock (optional live path)
 
@@ -134,9 +146,9 @@ Encoded in code + [`docs/permission-matrix.md`](docs/permission-matrix.md) + `ag
 1. **Partner default is dry-run** — `RAPHAEL_PARTNER_MODE=dry_run` forces dry-run even if `PUBLISH_MODE=live`.
 2. **Live draft PR only if all of:** `PARTNER_MODE=allowlist` + `PUBLISH_MODE=live` + class in `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` + GitHub token.
 3. **Empty allowlist ⇒ no live PRs.**
-4. **No publish without** frozen sandbox `result_id` + passing validation.
-5. **Draft only** — never merge / no `RAPHAEL_AUTO_MERGE`.
-6. **LLM off by default** — `RAPHAEL_LLM_DIAGNOSIS=0`.
+4. **No publish without** frozen sandbox `result_id` + passing validation (issue-local `result_id` on Route B skipped sandbox).
+5. **Draft only** on Route A — never merge / no `RAPHAEL_AUTO_MERGE`. Route B never opens a PR.
+6. **LLM off by default** — `RAPHAEL_LLM_DIAGNOSIS=0` / `RAPHAEL_LLM_PATCH=0`.
 7. **Untrusted logs ≠ instructions** — injection fixtures must keep failing closed.
 8. **Contracts-first** — change `contracts/**/*.json` before Python/Rust types.
 9. Append decisions to `decision.md`; don’t rewrite history.
@@ -153,9 +165,11 @@ Encoded in code + [`docs/permission-matrix.md`](docs/permission-matrix.md) + `ag
 | `RAPHAEL_PARTNER_MODE` | `dry_run` | `dry_run` \| `allowlist` \| `diagnosis_only` |
 | `RAPHAEL_PUBLISH_MODE` | `dry_run` | Gated by partner mode |
 | `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | empty | e.g. `probe_misconfiguration` |
-| `RAPHAEL_GITHUB_TOKEN` | unset | Live draft only |
+| `RAPHAEL_GITHUB_TOKEN` | unset | Live draft / issue comments |
 | `RAPHAEL_GITHUB_WEBHOOK_SECRET` | unset | HMAC; set in real pilot |
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Keep off unless agreed |
+| `RAPHAEL_ISSUE_TRIGGER_LABEL` | `raphael:fix` | Route B |
+| `RAPHAEL_LLM_DIAGNOSIS` / `RAPHAEL_LLM_PATCH` | `0` | Keep off unless agreed |
+| `RAPHAEL_LLM_BASE_URL` / `RAPHAEL_LLM_MODEL` | OpenAI defaults | OpenAI-compatible / local OK |
 | `RAPHAEL_FEEDBACK_ON_PUBLISH` | unset | `1` logs draft/dry-run events |
 
 Full matrix: [`agent/README.md`](agent/README.md), [`docs/pilot-install.md`](docs/pilot-install.md).
@@ -172,39 +186,28 @@ Full matrix: [`agent/README.md`](agent/README.md), [`docs/pilot-install.md`](doc
 | `python -m raphael_agent.scripts.metrics` | RunStore aggregates |
 | `python -m raphael_agent.http_api.app` | Webhooks + `/v1/feedback` + `/v1/pilot/go-nogo` |
 | `pytest -q` | Agent suite |
-| `pytest -q tests/test_guardrails.py tests/test_injection.py …` | Guardrail regression |
 
 ---
 
 ## What’s next (recommended order)
 
-### 1. Real pilot week (ops — already documented)
+### 1. Real partner week (ops — still required for PRD Phase 5 exit)
 
-Follow [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md):
+Follow [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md). Run local Day 0–1 proofs first (`demo_partner`, `pilot_go_nogo`, `pytest -q`).
 
-- Day 0–1: secrets, webhook, local proof  
-- Day 2–3: ≥5 real dry-run failures + triage  
-- Day 4: go/no-go for live allowlist  
-- Day 5: optional **one** class live (`probe_misconfiguration` only) + feedback jsonl  
+Needs a real design partner for: permission approval, ≥5 real dry-run failures, optional live allowlist.
 
-### 2. Deferred engineering (Option B) — after pilot gaps
+### 2. Option B engineering
 
-Priority when coding again:
-
-1. **Kubernetes workload-health watcher** (FR-002) → same ingest normalize path  
-2. **GitHub App JWT** auth (alongside PAT)  
+1. Kubernetes workload-health watcher (FR-002)  
+2. GitHub App JWT auth  
 3. CODEOWNERS / reviewers hardening  
-4. Fuller FR-065 (learning loop still out of MVP)  
-5. Optional: sandbox JSON store → real SQLite (`sandbox/CHECKLIST.md`)
+4. Deeper FR-065 feedback use  
+5. Optional real SQLite for sandbox store  
 
-Do **not** invent auto-merge or production remediation.
+### 3. Post-MVP / product decisions
 
-### 3. Working style that worked here
-
-- One phase (or Option) per PR/commit; test before commit  
-- Prefer Sonnet for glue; **Fable/Sol High** for diagnosis/patch/policy  
-- Smoke: `demo_partner` + `pytest -q` before claiming done  
-- Update `decision.md` + READMEs when behavior/defaults change  
+prd §25–§26 with the design partner.
 
 ---
 
@@ -230,4 +233,4 @@ Do **not** invent auto-merge or production remediation.
 
 ## Contact / continuity
 
-If continuing with an AI coding agent: point it at this file + `prd.md` + `CODING_RULE.md` + `decision.md`, and ask for **Option B.1 (K8s watcher)** or **pilot-week Day N support** — not a rewrite of sandbox/agent phases already marked Done.
+If continuing with an AI coding agent: point it at this file + `prd.md` + `CODING_RULE.md` + `decision.md`, and ask for **real partner-week Day N support** or **Post-MVP adapters** — not a rewrite of sandbox/agent phases already marked Done.

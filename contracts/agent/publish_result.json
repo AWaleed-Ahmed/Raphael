@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raphael.dev/contracts/agent/publish_result.json",
   "title": "PublishResult",
-  "description": "Outcome of draft GitHub PR publication from a frozen sandbox result_id",
+  "description": "Outcome of draft GitHub PR (Route A) or issue fix-snippet delivery (Route B)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -22,18 +22,23 @@
       "enum": ["dry_run", "live"],
       "description": "RAPHAEL_PUBLISH_MODE; default dry_run for tests/CI"
     },
+    "delivery": {
+      "type": "string",
+      "enum": ["draft_pr", "issue_snippet"],
+      "description": "Route A draft_pr vs Route B issue_snippet"
+    },
     "draft": {
       "type": "boolean",
-      "description": "Always true in Phase 3 — never merge/auto-merge"
+      "description": "True for draft PRs; false for issue_snippet delivery"
     },
     "result_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Sandbox validated_fix_record.result_id this PR is gated on"
+      "description": "Sandbox validated_fix_record.result_id this delivery is gated on"
     },
     "branch": {
       "type": "string",
-      "description": "Agent branch name raphael/<run-id>-<summary>"
+      "description": "Agent branch name raphael/<run-id>-<summary> (empty for issue_snippet)"
     },
     "base_branch": {
       "type": "string",
@@ -46,6 +51,14 @@
     "pull_request_number": {
       "type": ["integer", "null"],
       "minimum": 1
+    },
+    "issue_number": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "issue_comment_url": {
+      "type": ["string", "null"],
+      "description": "Posted fix-snippet comment URL (Route B)"
     },
     "title": { "type": "string" },
     "dry_run": {
@@ -69,6 +82,10 @@
     "committed_files": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "fix_snippet": {
+      "type": ["string", "null"],
+      "description": "Unified or file-contents snippet posted for human PR"
     }
   }
 }

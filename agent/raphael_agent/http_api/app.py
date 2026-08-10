@@ -32,11 +32,12 @@ def _ignored_trigger_kind(event_name: str) -> str:
         "workflow_run": "github_workflow_run",
         "check_run": "github_check_run",
         "deployment_status": "github_deployment_status",
+        "issues": "github_issue",
     }.get(event_name, "manual")
 
 
 async def health(_: Request) -> JSONResponse:
-    return JSONResponse({"ok": True, "service": "raphael-agent", "phase": "pilot-week"})
+    return JSONResponse({"ok": True, "service": "raphael-agent", "phase": "phase6-dual-path"})
 
 
 async def metrics(_: Request) -> JSONResponse:

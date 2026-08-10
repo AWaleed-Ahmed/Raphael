@@ -35,10 +35,11 @@
         "pending",
         "running",
         "success_draft_pr_ready",
+        "success_fix_proposed",
         "escalated",
         "failed_closed"
       ],
-      "description": "Phase 0 terminals: success_draft_pr_ready | escalated | failed_closed"
+      "description": "Terminals: success_draft_pr_ready (CI draft PR) | success_fix_proposed (Issues snippet) | escalated | failed_closed"
     },
     "current_node": {
       "type": ["string", "null"],
@@ -66,6 +67,7 @@
             "github_workflow_run",
             "github_check_run",
             "github_deployment_status",
+            "github_issue",
             "k8s_workload",
             "fixture",
             "manual"
@@ -78,6 +80,38 @@
           "description": "Pointer to stored raw event; not the full payload"
         }
       }
+    },
+    "delivery_mode": {
+      "type": "string",
+      "enum": ["draft_pr", "issue_snippet"],
+      "description": "Route A draft_pr vs Route B issue_snippet (human opens PR)"
+    },
+    "issue_number": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "GitHub issue number for Route B"
+    },
+    "issue_labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Labels present on the triggering issue"
+    },
+    "issue_title": { "type": ["string", "null"] },
+    "issue_body": {
+      "type": ["string", "null"],
+      "description": "Bounded issue body used as evidence (may be truncated)"
+    },
+    "failure_class_hint": {
+      "type": ["string", "null"],
+      "description": "Optional raphael-failure-class from issue body for template path"
+    },
+    "issue_comment_url": {
+      "type": ["string", "null"],
+      "description": "URL of the fix-snippet comment posted on Route B"
+    },
+    "fix_rules": {
+      "description": "Preset or derived Route B fix constraints",
+      "$ref": "fix_rules.json"
     },
     "failure_fingerprint": {
       "type": "string",

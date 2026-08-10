@@ -1,0 +1,24 @@
+{
+  "action": "labeled",
+  "label": {
+    "name": "raphael:fix"
+  },
+  "issue": {
+    "number": 42,
+    "title": "Readiness probe points at wrong port",
+    "state": "open",
+    "body": "Please fix the probe.\n\nraphael-sha: abcdef1234567890abcdef1234567890abcdef12\nraphael-failure-class: probe_misconfiguration\n",
+    "labels": [
+      { "name": "raphael:fix" },
+      { "name": "bug" }
+    ]
+  },
+  "repository": {
+    "name": "demo",
+    "clone_url": "https://github.com/raphael/demo.git",
+    "default_branch": "main",
+    "owner": {
+      "login": "raphael"
+    }
+  }
+}

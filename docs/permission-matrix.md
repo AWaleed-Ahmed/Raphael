@@ -10,7 +10,7 @@ Human-readable + machine-oriented summary of what Raphael may and may not do in 
 
 | Surface | Allowed | Denied |
 |---------|---------|--------|
-| GitHub | Read metadata; write agent branches; open **draft** PRs; optional labels/reviewers | Merge, admin, force-push to protected defaults, delete repos, read org secrets |
+| GitHub | Read metadata; write agent branches; open **draft** PRs (Route A); comment fix snippets on Issues (Route B); optional labels/reviewers | Merge, admin, force-push to protected defaults, delete repos, read org secrets |
 | Production Kubernetes | get/list/watch allowlisted workloads/events/logs (bounded) | create/update/patch/delete; read Secret **data**; exec; port-forward to prod for mutation |
 | Sandbox cluster | Via sandbox controller only (create/deploy/observe/validate/finalize/destroy) | Agent holding sandbox kubeconfig; free-form kubectl API |
 | Agent host secrets | Env vars for webhook HMAC + GitHub token (operator-managed) | Committing tokens; logging plaintext secrets |
@@ -25,6 +25,7 @@ Human-readable + machine-oriented summary of what Raphael may and may not do in 
 | `contents:read` | Required | On |
 | `contents:write` (agent branches `raphael/*`) | Live publish only | Off until allowlist |
 | `pull_requests:write` (draft=true) | Live publish only | Off until allowlist |
+| `issues:write` (comments only) | Route B live snippet | Off until live issue comments |
 | Checks / commit status read | Optional | Optional |
 | Request reviewers | Optional (`RAPHAEL_GITHUB_REVIEWERS`) | Optional |
 | Merge / bypass branch protection | — | **Denied** |
@@ -35,6 +36,8 @@ Env gates (code-enforced):
 - `RAPHAEL_PARTNER_MODE=dry_run` → always dry-run placeholder URL
 - `RAPHAEL_PARTNER_MODE=allowlist` + `RAPHAEL_PUBLISH_MODE=live` + class in `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` + token → draft PR
 - Empty `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` → **no** live PRs
+- Route B (`delivery_mode=issue_snippet`): posts an issue comment with a fix snippet; **never** opens a PR. Human opens the PR.
+- Issue trigger label: `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`)
 
 ---
 

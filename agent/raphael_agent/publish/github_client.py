@@ -187,3 +187,17 @@ class GitHubPublisher:
             except GitHubApiError:
                 pass
         return pr
+
+    def create_issue_comment(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        issue_number: int,
+        body: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            json={"body": body},
+        )

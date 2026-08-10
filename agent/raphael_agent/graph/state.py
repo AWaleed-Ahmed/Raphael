@@ -50,6 +50,14 @@ class RunState(TypedDict, total=False):
     audit_events: list[dict[str, Any]]
     failure_fingerprint: str
     correlation: dict[str, Any]
+    delivery_mode: str
+    issue_number: int
+    issue_labels: list[str]
+    issue_title: str | None
+    issue_body: str | None
+    issue_comment_url: str | None
+    failure_class_hint: str | None
+    fix_rules: dict[str, Any]
     # Ephemeral graph routing flag (stripped before run_record schema validation)
     validation_retryable: bool
 
@@ -69,7 +77,11 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
     trigger = dict(seed["trigger"])
     if not trigger.get("received_at"):
         trigger["received_at"] = now
-    return RunState(
+    trigger_kind = trigger.get("kind")
+    delivery = seed.get("delivery_mode")
+    if not delivery:
+        delivery = "issue_snippet" if trigger_kind == "github_issue" else "draft_pr"
+    state = RunState(
         run_id=run_id,
         tenant_id=seed["tenant_id"],
         audit_id=seed.get("audit_id", run_id),
@@ -103,4 +115,18 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         terminal_reason=None,
         errors=[],
         audit_events=[],
+        delivery_mode=delivery,
     )
+    if seed.get("issue_number") is not None:
+        state["issue_number"] = seed["issue_number"]
+    if seed.get("issue_labels") is not None:
+        state["issue_labels"] = list(seed["issue_labels"])
+    if seed.get("issue_title") is not None:
+        state["issue_title"] = seed["issue_title"]
+    if seed.get("issue_body") is not None:
+        state["issue_body"] = seed["issue_body"]
+    if seed.get("failure_class_hint") is not None:
+        state["failure_class_hint"] = seed["failure_class_hint"]
+    if seed.get("fix_rules") is not None:
+        state["fix_rules"] = seed["fix_rules"]
+    return state

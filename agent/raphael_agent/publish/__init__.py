@@ -66,16 +66,20 @@ def _fail(
     branch: str,
     base: str,
     mode: str,
+    delivery: str = "draft_pr",
 ) -> dict[str, Any]:
     out = {
         "ok": False,
         "mode": mode,
-        "draft": True,
+        "delivery": delivery,
+        "draft": delivery == "draft_pr",
         "result_id": result_id or "",
-        "branch": branch,
+        "branch": branch if delivery == "draft_pr" else "",
         "base_branch": base,
         "pull_request_url": None,
         "pull_request_number": None,
+        "issue_number": None,
+        "issue_comment_url": None,
         "title": "",
         "dry_run": mode == "dry_run",
         "idempotent_replay": False,
@@ -83,12 +87,227 @@ def _fail(
         "message": message,
         "html_compare_url": None,
         "committed_files": [],
+        "fix_snippet": None,
     }
-    # result_id required in schema — use placeholder when missing for validation of error path? 
-    # Schema requires minLength 1. Use "missing" sentinel for fail-closed paths.
     if not out["result_id"]:
         out["result_id"] = "missing"
     return out
+
+
+def _build_fix_snippet(run: dict[str, Any], files: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    rationale = ""
+    active = run.get("active_patch_id")
+    for patch in run.get("candidate_patches") or []:
+        if patch.get("patch_id") == active:
+            rationale = (patch.get("rationale") or {}).get("summary") or ""
+            break
+    parts.append("## Raphael proposed fix (Route B)")
+    parts.append("")
+    parts.append(
+        "Raphael does **not** open a PR on the Issues path. "
+        "Copy the snippet below into a branch/PR when you are ready."
+    )
+    parts.append("")
+    if rationale:
+        parts.append(f"**Summary:** {rationale}")
+        parts.append("")
+    parts.append(f"**run_id:** `{run.get('run_id')}`")
+    parts.append(f"**result_id:** `{run.get('result_id')}`")
+    parts.append(f"**commit_sha:** `{run.get('commit_sha')}`")
+    rules = run.get("fix_rules") or {}
+    if rules:
+        parts.append(f"**fix_rules source:** `{rules.get('source')}`")
+    parts.append("")
+    for entry in files:
+        path = entry["path"]
+        content = entry.get("content") or ""
+        parts.append(f"### `{path}`")
+        parts.append("")
+        parts.append("```")
+        parts.append(content[:6000])
+        parts.append("```")
+        parts.append("")
+    return "\n".join(parts).strip() + "\n"
+
+
+def _publish_issue_snippet(
+    run: dict[str, Any],
+    *,
+    github: GitHubPublisher | None = None,
+) -> dict[str, Any]:
+    """Route B: post fix snippet on the issue; never open a PR."""
+    mode = effective_publish_mode(run)
+    # Issue snippets ignore partner draft-PR allowlist; still respect diagnosis_only.
+    if partner_mode() == "diagnosis_only":
+        mode = "dry_run"
+    base = base_branch()
+    result_id = run.get("result_id")
+    issue_number = run.get("issue_number")
+    repo = run.get("repository") or {}
+    owner = repo.get("owner")
+    name = repo.get("name")
+
+    existing = run.get("publish") or {}
+    if existing.get("ok") and existing.get("delivery") == "issue_snippet":
+        replay = dict(existing)
+        replay["idempotent_replay"] = True
+        replay["message"] = "Reused existing issue fix snippet (idempotent)"
+        validate_agent("publish_result.json", replay)
+        return replay
+
+    if run.get("status") in {"escalated", "failed_closed"}:
+        return _fail(
+            error="run_not_publishable",
+            message=f"Refuse to deliver snippet when status={run.get('status')}",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+    if not result_id:
+        return _fail(
+            error="result_id_required",
+            message="Issue snippet requires a result_id (sandbox or issue-local)",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+    if not issue_number:
+        return _fail(
+            error="issue_number_required",
+            message="Issue snippet delivery requires issue_number",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+    if not owner or not name:
+        return _fail(
+            error="repository_required",
+            message="repository.owner/name required",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+
+    files = _active_patch_files(run)
+    if not files:
+        return _fail(
+            error="no_patch_files",
+            message="Issue snippet requires constrained patch file contents",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+    snippet = _build_fix_snippet(run, files)
+    title = pr_title_for_run(run)
+
+    if mode == "dry_run":
+        placeholder = (
+            f"https://github.com/{owner}/{name}/issues/{issue_number}"
+            f"#raphael_fix_snippet_dry_run=1"
+        )
+        result = {
+            "ok": True,
+            "mode": "dry_run",
+            "delivery": "issue_snippet",
+            "draft": False,
+            "result_id": result_id,
+            "branch": "",
+            "base_branch": base,
+            "pull_request_url": None,
+            "pull_request_number": None,
+            "issue_number": int(issue_number),
+            "issue_comment_url": placeholder,
+            "title": title,
+            "dry_run": True,
+            "idempotent_replay": False,
+            "error": None,
+            "message": (
+                f"Dry-run issue fix snippet prepared for #{issue_number}; "
+                "no GitHub mutation (developer opens the PR)"
+            ),
+            "html_compare_url": None,
+            "committed_files": [f["path"] for f in files],
+            "fix_snippet": snippet,
+        }
+        validate_agent("publish_result.json", result)
+        return result
+
+    if not github_token() and github is None:
+        return _fail(
+            error="github_token_required",
+            message="Live issue comment requires RAPHAEL_GITHUB_TOKEN",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+
+    client = github or GitHubPublisher()
+    try:
+        comment = client.create_issue_comment(
+            owner,
+            name,
+            issue_number=int(issue_number),
+            body=snippet,
+        )
+        url = comment.get("html_url")
+        result = {
+            "ok": True,
+            "mode": "live",
+            "delivery": "issue_snippet",
+            "draft": False,
+            "result_id": result_id,
+            "branch": "",
+            "base_branch": base,
+            "pull_request_url": None,
+            "pull_request_number": None,
+            "issue_number": int(issue_number),
+            "issue_comment_url": url,
+            "title": title,
+            "dry_run": False,
+            "idempotent_replay": False,
+            "error": None,
+            "message": (
+                f"Posted fix snippet on issue #{issue_number}; developer opens the PR"
+            ),
+            "html_compare_url": None,
+            "committed_files": [f["path"] for f in files],
+            "fix_snippet": snippet,
+        }
+        validate_agent("publish_result.json", result)
+        return result
+    except GitHubApiError as exc:
+        return _fail(
+            error="github_api_error",
+            message=f"GitHub API error HTTP {exc.status_code}: {exc}",
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _fail(
+            error="publish_failed",
+            message=str(exc),
+            result_id=result_id,
+            branch="",
+            base=base,
+            mode=mode,
+            delivery="issue_snippet",
+        )
 
 
 def publish(
@@ -96,7 +315,17 @@ def publish(
     *,
     github: GitHubPublisher | None = None,
 ) -> dict[str, Any]:
-    """Open a draft PR (or dry-run) gated on ``result_id``. Never merges."""
+    """Deliver a draft PR (Route A) or issue fix snippet (Route B). Never merges."""
+    delivery = run.get("delivery_mode")
+    if not delivery:
+        delivery = (
+            "issue_snippet"
+            if (run.get("trigger") or {}).get("kind") == "github_issue"
+            else "draft_pr"
+        )
+    if delivery == "issue_snippet":
+        return _publish_issue_snippet(run, github=github)
+
     mode = effective_publish_mode(run)
     partner = partner_mode()
     base = base_branch()
@@ -108,6 +337,7 @@ def publish(
     existing = run.get("publish") or {}
     if run.get("pull_request_url") and existing.get("ok"):
         replay = dict(existing)
+        replay.setdefault("delivery", "draft_pr")
         replay["idempotent_replay"] = True
         replay["message"] = "Reused existing pull_request_url (idempotent)"
         validate_agent("publish_result.json", replay)
@@ -178,6 +408,7 @@ def publish(
         result = {
             "ok": True,
             "mode": "dry_run",
+            "delivery": "draft_pr",
             "draft": True,
             "result_id": result_id,
             "branch": branch,
@@ -222,7 +453,6 @@ def publish(
     client = github or GitHubPublisher()
     try:
         head_sha = run.get("commit_sha") or client.get_ref_sha(owner, name, base)
-        # Prefer creating branch from base tip so PR is mergeable; fall back to commit_sha.
         try:
             from_sha = client.get_ref_sha(owner, name, base)
         except GitHubApiError:
@@ -254,6 +484,7 @@ def publish(
         result = {
             "ok": True,
             "mode": "live",
+            "delivery": "draft_pr",
             "draft": True,
             "result_id": result_id,
             "branch": branch,

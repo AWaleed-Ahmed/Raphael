@@ -72,6 +72,29 @@ def diagnose(run: dict[str, Any]) -> dict[str, Any]:
         if e.get("evidence_id")
     ]
     hits = analyze_run(run)
+    hint = run.get("failure_class_hint")
+    is_issue = (run.get("trigger") or {}).get("kind") == "github_issue" or run.get(
+        "delivery_mode"
+    ) == "issue_snippet"
+
+    # Route B: explicit failure-class hint in the issue body.
+    if is_issue and hint and not any(h.failure_class == hint for h in hits):
+        from raphael_agent.diagnosis.analyzers import AnalyzerHit
+
+        hits = [
+            AnalyzerHit(
+                failure_class=str(hint),
+                category="supported",
+                confidence=max(threshold, 0.75),
+                statement=f"Issue requested failure class `{hint}`",
+                hypothesis_id=f"hyp-issue-{hint}",
+                expected_signature_key=None,
+                candidate_fix_hint="Use template or model patch for requested class",
+                supporting_evidence_ids=evidence_ids,
+                analyzer_name="issue_failure_class_hint",
+            )
+        ] + list(hits)
+
     if not hits:
         result = _unknown_result(
             evidence_ids,
@@ -137,6 +160,47 @@ def diagnose(run: dict[str, Any]) -> dict[str, Any]:
                 if category != "blocked":
                     refined["confidence"] = 0.0
             result = refined
+
+    # Route B + model patch: allow a synthetic supported selection so graph reaches patch.
+    if (
+        is_issue
+        and result.get("selected_hypothesis_id") is None
+        and (result.get("classification") or {}).get("category") != "blocked"
+    ):
+        from raphael_agent.patch.llm import llm_patch_enabled
+
+        if llm_patch_enabled():
+            result = {
+                "classification": {
+                    "category": "supported",
+                    "failure_class": hint or "issue_model_fix",
+                    "blocked_reason": None,
+                },
+                "hypotheses": [
+                    {
+                        "hypothesis_id": "hyp-issue-model",
+                        "rank": 1,
+                        "statement": "Labeled issue requested a model-assisted fix",
+                        "confidence": max(threshold, 0.7),
+                        "failure_class": hint or "issue_model_fix",
+                        "expected_signature_key": None,
+                        "supporting_evidence_ids": evidence_ids,
+                        "contradicting_evidence_ids": [],
+                        "candidate_fix_hint": "LLM patch under fix_rules",
+                    }
+                ],
+                "selected_hypothesis_id": "hyp-issue-model",
+                "confidence": max(threshold, 0.7),
+                "confidence_threshold": threshold,
+                "supporting_evidence_ids": evidence_ids,
+                "analyzer": {
+                    "name": "issue_model_gate",
+                    "mode": "hybrid",
+                    "version": "0.1.0",
+                },
+                "notes": "Issue route with RAPHAEL_LLM_PATCH enabled",
+                "diagnosed_at": utc_now(),
+            }
 
     validate_agent("diagnosis_result.json", result)
     return result

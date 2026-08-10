@@ -19,6 +19,7 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 | `budget_snapshot.json` | Wall/attempt/cost caps captured at run start |
 | `feedback_event.json` | FR-065 human/PR outcome audit event (jsonl) |
 | `escalation_report.json` | Safe stop: why no PR, what was tried, next checks |
+| `fix_rules.json` | Preset/derived Route B writable-path + must/must-not constraints |
 
 ## Compatibility notes
 
@@ -27,14 +28,16 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 - `result_id` / frozen record → [`../sandbox/validated_fix_record.json`](../sandbox/validated_fix_record.json)
 - Sandbox lifecycle remains six verbs (+ health / GET result); agent never gets raw kubectl.
 - `run_record.failure_fingerprint` + `correlation` support FR-003/004 ingest.
-- Publish is **draft-only**; `RAPHAEL_PUBLISH_MODE=dry_run` (default) never mutates GitHub.
+- Publish is **draft-only** on Route A; Route B delivers an **issue fix snippet** (human opens the PR).
+- `RAPHAEL_PUBLISH_MODE=dry_run` (default) never mutates GitHub.
 
 ## Terminal statuses
 
 Graph terminals:
 
-- `success_draft_pr_ready` — validated `result_id` + publish attempted (dry-run or live draft PR)
-- `escalated` — insufficient confidence / unreproducible / policy / budget
+- `success_draft_pr_ready` — validated `result_id` + draft PR publish attempted (dry-run or live)
+- `success_fix_proposed` — Route B fix snippet prepared/posted; developer opens the PR
+- `escalated` — insufficient confidence / unreproducible / policy / budget / model required
 - `failed_closed` — mandatory check unavailable or system error
 
 Ingest-only decisions (see `ingest_decision.json`) do not always create a run.

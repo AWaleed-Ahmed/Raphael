@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/fix_rules.json",
+  "title": "FixRules",
+  "description": "Preset or derived rules for Route B (labeled Issues) fix attempts. Derived rules cannot widen global patch allowlist or disable budgets/redaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "writable_path_prefixes", "created_at"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": ["preset", "derived"],
+      "description": "preset = .raphael/issue-fix.yaml; derived = bounded repo files"
+    },
+    "source_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Repo-relative files used to load or derive these rules"
+    },
+    "writable_path_prefixes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Intersection with RAPHAEL_PATCH_ALLOWLIST is applied in code"
+    },
+    "must": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Positive constraints the fix should satisfy"
+    },
+    "must_not": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Hard negatives (secrets, privilege escalation, etc.)"
+    },
+    "test_commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional allowlisted validation hints (informational)"
+    },
+    "notes": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

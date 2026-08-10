@@ -8,6 +8,12 @@ from typing import Any
 
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest.fingerprint import build_fingerprint, provisional_failure_key
+from raphael_agent.ingest.issue_config import (
+    default_commit_sha_fallback,
+    extract_failure_class_hint,
+    issue_trigger_label,
+    parse_raphael_sha,
+)
 
 
 def _tenant_id(explicit: str | None = None) -> str:
@@ -78,6 +84,20 @@ def normalize_fixture_event(event: dict[str, Any]) -> dict[str, Any]:
         "manifests": manifests,
         "correlation": correlation,
     }
+    if event.get("delivery_mode"):
+        seed["delivery_mode"] = event["delivery_mode"]
+    if event.get("issue_number") is not None:
+        seed["issue_number"] = event["issue_number"]
+    if event.get("issue_labels") is not None:
+        seed["issue_labels"] = list(event["issue_labels"])
+    if event.get("issue_title") is not None:
+        seed["issue_title"] = event["issue_title"]
+    if event.get("issue_body") is not None:
+        seed["issue_body"] = event["issue_body"]
+    if event.get("failure_class_hint") is not None:
+        seed["failure_class_hint"] = event["failure_class_hint"]
+    if event.get("fix_rules") is not None:
+        seed["fix_rules"] = event["fix_rules"]
     seed["failure_fingerprint"] = build_fingerprint(seed)
     # ensure provisional key stable on seed
     seed["correlation"]["provisional_failure_key"] = provisional_failure_key(seed)
@@ -244,6 +264,105 @@ def normalize_github_deployment_status(
     return seed
 
 
+def normalize_github_issue(
+    payload: dict[str, Any],
+    *,
+    raw_ref: str,
+    received_at: str | None = None,
+    tenant_id: str | None = None,
+    trigger_label: str | None = None,
+    commit_sha: str | None = None,
+) -> dict[str, Any]:
+    """Normalize a labeled GitHub Issues webhook into a Route B run seed."""
+    action = (payload.get("action") or "").lower()
+    if action not in {"opened", "labeled", "reopened"}:
+        raise ValueError(f"issues action ignored: {action or 'none'}")
+
+    issue = payload.get("issue") or {}
+    if issue.get("pull_request"):
+        raise ValueError("issues event is a pull request; ignored")
+    if issue.get("state") and str(issue.get("state")).lower() != "open":
+        raise ValueError("issue is not open")
+
+    required = trigger_label or issue_trigger_label()
+    labels = []
+    for entry in issue.get("labels") or []:
+        if isinstance(entry, dict):
+            name = entry.get("name")
+        else:
+            name = str(entry)
+        if name:
+            labels.append(str(name))
+
+    if action == "labeled":
+        labeled = payload.get("label") or {}
+        labeled_name = labeled.get("name") if isinstance(labeled, dict) else None
+        if labeled_name and str(labeled_name) != required and required not in labels:
+            raise ValueError(f"label event is not trigger label: {labeled_name}")
+        if labeled_name and str(labeled_name) == required and required not in labels:
+            labels.append(required)
+
+    if required not in labels:
+        raise ValueError(f"issue missing trigger label: {required}")
+
+    repository = _repo_from_github(payload.get("repository") or {})
+    body = issue.get("body") or ""
+    if not isinstance(body, str):
+        body = str(body)
+    # Bound body stored on the seed / run.
+    body_bound = body[:8000]
+
+    sha = commit_sha or parse_raphael_sha(body) or default_commit_sha_fallback()
+    if not sha:
+        # Placeholder resolved later via GitHub API when token available.
+        sha = "pending0"
+    if len(str(sha)) < 7:
+        raise ValueError("commit sha too short")
+
+    issue_number = issue.get("number")
+    if not issue_number:
+        raise ValueError("issue missing number")
+
+    failure_hint = extract_failure_class_hint(body)
+    provisional = f"github_issue|{required}|{issue_number}"
+    if failure_hint:
+        provisional = f"github_issue|{required}|{issue_number}|{failure_hint}"
+
+    correlation = {
+        "deployment_config_path": None,
+        "namespace": None,
+        "workload": None,
+        "workflow_name": None,
+        "check_name": None,
+        "provisional_failure_key": provisional,
+    }
+    seed: dict[str, Any] = {
+        "run_id": f"ghi-{issue_number}",
+        "tenant_id": _tenant_id(tenant_id),
+        "trigger": {
+            "kind": "github_issue",
+            "event_id": f"issues:{issue_number}:{action}",
+            "received_at": received_at or utc_now(),
+            "raw_ref": raw_ref,
+        },
+        "repository": repository,
+        "commit_sha": str(sha),
+        "target_environment": os.environ.get("RAPHAEL_DEFAULT_ENVIRONMENT"),
+        "affected_resources": [],
+        "workspace_path": None,
+        "manifests": None,
+        "correlation": correlation,
+        "delivery_mode": "issue_snippet",
+        "issue_number": int(issue_number),
+        "issue_labels": labels,
+        "issue_title": issue.get("title"),
+        "issue_body": body_bound,
+        "failure_class_hint": failure_hint,
+    }
+    seed["failure_fingerprint"] = build_fingerprint(seed)
+    return seed
+
+
 def normalize_failed_run_event(event: dict[str, Any]) -> dict[str, Any]:
     """Unified entry: fixture seed or already-normalized GitHub seed dict.
 
@@ -268,6 +387,13 @@ def normalize_failed_run_event(event: dict[str, Any]) -> dict[str, Any]:
         return normalize_github_deployment_status(
             event,
             raw_ref=event.get("raw_ref") or "inline:deployment_status",
+            received_at=event.get("received_at"),
+            tenant_id=event.get("tenant_id"),
+        )
+    if event.get("issue") and event.get("action"):
+        return normalize_github_issue(
+            event,
+            raw_ref=event.get("raw_ref") or "inline:issues",
             received_at=event.get("received_at"),
             tenant_id=event.get("tenant_id"),
         )

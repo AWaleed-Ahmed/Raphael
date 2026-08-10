@@ -1,6 +1,6 @@
 # Raphael Agent (Engineer B)
 
-Phase 5 + pilot week: partner dry-run default, failure-class allowlist, FR-065 feedback audit, guardrail tests.
+Phase 6 dual-path: **Route A** CI templates → draft PR; **Route B** labeled Issues → optional custom model → fix snippet (developer opens the PR).
 
 **Still non-goals:** auto-merge, production cluster writes, K8s watcher. LLM **off** by default.
 
@@ -10,6 +10,24 @@ Pilot docs:
 - [`docs/permission-matrix.md`](../docs/permission-matrix.md)
 - [`docs/pilot-acceptance.md`](../docs/pilot-acceptance.md)
 - [`docs/pilot-week-runbook.md`](../docs/pilot-week-runbook.md) ← **5-day plan**
+
+---
+
+## Dual path
+
+| Route | Trigger | Patch source | Delivery |
+|-------|---------|--------------|----------|
+| **A — CI** | `workflow_run` / `check_run` / deployment-status | Deterministic templates | Draft PR (partner dry-run / allowlist) |
+| **B — Issues** | `issues` with `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`) | Optional model (`RAPHAEL_LLM_PATCH`) or template if `raphael-failure-class:` set | Issue comment with fix snippet; **human opens PR** |
+
+Issue body helpers:
+
+```text
+raphael-sha: <commit>
+raphael-failure-class: probe_misconfiguration
+```
+
+Fix rules: `.raphael/issue-fix.yaml` if present; otherwise derived from `.raphael/config.yaml`, `CONTRIBUTING.md`, `CODEOWNERS` (cannot widen global allowlist).
 
 ---
 
@@ -29,11 +47,31 @@ pip install -e .
 | `RAPHAEL_PARTNER_MODE` | `dry_run` | `dry_run` \| `allowlist` \| `diagnosis_only` |
 | `RAPHAEL_PUBLISH_MODE` | `dry_run` | Raw preference; gated by partner mode |
 | `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | _(empty)_ | Empty ⇒ **no** live PRs; e.g. `probe_misconfiguration` |
-| `RAPHAEL_GITHUB_TOKEN` | unset | Required for live draft only |
+| `RAPHAEL_GITHUB_TOKEN` | unset | Required for live draft / live issue comments |
 | `RAPHAEL_GITHUB_REVIEWERS` | unset | Optional reviewer logins |
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Keep off for pilot unless agreed |
+| `RAPHAEL_ISSUE_TRIGGER_LABEL` | `raphael:fix` | Route B label |
 | `RAPHAEL_FEEDBACK_RECORDER` | `jsonl` | `jsonl` \| `off` |
 | `RAPHAEL_FEEDBACK_ON_PUBLISH` | unset | `1` to log dry_run_prepared / draft_opened |
+
+### Optional model (OpenAI-compatible, including local)
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Enable LLM diagnosis refine |
+| `RAPHAEL_LLM_PATCH` | `0` | Enable Route B model patches (also needs diagnosis=1) |
+| `RAPHAEL_LLM_BASE_URL` | `https://api.openai.com/v1` | API root; client POSTs `{base}/chat/completions` |
+| `RAPHAEL_LLM_MODEL` | `gpt-4o-mini` | Model name |
+| `RAPHAEL_OPENAI_API_KEY` or `OPENAI_API_KEY` | unset | Bearer token (required when LLM on) |
+
+Local example (Ollama):
+
+```bash
+export RAPHAEL_LLM_DIAGNOSIS=1
+export RAPHAEL_LLM_PATCH=1
+export RAPHAEL_LLM_BASE_URL=http://127.0.0.1:11434/v1
+export RAPHAEL_LLM_MODEL=llama3.2
+export RAPHAEL_OPENAI_API_KEY=ollama
+```
 
 Live draft PR only when: `PARTNER_MODE=allowlist` **and** `PUBLISH_MODE=live` **and** class allowlisted **and** token present.
 
@@ -67,7 +105,7 @@ python -m raphael_agent.scripts.record_feedback --outcome merged --pr-number 12 
 ## Guardrails
 
 ```bash
-pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mode.py tests/test_feedback.py
+pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mode.py tests/test_feedback.py tests/test_phase6_issues.py
 # HTTP: GET /v1/pilot/go-nogo
 ```
 
