@@ -77,8 +77,9 @@ Sandbox never owns these. Status as of Agent Phase 6 (dual-path):
 - [x] Prompt-injection agent policy tests (`agent/fixtures/injection/`)
 - [x] Partner install + permission matrix + acceptance checklist (`docs/`)
 - [x] Phase 6 dual-path: labeled Issues (`RAPHAEL_ISSUE_TRIGGER_LABEL`) + optional model patch + issue fix-snippet delivery
+- [x] Option B: K8s webhook ingest (`RAPHAEL_K8S_WATCHER`), App JWT fallback, CODEOWNERS reviewers, SQLite RunStore opt-in
 
-Still open: K8s watcher, App JWT as primary auth, full FR-065 learning loop, multi-tenant SaaS.
+Still open: real design-partner week (≥5 dry-run failures + permission approval), full FR-065 learning loop, multi-tenant SaaS.
 
 ---
 

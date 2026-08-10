@@ -1,0 +1,16 @@
+{
+  "reason": "Unhealthy",
+  "severity": "Failure",
+  "kind": "Deployment",
+  "workload": "payments-api",
+  "namespace": "staging",
+  "phase": "degraded",
+  "commit_sha": "abcdef1234567890abcdef1234567890abcdef12",
+  "repository": {
+    "owner": "raphael",
+    "name": "demo",
+    "clone_url": "https://github.com/raphael/demo.git"
+  },
+  "environment": "staging",
+  "message": "Readiness probe failed: connection refused"
+}

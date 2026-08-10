@@ -28,6 +28,12 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 
 ## Partner dry-run week checklist
 
+### Local preflight (no partner required)
+
+- [x] Local Day 0–1 proofs recorded in [`pilot-local-preflight.md`](pilot-local-preflight.md) (`pilot_go_nogo`, `demo_partner`, `pytest`, `metrics`)
+
+### Real partner install
+
 - [ ] Read [`pilot-install.md`](pilot-install.md) + [`permission-matrix.md`](permission-matrix.md)
 - [ ] `RAPHAEL_PARTNER_MODE=dry_run` (default)
 - [ ] Smoke: `python -m raphael_agent.scripts.demo_partner` → `success_draft_pr_ready`

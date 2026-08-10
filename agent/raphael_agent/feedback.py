@@ -16,6 +16,8 @@ ALLOWED_OUTCOMES = frozenset(
     {
         "draft_opened",
         "dry_run_prepared",
+        "fix_snippet_posted",
+        "fix_snippet_prepared",
         "accepted",
         "edited",
         "rejected",

@@ -2,7 +2,7 @@
 
 Phase 6 dual-path: **Route A** CI templates → draft PR; **Route B** labeled Issues → optional custom model → fix snippet (developer opens the PR).
 
-**Still non-goals:** auto-merge, production cluster writes, K8s watcher. LLM **off** by default.
+**Still non-goals:** auto-merge, production cluster writes. K8s watcher is opt-in (`RAPHAEL_K8S_WATCHER=1`). LLM **off** by default.
 
 Pilot docs:
 
@@ -50,6 +50,9 @@ pip install -e .
 | `RAPHAEL_GITHUB_TOKEN` | unset | Required for live draft / live issue comments |
 | `RAPHAEL_GITHUB_REVIEWERS` | unset | Optional reviewer logins |
 | `RAPHAEL_ISSUE_TRIGGER_LABEL` | `raphael:fix` | Route B label |
+| `RAPHAEL_K8S_WATCHER` | `0` | Enable `POST /v1/webhooks/k8s` (FR-002) |
+| `RAPHAEL_AGENT_STORE` | `json` | `json` \| `sqlite` |
+| `RAPHAEL_REVIEWERS_FROM_CODEOWNERS` | `0` | Merge CODEOWNERS user logins into PR reviewers |
 | `RAPHAEL_FEEDBACK_RECORDER` | `jsonl` | `jsonl` \| `off` |
 | `RAPHAEL_FEEDBACK_ON_PUBLISH` | unset | `1` to log dry_run_prepared / draft_opened |
 

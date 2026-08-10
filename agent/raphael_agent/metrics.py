@@ -59,6 +59,7 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
         ingest_counts = _read_decisions(store)
 
     avg_duration = sum(durations) / len(durations) if durations else None
+    feedback = summarize_feedback()
     return {
         "generated_at": utc_now(),
         "runs_total": len(runs),
@@ -67,10 +68,29 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
         "publish_modes": dict(publish_modes),
         "patch_attempts_total": patch_attempts_total,
         "avg_run_duration_seconds": avg_duration,
+        "feedback": feedback,
         "notes": [
             "Sandbox force-cleanup remains controller-side (POST /v1/admin/force-cleanup).",
             "Agent metrics are read-only aggregates over RAPHAEL_AGENT_DATA_DIR.",
+            "FR-065 feedback aggregates are audit-only (no learning loop).",
         ],
+    }
+
+
+def summarize_feedback() -> dict[str, Any]:
+    """Aggregate FR-065 feedback.jsonl outcomes (deepened audit, no ML)."""
+    from raphael_agent.feedback import JsonlFeedbackRecorder
+
+    rows = JsonlFeedbackRecorder().read_all()
+    by_outcome: Counter[str] = Counter()
+    by_source: Counter[str] = Counter()
+    for row in rows:
+        by_outcome[str(row.get("outcome") or "unknown")] += 1
+        by_source[str(row.get("source") or "unknown")] += 1
+    return {
+        "events_total": len(rows),
+        "by_outcome": dict(by_outcome),
+        "by_source": dict(by_source),
     }
 
 

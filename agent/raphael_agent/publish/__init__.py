@@ -241,6 +241,7 @@ def _publish_issue_snippet(
             "fix_snippet": snippet,
         }
         validate_agent("publish_result.json", result)
+        _maybe_record_publish_feedback(run, result)
         return result
 
     if not github_token() and github is None:
@@ -287,6 +288,7 @@ def _publish_issue_snippet(
             "fix_snippet": snippet,
         }
         validate_agent("publish_result.json", result)
+        _maybe_record_publish_feedback(run, result)
         return result
     except GitHubApiError as exc:
         return _fail(
@@ -535,7 +537,12 @@ def _maybe_record_publish_feedback(run: dict[str, Any], result: dict[str, Any]) 
 
     if not feedback_on_publish_enabled() or not result.get("ok"):
         return
-    outcome = "dry_run_prepared" if result.get("dry_run") else "draft_opened"
+    if result.get("delivery") == "issue_snippet":
+        outcome = (
+            "fix_snippet_prepared" if result.get("dry_run") else "fix_snippet_posted"
+        )
+    else:
+        outcome = "dry_run_prepared" if result.get("dry_run") else "draft_opened"
     merged = {**run, "publish": result, "pull_request_url": result.get("pull_request_url")}
     event = feedback_from_run(merged, outcome=outcome, source="publish")
     try:

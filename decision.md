@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-14 — Option B: K8s watcher ingest + App JWT + CODEOWNERS + SQLite store
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Ship FR-002 via `POST /v1/webhooks/k8s` + `normalize_k8s_workload` behind `RAPHAEL_K8S_WATCHER` (default off). GitHub auth resolves PAT first, then optional App installation token (`RAPHAEL_GITHUB_APP_*`). PR reviewers may merge CODEOWNERS user logins when `RAPHAEL_REVIEWERS_FROM_CODEOWNERS=1`. FR-065 audit deepened with issue-snippet outcomes + metrics `feedback` aggregates (still no learning loop). Agent `RunStore` may use stdlib SQLite when `RAPHAEL_AGENT_STORE=sqlite` (JSON remains default). Local pilot Day 0–1 proofs recorded in `docs/pilot-local-preflight.md`; real partner week remains ops.
+- **Why:** Close deferred Option B scaffolding without waiting on a live design partner.
+- **Alternatives:** Block all Option B until partner week — slower. Full in-cluster watch loop with kubeconfig in agent — rejected; prefer push webhook / file forwarder to keep Secret-free boundary.
+- **Consequences:** Supplements D-20260810-09; pilot-acceptance still requires real partner for PRD Phase 5 exit.
+
 ### D-20260810-13 — Phase 6: dual-path CI templates + labeled Issues with optional model
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -313,6 +322,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-14 | Option B K8s watcher + App JWT + CODEOWNERS + SQLite store |
 | D-20260810-13 | Phase 6 dual-path CI + labeled Issues + optional model |
 | D-20260810-12 | Agent terminals / confidence / ports / RunStore / ingest defaults |
 | D-20260810-11 | Sandbox P2 JSON store / PSA / admin cleanup / artifacts |

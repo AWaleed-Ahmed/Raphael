@@ -66,11 +66,25 @@ def effective_publish_mode(run: dict[str, Any]) -> PublishMode:
 
 
 def github_token() -> str | None:
-    return (
+    """Resolve GitHub auth: PAT env first, else optional App installation token."""
+    pat = (
         os.environ.get("RAPHAEL_GITHUB_TOKEN")
         or os.environ.get("GITHUB_TOKEN")
         or None
     )
+    if pat:
+        return pat
+    try:
+        from raphael_agent.publish.github_app import (
+            app_auth_configured,
+            fetch_installation_token,
+        )
+
+        if app_auth_configured():
+            return fetch_installation_token()
+    except Exception:  # noqa: BLE001 — fail closed
+        return None
+    return None
 
 
 def github_api_base() -> str:
@@ -89,11 +103,25 @@ def pr_labels() -> list[str]:
 
 
 def pr_reviewers() -> list[str]:
-    """Optional GitHub logins to request as reviewers (best-effort)."""
+    """Optional GitHub logins to request as reviewers (best-effort).
+
+    Merges ``RAPHAEL_GITHUB_REVIEWERS`` with CODEOWNERS-derived logins when
+    ``RAPHAEL_REVIEWERS_FROM_CODEOWNERS=1`` and a workspace/CODEOWNERS path is set.
+    """
     raw = os.environ.get("RAPHAEL_GITHUB_REVIEWERS", "").strip()
-    if not raw:
-        return []
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    reviewers = [p.strip().lstrip("@") for p in raw.split(",") if p.strip()]
+    if os.environ.get("RAPHAEL_REVIEWERS_FROM_CODEOWNERS", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        from raphael_agent.publish.codeowners import reviewers_from_codeowners
+
+        for login in reviewers_from_codeowners():
+            if login not in reviewers:
+                reviewers.append(login)
+    return reviewers
 
 
 def committer_name() -> str:

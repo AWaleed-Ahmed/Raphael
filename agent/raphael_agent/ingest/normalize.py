@@ -14,6 +14,7 @@ from raphael_agent.ingest.issue_config import (
     issue_trigger_label,
     parse_raphael_sha,
 )
+from raphael_agent.ingest.k8s_watcher import normalize_k8s_workload
 
 
 def _tenant_id(explicit: str | None = None) -> str:
@@ -397,4 +398,19 @@ def normalize_failed_run_event(event: dict[str, Any]) -> dict[str, Any]:
             received_at=event.get("received_at"),
             tenant_id=event.get("tenant_id"),
         )
+    if (
+        event.get("kind") in {"Deployment", "StatefulSet", "Job", "Pod", "ReplicaSet"}
+        or event.get("trigger_kind") == "k8s_workload"
+        or event.get("resource_kind")
+        or (event.get("namespace") and event.get("workload"))
+    ):
+        try:
+            return normalize_k8s_workload(
+                event,
+                raw_ref=event.get("raw_ref") or "inline:k8s_workload",
+                received_at=event.get("received_at"),
+                tenant_id=event.get("tenant_id"),
+            )
+        except ValueError:
+            pass
     return normalize_fixture_event(event)
