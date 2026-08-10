@@ -33,12 +33,16 @@ class SandboxClient:
     def __init__(
         self,
         base_url: str | None = None,
-        timeout: float = 180.0,
+        timeout: float | None = None,
         *,
         validate: bool = True,
     ) -> None:
+        from raphael_agent.budgets import sandbox_http_timeout_seconds
+
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
-        self.timeout = timeout
+        self.timeout = float(
+            timeout if timeout is not None else sandbox_http_timeout_seconds()
+        )
         self.validate = validate
 
     def _client(self) -> httpx.Client:

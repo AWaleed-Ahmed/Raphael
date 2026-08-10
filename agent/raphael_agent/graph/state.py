@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from raphael_agent.budgets import build_budget_snapshot
 from raphael_agent.timeutil import utc_now
 
 
@@ -43,6 +44,7 @@ class RunState(TypedDict, total=False):
     pull_request_url: str | None
     pull_request_branch: str | None
     publish: dict[str, Any]
+    budget_snapshot: dict[str, Any]
     terminal_reason: str | None
     errors: list[dict[str, Any]]
     audit_events: list[dict[str, Any]]
@@ -96,6 +98,7 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         policy_decisions=[],
         attempt_count={"diagnosis": 0, "patch": 0},
         token_and_cost_usage={"model_tokens": 0, "estimated_cost_usd": 0.0},
+        budget_snapshot=build_budget_snapshot(),
         pull_request_url=None,
         terminal_reason=None,
         errors=[],

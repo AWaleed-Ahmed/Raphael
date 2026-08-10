@@ -251,6 +251,10 @@
       "type": ["string", "null"],
       "description": "Agent-owned branch pushed for the draft PR"
     },
+    "budget_snapshot": {
+      "description": "Budget caps captured at run start",
+      "$ref": "budget_snapshot.json"
+    },
     "terminal_reason": { "type": ["string", "null"] },
     "errors": {
       "type": "array",

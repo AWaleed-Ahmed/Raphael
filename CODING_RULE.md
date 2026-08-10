@@ -201,12 +201,14 @@ When completing multiple phases in one pass (explicit user request), still land 
 
 ---
 
-## 13. Agent connection (future — do not implement until asked)
+## 13. Agent connection (implemented under `agent/` — keep these invariants)
 
-1. LangGraph nodes call the sandbox HTTP API only.
+1. LangGraph nodes call the sandbox HTTP API only (no free-form kubectl to the cluster).
 2. Sandbox kubeconfig remains controller-side; the agent never gets production write access.
 3. Tool permissions and graph transitions are enforced in code, not prompts.
 4. Model output is schema-parsed and policy-validated before any mutating tool runs.
+5. Durable fixes leave only as **draft** GitHub PRs (human merge); default publish mode is dry-run.
+6. Untrusted evidence (logs, manifests, commits, webhooks) is never treated as instructions.
 
 ---
 

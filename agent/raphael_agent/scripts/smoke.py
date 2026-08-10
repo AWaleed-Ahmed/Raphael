@@ -102,9 +102,21 @@ def main(argv: list[str] | None = None) -> int:
     print(f"status={status}")
     print(f"result_id={final.get('result_id')}")
     print(f"pull_request_url={final.get('pull_request_url')}")
+    pub = final.get("publish") or {}
+    if pub:
+        print(
+            f"publish_mode={pub.get('mode')} dry_run={pub.get('dry_run')} "
+            f"draft={pub.get('draft')}"
+        )
     print(f"terminal_reason={final.get('terminal_reason')}")
     if final.get("failure_fingerprint"):
         print(f"fingerprint={final.get('failure_fingerprint')}")
+    if final.get("budget_snapshot"):
+        snap = final["budget_snapshot"]
+        print(
+            f"budget_wall_s={snap.get('max_wall_seconds')} "
+            f"deadline_at={snap.get('deadline_at')}"
+        )
     if final.get("errors"):
         print(f"errors={final.get('errors')}")
     if args.json:

@@ -80,6 +80,7 @@ def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
         "pull_request_url",
         "pull_request_branch",
         "publish",
+        "budget_snapshot",
         "terminal_reason",
         "sandbox_id",
         "result_id",

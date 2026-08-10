@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 raphael-agent-smoke = "raphael_agent.scripts.smoke:main"
 raphael-agent-serve = "raphael_agent.http_api.app:main"
+raphael-agent-metrics = "raphael_agent.scripts.metrics:main"
 
 [build-system]
 requires = ["setuptools>=68"]

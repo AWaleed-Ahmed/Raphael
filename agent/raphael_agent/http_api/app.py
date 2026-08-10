@@ -35,7 +35,13 @@ def _ignored_trigger_kind(event_name: str) -> str:
 
 
 async def health(_: Request) -> JSONResponse:
-    return JSONResponse({"ok": True, "service": "raphael-agent", "phase": 1})
+    return JSONResponse({"ok": True, "service": "raphael-agent", "phase": 4})
+
+
+async def metrics(_: Request) -> JSONResponse:
+    from raphael_agent.metrics import summarize_store
+
+    return JSONResponse(summarize_store(_store()))
 
 
 async def github_webhook(request: Request) -> JSONResponse:
@@ -142,6 +148,7 @@ def create_app() -> Starlette:
     return Starlette(
         routes=[
             Route("/health", health, methods=["GET"]),
+            Route("/v1/metrics", metrics, methods=["GET"]),
             Route("/v1/webhooks/github", github_webhook, methods=["POST"]),
             Route("/v1/runs/{run_id}", get_run, methods=["GET"]),
         ]

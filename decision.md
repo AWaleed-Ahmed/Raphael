@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-06 — Agent Phase 4: budget defaults + injection-test policy
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Enforce env budgets: `RAPHAEL_MAX_WALL_SECONDS` (default 1800), `RAPHAEL_MAX_DIAGNOSIS_ATTEMPTS` (2), `RAPHAEL_MAX_PATCH_ATTEMPTS` (3), `RAPHAEL_MAX_COST_USD` (0=off), `RAPHAEL_SANDBOX_HTTP_TIMEOUT` (180s). Snapshot onto `run_record.budget_snapshot`. Exhaust → escalate/fail closed with structured report — never publish. Prompt-injection fixtures under `agent/fixtures/injection/` assert policy/publish remain code-gated (LLM off). Operator metrics via `GET /v1/metrics` + `raphael_agent.scripts.metrics` over RunStore only (sandbox cleanup stays controller-side).
+- **Why:** PRD Phase 4 / §9.4 budgets; CODING_RULE untrusted logs ≠ instructions.
+- **Alternatives:** Soft warnings without halt — rejected. Full SaaS metrics stack — premature.
+- **Consequences:** Pilot can tune budgets per tenant via env without contract breaks (additive snapshot). Supplements D-20260810-02…05.
+
 ### D-20260810-05 — Agent Phase 3: draft-only GitHub publish, dry_run default
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -241,7 +250,7 @@
 
 | ID | Topic |
 |---|---|
-| D-20260810-03 | Agent Phase 1 GitHub ingest + run store/policy |
+| D-20260810-06 | Agent Phase 4 budgets + injection tests + metrics |
 | D-20260810-05 | Agent Phase 3 draft PR publish (dry_run default) |
 | D-20260810-04 | Agent Phase 2 analyzers + optional LLM + patch allowlist |
 | D-20260810-03 | Agent Phase 1 GitHub ingest + RunStore |

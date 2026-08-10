@@ -1,8 +1,8 @@
 # Raphael Agent (Engineer B)
 
-Phase 3: draft GitHub PR publish from sandbox `result_id` (dry-run by default).
+Phase 4: budgets, injection resistance, operator metrics, demo polish.
 
-**Still non-goals:** merging PRs, production cluster writes, K8s watcher. LLM diagnosis remains **off by default**.
+**Still non-goals:** auto-merge, production cluster writes, K8s watcher. LLM **off** by default. Publish default **dry_run**.
 
 ---
 
@@ -10,14 +10,14 @@ Phase 3: draft GitHub PR publish from sandbox `result_id` (dry-run by default).
 
 ```text
 agent/
+  fixtures/injection/       # hostile evidence fixtures
   raphael_agent/
-    ingest/ evidence/ diagnosis/ patch/
-    publish/                # draft PR body + GitHub REST adapter
-    graph/ store/ sandbox_client/ http_api/
-    scripts/smoke.py
+    budgets.py              # wall/attempt/cost ceilings
+    metrics.py              # RunStore aggregates
+    feedback.py             # FR-065 stub interface
+    publish/ diagnosis/ patch/ ingest/ graph/ ...
+    scripts/smoke.py | metrics.py
 ```
-
-Graph: `ingest → evidence → diagnose → reproduce → patch → validate ⇄ patch → publish_or_escalate`
 
 ---
 
@@ -30,46 +30,77 @@ py -3.12 -m venv .venv
 pip install -e .
 ```
 
+### Key env vars
+
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Sandbox controller |
 | `RAPHAEL_PUBLISH_MODE` | `dry_run` | `dry_run` \| `live` |
-| `RAPHAEL_GITHUB_TOKEN` / `GITHUB_TOKEN` | unset | Required for `live` publish (PAT with `contents:write` + `pull_requests:write`) |
-| `RAPHAEL_GITHUB_API_BASE` | `https://api.github.com` | GitHub API |
-| `RAPHAEL_GITHUB_BASE_BRANCH` | `main` | PR base branch |
-| `RAPHAEL_GITHUB_PR_LABELS` | `raphael,agent-generated` | Best-effort labels |
-| `RAPHAEL_DIAGNOSIS_CONFIDENCE_THRESHOLD` | `0.7` | Hypothesis gate |
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Optional LLM refine |
+| `RAPHAEL_MAX_WALL_SECONDS` | `1800` | Graph wall-clock budget |
+| `RAPHAEL_MAX_DIAGNOSIS_ATTEMPTS` | `2` | Diagnosis attempt cap |
 | `RAPHAEL_MAX_PATCH_ATTEMPTS` | `3` | Patch loop budget |
+| `RAPHAEL_MAX_COST_USD` | `0` | Cost ceiling (`0` = disabled) |
+| `RAPHAEL_SANDBOX_HTTP_TIMEOUT` | `180` | Sandbox client timeout (s) |
+| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Optional LLM refine |
+| `RAPHAEL_GITHUB_TOKEN` | unset | Live publish only |
+| `RAPHAEL_AGENT_DATA_DIR` | `.raphael-agent-data` | RunStore root |
 
-Optional App JWT (reserved; Phase 3 uses PAT): `RAPHAEL_GITHUB_APP_ID`, `RAPHAEL_GITHUB_INSTALLATION_ID`, `RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH`.
+Budget exhaust → `escalated` / `failed_closed` with `escalation_report` — **never** speculative publish.
+
+Sandbox namespace cleanup stays on the controller (`POST /v1/admin/force-cleanup`); the agent only reports metrics.
 
 ---
 
-## Smoke path
+## Canonical demo (≤15 min, reviewer checklist)
+
+Probe-port happy path with **recorded sandbox stubs** + **dry-run draft PR** (no Docker, no GitHub token):
 
 ```bash
 cd agent
-
-# Graph + dry-run publish (no GitHub token)
 set RAPHAEL_PUBLISH_MODE=dry_run
+set RAPHAEL_LLM_DIAGNOSIS=0
+
 python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
+# Expect: status=success_draft_pr_ready, result_id, pull_request_url with raphael_dry_run=1
 
 pytest -q
-
-# Live draft PR (optional)
-# set RAPHAEL_PUBLISH_MODE=live
-# set RAPHAEL_GITHUB_TOKEN=ghp_...
-# python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
+python -m raphael_agent.scripts.metrics
+# or: curl -s http://127.0.0.1:8091/v1/metrics   (with agent serve running)
 ```
 
-Dry-run sets `pull_request_url` to a GitHub **compare** URL with `raphael_dry_run=1` (no mutation). Live mode creates branch `raphael/<run-id>-<summary>`, commits patch files via Contents API, opens a **draft** PR.
+Optional live sandbox (mock controller) — Terminal 1 from repo root:
+
+```bash
+RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
+  cargo run --manifest-path sandbox/controller/Cargo.toml
+```
+
+Terminal 2:
+
+```bash
+cd agent
+python -m raphael_agent.scripts.smoke --sandbox-mode live
+```
+
+Smoke prints: `run_id`, `fingerprint`, `result_id`, `pull_request_url`, `publish_mode`, `terminal_reason`, budget deadline.
 
 ---
 
-## Phase 4 handoff
+## Operator metrics
 
-- Harden budgets/timeouts/cost caps; prompt-injection / untrusted-log tests
-- Operator metrics + run timeline polish; demo script under 10–15 minutes
-- Optional: App JWT auth, CODEOWNERS reviewers, post-merge outcome tracking (FR-065)
-- Still no production writes / no auto-merge
+```bash
+python -m raphael_agent.scripts.metrics
+python -m raphael_agent.scripts.metrics --json
+
+# HTTP
+python -m raphael_agent.http_api.app
+curl -s http://127.0.0.1:8091/v1/metrics
+```
+
+---
+
+## Phase 5 / pilot handoff
+
+- Partner install path + permission matrix (read-only prod K8s; GitHub draft-only)
+- Dry-run partner mode (diagnosis + sandbox validate, publish dry_run)
+- Allowlisted failure classes for live draft PRs
+- Optional App JWT + CODEOWNERS reviewers; FR-065 feedback recording beyond stub

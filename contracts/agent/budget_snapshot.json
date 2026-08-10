@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/budget_snapshot.json",
+  "title": "BudgetSnapshot",
+  "description": "Inspectable budget caps attached at run start (Phase 4)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "max_wall_seconds",
+    "max_diagnosis_attempts",
+    "max_patch_attempts",
+    "max_cost_usd",
+    "deadline_at"
+  ],
+  "properties": {
+    "max_wall_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Wall-clock limit for the graph run"
+    },
+    "max_diagnosis_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_patch_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Soft ceiling on estimated_cost_usd; 0 means disabled"
+    },
+    "deadline_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sandbox_http_timeout_seconds": {
+      "type": "number",
+      "minimum": 1
+    }
+  }
+}

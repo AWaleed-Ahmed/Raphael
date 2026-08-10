@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
+from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
 from raphael_agent.graph.state import RunState, append_audit, utc_now
@@ -73,7 +74,47 @@ def _escalation(
     }
 
 
+def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
+    """If a budget is exhausted, return state updates that stop the run (no publish)."""
+    halt = check_budgets(state, node=node)
+    if halt is None:
+        return None
+    terminal = halt["terminal"]
+    reason = halt["reason_code"]
+    updates: dict[str, Any] = {
+        "current_node": node,
+        "status": terminal,
+        "terminal_reason": reason,
+        "updated_at": utc_now(),
+        "escalation_report": _escalation(
+            state,
+            reason_code=reason,
+            summary=f"Budget exhausted ({halt['kind']})",
+            what_happened=halt["message"],
+            why_no_fix="Attempt/time/cost budget exhausted — refuse speculative publish",
+            attempts=[{"kind": "other", "status": "failed", "detail": halt["kind"]}],
+            next_checks=[
+                "Raise RAPHAEL_MAX_WALL_SECONDS / patch / diagnosis caps only if safe",
+                "Inspect audit_events for the node that hit the budget",
+            ],
+        ),
+        "errors": list(state.get("errors") or []) + [
+            {
+                "code": reason,
+                "message": halt["message"],
+                "retryable": False,
+                "node": node,
+            }
+        ],
+        "audit_events": append_audit(state, node, "budget_exhausted", halt["message"]),
+    }
+    return updates
+
+
 def node_ingest(state: RunState) -> dict[str, Any]:
+    halt = _budget_halt_updates(state, "ingest")
+    if halt:
+        return halt
     updates = _touch(state, "ingest")
     detail = (
         f"fingerprint={state.get('failure_fingerprint')}"
@@ -87,6 +128,11 @@ def node_ingest(state: RunState) -> dict[str, Any]:
 
 
 def node_evidence(state: RunState) -> dict[str, Any]:
+    if state.get("status") in {"failed_closed", "escalated"}:
+        return {"updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "evidence")
+    if halt:
+        return halt
     updates = _touch(state, "evidence")
     evidence = collect_evidence(state)
     updates["evidence"] = evidence
@@ -101,12 +147,34 @@ def node_evidence(state: RunState) -> dict[str, Any]:
 
 
 def node_diagnose(state: RunState) -> dict[str, Any]:
+    if state.get("status") in {"failed_closed", "escalated"}:
+        return {"updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "diagnose")
+    if halt:
+        return halt
     updates = _touch(state, "diagnose")
     diagnosis = diagnose(state)
     attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
     attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
     updates["diagnosis"] = diagnosis
     updates["attempt_count"] = attempts
+    # Re-check after increment (diagnosis attempt budget)
+    post = check_budgets({**state, **updates}, node="diagnose")
+    if post is not None:
+        updates["status"] = post["terminal"]
+        updates["terminal_reason"] = post["reason_code"]
+        updates["escalation_report"] = _escalation(
+            {**state, **updates},
+            reason_code=post["reason_code"],
+            summary=f"Budget exhausted ({post['kind']})",
+            what_happened=post["message"],
+            why_no_fix="Diagnosis attempt budget exhausted — refuse speculative publish",
+            attempts=[{"kind": "other", "status": "failed", "detail": post["kind"]}],
+        )
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "diagnose", "budget_exhausted", post["message"]
+        )
+        return updates
     updates["audit_events"] = append_audit(
         {**state, **updates},
         "diagnose",
@@ -144,6 +212,9 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
 def node_reproduce(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "reproduce")
+    if halt:
+        return halt
     updates = _touch(state, "reproduce")
     mode = state.get("sandbox_mode") or "skipped"
 
@@ -244,6 +315,9 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
 def node_patch(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "patch")
+    if halt:
+        return halt
     updates = _touch(state, "patch")
     repro = state.get("reproduction_result") or {}
     if not repro.get("reproduced"):
@@ -413,6 +487,10 @@ def _deploy_body_for_patch(
 def node_validate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now(), "validation_retryable": False}
+    halt = _budget_halt_updates(state, "validate")
+    if halt:
+        halt["validation_retryable"] = False
+        return halt
     updates = _touch(state, "validate")
 
     mode = state.get("sandbox_mode") or "skipped"
@@ -567,6 +645,12 @@ def route_after_validate(state: RunState) -> RouteAfterValidate:
 def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"current_node": None, "updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "publish_or_escalate")
+    if halt:
+        # Never publish after budget exhaust
+        halt["current_node"] = None
+        halt["pull_request_url"] = None
+        return halt
     updates = _touch(state, "publish_or_escalate")
 
     published = publish(state)
