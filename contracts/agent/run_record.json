@@ -239,9 +239,17 @@
       }
     },
     "escalation_report": { "$ref": "escalation_report.json" },
+    "publish": {
+      "description": "Draft PR publication outcome (Phase 3+)",
+      "$ref": "publish_result.json"
+    },
     "pull_request_url": {
       "type": ["string", "null"],
-      "description": "Always null in Phase 0 (no GitHub publish)"
+      "description": "Draft PR URL after publish; dry-run uses a documented placeholder compare URL"
+    },
+    "pull_request_branch": {
+      "type": ["string", "null"],
+      "description": "Agent-owned branch pushed for the draft PR"
     },
     "terminal_reason": { "type": ["string", "null"] },
     "errors": {

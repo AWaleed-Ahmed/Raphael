@@ -29,6 +29,7 @@ def test_agent_contracts_exist():
         "evidence_item.json",
         "diagnosis_result.json",
         "patch_proposal.json",
+        "publish_result.json",
         "escalation_report.json",
     ):
         assert (contracts / name).is_file()
@@ -45,7 +46,9 @@ def test_smoke_graph_recorded_stub():
     validate_agent("run_record.json", _for_validation(final))
     assert final["status"] == "success_draft_pr_ready"
     assert final["result_id"] == "res-recorded-001"
-    assert final["pull_request_url"] is None
+    assert final["pull_request_url"]
+    assert "raphael_dry_run=1" in final["pull_request_url"]
+    assert final.get("publish", {}).get("dry_run") is True
     assert final["sandbox_mode"] == "recorded_stub"
     assert (
         final["diagnosis"]["classification"]["failure_class"]

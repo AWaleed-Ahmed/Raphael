@@ -10,8 +10,10 @@ from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
-from raphael_agent.publish import stub_publish
+from raphael_agent.publish import publish
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
+from raphael_agent.schema_util import for_run_record_validation
+from raphael_agent.store import RunStore
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
@@ -567,14 +569,16 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
         return {"current_node": None, "updated_at": utc_now()}
     updates = _touch(state, "publish_or_escalate")
 
-    published = stub_publish(state)
-    if not published["ok"]:
+    published = publish(state)
+    updates["publish"] = published
+    if not published.get("ok"):
         updates["status"] = "failed_closed"
-        updates["terminal_reason"] = published["error"]
+        updates["terminal_reason"] = published.get("error") or "publish_failed"
+        updates["pull_request_url"] = None
         updates["errors"] = list(state.get("errors") or []) + [
             {
-                "code": published["error"] or "publish_failed",
-                "message": published["message"],
+                "code": published.get("error") or "publish_failed",
+                "message": published.get("message") or "publish failed",
                 "retryable": False,
                 "node": "publish_or_escalate",
             }
@@ -583,19 +587,30 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
             {**state, **updates},
             "publish_or_escalate",
             "fail_closed",
-            published["message"],
+            published.get("message"),
         )
     else:
         updates["status"] = "success_draft_pr_ready"
-        updates["terminal_reason"] = "phase2_validated_no_pr"
-        updates["pull_request_url"] = None
+        updates["terminal_reason"] = (
+            "draft_pr_dry_run" if published.get("dry_run") else "draft_pr_opened"
+        )
+        updates["pull_request_url"] = published.get("pull_request_url")
+        updates["pull_request_branch"] = published.get("branch")
         updates["audit_events"] = append_audit(
             {**state, **updates},
             "publish_or_escalate",
             "success_draft_pr_ready",
-            published["message"],
+            published.get("message"),
         )
     updates["current_node"] = None
+    updates["updated_at"] = utc_now()
+
+    # Persist inspectable run_record when a data dir is in use.
+    try:
+        merged = {**state, **updates}
+        RunStore().save_run(for_run_record_validation(merged))
+    except Exception:  # noqa: BLE001 — persistence must not crash the graph
+        pass
     return updates
 
 

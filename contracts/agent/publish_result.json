@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/publish_result.json",
+  "title": "PublishResult",
+  "description": "Outcome of draft GitHub PR publication from a frozen sandbox result_id",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ok",
+    "mode",
+    "draft",
+    "result_id",
+    "branch",
+    "base_branch",
+    "dry_run",
+    "message"
+  ],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "mode": {
+      "type": "string",
+      "enum": ["dry_run", "live"],
+      "description": "RAPHAEL_PUBLISH_MODE; default dry_run for tests/CI"
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "Always true in Phase 3 — never merge/auto-merge"
+    },
+    "result_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Sandbox validated_fix_record.result_id this PR is gated on"
+    },
+    "branch": {
+      "type": "string",
+      "description": "Agent branch name raphael/<run-id>-<summary>"
+    },
+    "base_branch": {
+      "type": "string",
+      "description": "PR base branch (default main)"
+    },
+    "pull_request_url": {
+      "type": ["string", "null"],
+      "description": "Real PR URL in live mode; documented dry-run placeholder URL when dry_run"
+    },
+    "pull_request_number": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "title": { "type": "string" },
+    "dry_run": {
+      "type": "boolean",
+      "description": "True when no GitHub mutation occurred"
+    },
+    "idempotent_replay": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when an existing PR URL was reused"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Machine code when ok=false"
+    },
+    "message": { "type": "string", "minLength": 1 },
+    "html_compare_url": {
+      "type": ["string", "null"],
+      "description": "Optional compare URL used as dry-run placeholder"
+    },
+    "committed_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

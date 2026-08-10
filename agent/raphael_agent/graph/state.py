@@ -41,6 +41,8 @@ class RunState(TypedDict, total=False):
     token_and_cost_usage: dict[str, Any] | None
     escalation_report: dict[str, Any]
     pull_request_url: str | None
+    pull_request_branch: str | None
+    publish: dict[str, Any]
     terminal_reason: str | None
     errors: list[dict[str, Any]]
     audit_events: list[dict[str, Any]]

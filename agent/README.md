@@ -1,8 +1,8 @@
 # Raphael Agent (Engineer B)
 
-Phase 2: deterministic diagnosis + constrained patch loop. Phase 1 ingest + Phase 0 graph remain.
+Phase 3: draft GitHub PR publish from sandbox `result_id` (dry-run by default).
 
-**Still non-goals:** opening GitHub PRs, K8s watcher, production writes. LLM diagnosis is **off by default**.
+**Still non-goals:** merging PRs, production cluster writes, K8s watcher. LLM diagnosis remains **off by default**.
 
 ---
 
@@ -10,26 +10,14 @@ Phase 2: deterministic diagnosis + constrained patch loop. Phase 1 ingest + Phas
 
 ```text
 agent/
-  pyproject.toml
-  README.md
-  fixtures/
-  tests/
   raphael_agent/
-    ingest/                 # GitHub HMAC, policy, accept/persist
-    store/                  # durable JSON run_record
-    evidence/               # adapters + redaction
-    diagnosis/              # deterministic analyzers (+ optional LLM)
-    patch/                  # fix templates + allowlist policy
-    publish/                # PR publish — no-op; requires result_id
-    graph/                  # LangGraph (validate may retry patch)
-    sandbox_client/
-    http_api/
+    ingest/ evidence/ diagnosis/ patch/
+    publish/                # draft PR body + GitHub REST adapter
+    graph/ store/ sandbox_client/ http_api/
     scripts/smoke.py
 ```
 
 Graph: `ingest → evidence → diagnose → reproduce → patch → validate ⇄ patch → publish_or_escalate`
-
-Terminals: `success_draft_pr_ready` | `escalated` | `failed_closed`
 
 ---
 
@@ -38,24 +26,23 @@ Terminals: `success_draft_pr_ready` | `escalated` | `failed_closed`
 ```bash
 cd agent
 py -3.12 -m venv .venv
-.venv\Scripts\activate   # Windows
+.venv\Scripts\activate
 pip install -e .
 ```
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Sandbox controller |
-| `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | Agent HTTP bind |
-| `RAPHAEL_AGENT_DATA_DIR` | `.raphael-agent-data` | Run + raw event store |
-| `RAPHAEL_GITHUB_WEBHOOK_SECRET` | unset | If set, require HMAC |
-| `RAPHAEL_INGEST_COOLDOWN_SECONDS` | `900` | FR-006 cooldown |
-| `RAPHAEL_INGEST_MAX_CONCURRENT_RUNS` | `2` | FR-006 concurrency |
-| `RAPHAEL_INGEST_RUN_GRAPH` | unset | If `1`, webhook runs graph |
-| `RAPHAEL_DIAGNOSIS_CONFIDENCE_THRESHOLD` | `0.7` | Select hypothesis only above this |
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | `1` enables optional LLM refine |
-| `RAPHAEL_OPENAI_API_KEY` / `OPENAI_API_KEY` | unset | Required only if LLM on |
+| `RAPHAEL_PUBLISH_MODE` | `dry_run` | `dry_run` \| `live` |
+| `RAPHAEL_GITHUB_TOKEN` / `GITHUB_TOKEN` | unset | Required for `live` publish (PAT with `contents:write` + `pull_requests:write`) |
+| `RAPHAEL_GITHUB_API_BASE` | `https://api.github.com` | GitHub API |
+| `RAPHAEL_GITHUB_BASE_BRANCH` | `main` | PR base branch |
+| `RAPHAEL_GITHUB_PR_LABELS` | `raphael,agent-generated` | Best-effort labels |
+| `RAPHAEL_DIAGNOSIS_CONFIDENCE_THRESHOLD` | `0.7` | Hypothesis gate |
+| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Optional LLM refine |
 | `RAPHAEL_MAX_PATCH_ATTEMPTS` | `3` | Patch loop budget |
-| `RAPHAEL_PATCH_ALLOWLIST` | deploy/,k8s/,… | Comma-separated path prefixes |
+
+Optional App JWT (reserved; Phase 3 uses PAT): `RAPHAEL_GITHUB_APP_ID`, `RAPHAEL_GITHUB_INSTALLATION_ID`, `RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH`.
 
 ---
 
@@ -64,39 +51,25 @@ pip install -e .
 ```bash
 cd agent
 
-# Offline — recorded sandbox stubs (no LLM)
+# Graph + dry-run publish (no GitHub token)
+set RAPHAEL_PUBLISH_MODE=dry_run
 python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
 
-# Via ingest
-python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub --via-ingest
-
-# Live mock controller (optional)
-# Terminal 1 (repo root):
-#   RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
-#     cargo run --manifest-path sandbox/controller/Cargo.toml
-python -m raphael_agent.scripts.smoke --sandbox-mode live
-
 pytest -q
+
+# Live draft PR (optional)
+# set RAPHAEL_PUBLISH_MODE=live
+# set RAPHAEL_GITHUB_TOKEN=ghp_...
+# python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
 ```
 
-Default pytest path does **not** call any LLM / API keys.
+Dry-run sets `pull_request_url` to a GitHub **compare** URL with `raphael_dry_run=1` (no mutation). Live mode creates branch `raphael/<run-id>-<summary>`, commits patch files via Contents API, opens a **draft** PR.
 
 ---
 
-## GitHub webhook server
+## Phase 4 handoff
 
-```bash
-python -m raphael_agent.http_api.app
-```
-
-See Phase 1 notes in git history / `decision.md` D-20260810-03.
-
----
-
-## Phase 3 handoff (validate + publish)
-
-- Open **draft** GitHub PR from frozen sandbox `result_id` (GitHub App)
-- PR body: diagnosis, evidence, validation matrix, risk, rollback
-- Branch naming `raphael/<run-id>-<summary>`; still no production writes
-- Keep publish gated on mandatory validation pass + `result_id`
-- Optional: observe human/merge outcome later (FR-065)
+- Harden budgets/timeouts/cost caps; prompt-injection / untrusted-log tests
+- Operator metrics + run timeline polish; demo script under 10–15 minutes
+- Optional: App JWT auth, CODEOWNERS reviewers, post-merge outcome tracking (FR-065)
+- Still no production writes / no auto-merge

@@ -36,7 +36,8 @@ def test_happy_path_recorded_stub_probe(monkeypatch):
     assert final["status"] == "success_draft_pr_ready"
     assert final["diagnosis"]["classification"]["failure_class"] == "probe_misconfiguration"
     assert final["result_id"]
-    assert final["pull_request_url"] is None
+    assert final["pull_request_url"]
+    assert final.get("publish", {}).get("ok") is True
     patch_files = (final.get("candidate_patches") or [{}])[0].get("files") or []
     assert patch_files
     # Prefer real file fix when workspace is present

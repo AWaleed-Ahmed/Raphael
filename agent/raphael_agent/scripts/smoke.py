@@ -101,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run_id={final.get('run_id')}")
     print(f"status={status}")
     print(f"result_id={final.get('result_id')}")
+    print(f"pull_request_url={final.get('pull_request_url')}")
     print(f"terminal_reason={final.get('terminal_reason')}")
     if final.get("failure_fingerprint"):
         print(f"fingerprint={final.get('failure_fingerprint')}")

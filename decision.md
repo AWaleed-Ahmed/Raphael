@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-05 — Agent Phase 3: draft-only GitHub publish, dry_run default
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Publish opens **draft** PRs only (never merge). Default `RAPHAEL_PUBLISH_MODE=dry_run` builds branch/title/body and a documented compare placeholder URL without GitHub mutation. Live mode uses REST Contents + Pulls APIs with `RAPHAEL_GITHUB_TOKEN` (optional App JWT vars reserved/documented for later). Branch format `raphael/<run-id>-<summary>`. Base branch `RAPHAEL_GITHUB_BASE_BRANCH` (default `main`). Fail closed without `result_id` or when run is escalated/failed_closed. Idempotent: reuse `pull_request_url` on the run and/or an existing open PR for the head branch. Contract: `contracts/agent/publish_result.json`.
+- **Why:** FR-060–064 + FR-074; keeps CI credential-free; human-controlled delivery.
+- **Alternatives:** Always live publish — breaks CI. Shell `git push` — heavier, harder to mock. Merge PRs — rejected for MVP.
+- **Consequences:** Phase 4 can harden budgets/metrics without changing draft-only semantics. Supplements D-20260810-02…04.
+
 ### D-20260810-04 — Agent Phase 2: analyzer-first diagnosis + optional LLM + patch allowlist
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -233,6 +242,7 @@
 | ID | Topic |
 |---|---|
 | D-20260810-03 | Agent Phase 1 GitHub ingest + run store/policy |
+| D-20260810-05 | Agent Phase 3 draft PR publish (dry_run default) |
 | D-20260810-04 | Agent Phase 2 analyzers + optional LLM + patch allowlist |
 | D-20260810-03 | Agent Phase 1 GitHub ingest + RunStore |
 | D-20260810-02 | Agent Phase 0 `agent/` + in-memory LangGraph |

@@ -24,7 +24,7 @@ Full product intent: [`prd.md`](prd.md).
 | **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
 | **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
 | **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
-| **LangGraph agent / GitHub PRs** | **Phase 2** — deterministic diagnosis + constrained patch under [`agent/`](agent/); publish still no-op (no GitHub PRs yet) |
+| **LangGraph agent / GitHub PRs** | **Phase 3** — draft PR publish from `result_id` under [`agent/`](agent/) (`RAPHAEL_PUBLISH_MODE=dry_run` default; no auto-merge) |
 
 The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
 
@@ -41,8 +41,8 @@ Raphael/
 ├── contracts/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── agent/                    ← Engineer B (Phase 0–2)
-│   └── README.md             ← how to run smoke / env vars
+├── agent/                    ← Engineer B (Phase 0–3)
+│   └── README.md             ← smoke / publish env vars
 └── sandbox/                  ← Engineer A implementation
     ├── README.md             ← detailed how-to / all commands
     ├── controller/           ← Rust HTTP service
@@ -90,4 +90,4 @@ Why we chose things: [`decision.md`](decision.md).
 
 ## Status
 
-Sandbox P0–P2 is complete. Agent Phase 0–2 are under [`agent/`](agent/) (ingest, deterministic diagnosis, constrained patch loop). Next: Phase 3 draft GitHub PR from sandbox `result_id`.
+Sandbox P0–P2 is complete. Agent Phase 0–3 are under [`agent/`](agent/) (ingest → diagnose → patch → validate → **draft PR publish**). Next: Phase 4 harden/evaluate (budgets, injection tests, demo polish).

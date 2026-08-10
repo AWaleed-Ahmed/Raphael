@@ -15,6 +15,7 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 | `evidence_item.json` | Single evidence item with provenance + redaction flags |
 | `diagnosis_result.json` | Ranked hypotheses, confidence, structured classification |
 | `patch_proposal.json` | Constrained file/path change candidate |
+| `publish_result.json` | Draft PR publication outcome (`result_id`, branch, dry_run/live) |
 | `escalation_report.json` | Safe stop: why no PR, what was tried, next checks |
 
 ## Compatibility notes
@@ -24,12 +25,13 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 - `result_id` / frozen record → [`../sandbox/validated_fix_record.json`](../sandbox/validated_fix_record.json)
 - Sandbox lifecycle remains six verbs (+ health / GET result); agent never gets raw kubectl.
 - `run_record.failure_fingerprint` + `correlation` support FR-003/004 ingest.
+- Publish is **draft-only**; `RAPHAEL_PUBLISH_MODE=dry_run` (default) never mutates GitHub.
 
 ## Terminal statuses
 
 Graph terminals:
 
-- `success_draft_pr_ready` — validated `result_id` present; publish is still a no-op placeholder
+- `success_draft_pr_ready` — validated `result_id` + publish attempted (dry-run or live draft PR)
 - `escalated` — insufficient confidence / unreproducible / policy / budget
 - `failed_closed` — mandatory check unavailable or system error
 
