@@ -13,6 +13,7 @@ from raphael_agent.publish.config import (
     github_api_base,
     github_token,
     pr_labels,
+    pr_reviewers,
 )
 
 
@@ -174,5 +175,15 @@ class GitHubPublisher:
                 )
             except GitHubApiError:
                 # Labels are best-effort (may not exist in repo).
+                pass
+        reviewers = pr_reviewers()
+        if reviewers and pr.get("number"):
+            try:
+                self._request(
+                    "POST",
+                    f"/repos/{owner}/{repo}/pulls/{pr['number']}/requested_reviewers",
+                    json={"reviewers": reviewers},
+                )
+            except GitHubApiError:
                 pass
         return pr

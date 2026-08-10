@@ -183,7 +183,9 @@ def test_publish_idempotent_replay(monkeypatch):
 
 
 def test_publish_live_uses_github_client(monkeypatch):
+    monkeypatch.setenv("RAPHAEL_PARTNER_MODE", "allowlist")
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "live")
+    monkeypatch.setenv("RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES", "probe_misconfiguration")
     monkeypatch.setenv("RAPHAEL_GITHUB_TOKEN", "test-token")
     gh = MagicMock()
     gh.get_ref_sha.return_value = "sha-base"
@@ -203,7 +205,9 @@ def test_publish_live_uses_github_client(monkeypatch):
 
 
 def test_publish_live_idempotent_open_pr(monkeypatch):
+    monkeypatch.setenv("RAPHAEL_PARTNER_MODE", "allowlist")
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "live")
+    monkeypatch.setenv("RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES", "probe_misconfiguration")
     monkeypatch.setenv("RAPHAEL_GITHUB_TOKEN", "test-token")
     gh = MagicMock()
     gh.get_ref_sha.return_value = "sha-base"

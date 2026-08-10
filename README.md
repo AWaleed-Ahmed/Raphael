@@ -24,7 +24,7 @@ Full product intent: [`prd.md`](prd.md).
 | **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
 | **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
 | **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
-| **LangGraph agent / GitHub PRs** | **Phase 4** — budgets, injection tests, metrics, draft PR publish under [`agent/`](agent/) (dry_run default; no auto-merge) |
+| **LangGraph agent / GitHub PRs** | **Phase 5 / pilot** — partner dry-run default + allowlisted live draft PRs under [`agent/`](agent/); see [`docs/pilot-install.md`](docs/pilot-install.md) |
 
 The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
 
@@ -41,8 +41,9 @@ Raphael/
 ├── contracts/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── agent/                    ← Engineer B (Phase 0–4)
-│   └── README.md             ← demo checklist / env vars / metrics
+├── docs/                     ← pilot install / permissions / acceptance
+├── agent/                    ← Engineer B (Phase 0–5 pilot)
+│   └── README.md             ← partner dry-run + allowlist
 └── sandbox/                  ← Engineer A implementation
     ├── README.md             ← detailed how-to / all commands
     ├── controller/           ← Rust HTTP service
@@ -90,4 +91,4 @@ Why we chose things: [`decision.md`](decision.md).
 
 ## Status
 
-Sandbox P0–P2 complete. Agent Phase 0–4 under [`agent/`](agent/) (ingest → diagnose → patch → validate → draft PR + budgets/metrics). Next: Phase 5 pilot readiness (partner install, dry-run allowlists).
+Sandbox P0–P2 complete. Agent Phase 0–5 (pilot) under [`agent/`](agent/) + [`docs/`](docs/). Next: real partner week (secrets, SA audit, allowlist one failure class).

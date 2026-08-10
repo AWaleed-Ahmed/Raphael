@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from raphael_agent.publish.branch import branch_name_for_run, pr_title_for_run
-from raphael_agent.publish.config import base_branch, github_token, publish_mode
+from raphael_agent.publish.config import (
+    base_branch,
+    effective_publish_mode,
+    github_token,
+    partner_mode,
+)
 from raphael_agent.publish.github_client import GitHubApiError, GitHubPublisher
 from raphael_agent.publish.pr_body import build_pr_body
 from raphael_agent.schema_util import validate_agent
@@ -92,7 +97,8 @@ def publish(
     github: GitHubPublisher | None = None,
 ) -> dict[str, Any]:
     """Open a draft PR (or dry-run) gated on ``result_id``. Never merges."""
-    mode = publish_mode()
+    mode = effective_publish_mode(run)
+    partner = partner_mode()
     base = base_branch()
     branch = branch_name_for_run(run)
     title = pr_title_for_run(run)
@@ -160,6 +166,15 @@ def publish(
 
     if mode == "dry_run":
         url = _dry_run_url(owner, name, base=base, branch=branch)
+        reason = (
+            "partner diagnosis_only"
+            if partner == "diagnosis_only"
+            else (
+                "partner dry_run / failure class not allowlisted for live"
+                if partner == "allowlist"
+                else "RAPHAEL_PARTNER_MODE=dry_run or RAPHAEL_PUBLISH_MODE!=live"
+            )
+        )
         result = {
             "ok": True,
             "mode": "dry_run",
@@ -175,7 +190,7 @@ def publish(
             "error": None,
             "message": (
                 f"Dry-run draft PR prepared for result_id={result_id}; "
-                "no GitHub mutation (RAPHAEL_PUBLISH_MODE=dry_run)"
+                f"no GitHub mutation ({reason})"
             ),
             "html_compare_url": url,
             "committed_files": [f["path"] for f in files],

@@ -68,15 +68,16 @@ Last updated: 2026-08-10
 
 ## Explicitly out of sandbox (agent track — lives under `agent/`)
 
-Sandbox never owns these. Status as of Agent Phase 4:
+Sandbox never owns these. Status as of Agent Phase 5 (pilot):
 
 - [x] GitHub webhook ingestion (K8s watcher still deferred)
 - [x] LangGraph diagnosis + optional LLM hypotheses (LLM default off)
 - [x] Patch generation loop (allowlisted, budgeted)
-- [x] Open draft GitHub PR from `result_id` (dry_run default; no auto-merge)
+- [x] Open draft GitHub PR from `result_id` (partner dry_run default; live behind failure-class allowlist; no auto-merge)
 - [x] Prompt-injection agent policy tests (`agent/fixtures/injection/`)
+- [x] Partner install + permission matrix + acceptance checklist (`docs/`)
 
-Still open on agent/pilot side: K8s watcher, App JWT/CODEOWNERS polish, FR-065 beyond stub, partner install (Phase 5).
+Still open: K8s watcher, App JWT as primary auth, full FR-065 learning loop, multi-tenant SaaS.
 
 ---
 
@@ -84,4 +85,4 @@ Still open on agent/pilot side: K8s watcher, App JWT/CODEOWNERS polish, FR-065 b
 
 1. [x] Full suite green (58 tests) including P2
 2. [ ] Optional: swap JSON durable store → real SQLite when crates.io is available
-3. [x] Agent track started (Phases 0–4 under `agent/`; Phase 5 pilot next)
+3. [x] Agent track Phase 0–5 pilot docs + dry-run partner mode

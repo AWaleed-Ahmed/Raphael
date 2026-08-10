@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-07 — Pilot: partner dry-run default + failure-class live allowlist
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Default `RAPHAEL_PARTNER_MODE=dry_run` forces dry-run publish regardless of `RAPHAEL_PUBLISH_MODE`. Live draft PRs require `PARTNER_MODE=allowlist`, `PUBLISH_MODE=live`, non-empty `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` containing the run’s `failure_class`, and a GitHub token. Empty allowlist ⇒ no live publishes. Docs: `docs/pilot-install.md`, `permission-matrix.md`, `pilot-acceptance.md`.
+- **Why:** Design-partner safety; PRD Phase 5 dry-run period before enabling draft PRs per class.
+- **Alternatives:** Docs-only dry-run (not enforceable) — rejected. Always-on live with mode=live — too risky for pilot.
+- **Consequences:** Existing “live” tests must set allowlist + partner allowlist mode. Supplements D-20260810-05.
+
 ### D-20260810-06 — Agent Phase 4: budget defaults + injection-test policy
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -250,6 +259,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-07 | Pilot partner dry-run default + live failure-class allowlist |
 | D-20260810-06 | Agent Phase 4 budgets + injection tests + metrics |
 | D-20260810-05 | Agent Phase 3 draft PR publish (dry_run default) |
 | D-20260810-04 | Agent Phase 2 analyzers + optional LLM + patch allowlist |
