@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/patch_proposal.json",
+  "title": "PatchProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "patch_id",
+    "attempt",
+    "files",
+    "rationale",
+    "hypothesis_id",
+    "policy_status",
+    "created_at"
+  ],
+  "properties": {
+    "patch_id": { "type": "string", "minLength": 1 },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based patch attempt within the run (max 3 per PRD)"
+    },
+    "hypothesis_id": {
+      "type": "string",
+      "description": "Links to diagnosis_result.hypotheses[].hypothesis_id"
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Constrained path/content changes only; no free-form shell",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "action"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Repo-relative path within allowlisted roots"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["modify", "create", "delete"]
+          },
+          "content": {
+            "type": ["string", "null"],
+            "description": "Full file content after change; null for delete"
+          },
+          "unified_diff_hunk": {
+            "type": ["string", "null"],
+            "description": "Optional hunk for review; sandbox deploy prefers files[]"
+          }
+        }
+      }
+    },
+    "unified_diff": {
+      "type": ["string", "null"],
+      "description": "Optional full unified diff; must match files[] when both present"
+    },
+    "rationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "evidence_ids"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "risk_notes": { "type": "string" },
+        "rollback_notes": { "type": "string" }
+      }
+    },
+    "policy_status": {
+      "type": "string",
+      "enum": ["pending", "allowed", "rejected", "needs_human"]
+    },
+    "policy_violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "message"],
+        "properties": {
+          "rule": { "type": "string" },
+          "message": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "sandbox_deploy_hint": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Optional mapping to sandbox deploy_revision.patch shape",
+      "properties": {
+        "manifests_path": { "type": "string" },
+        "use_files_as_patch": { "type": "boolean" }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_record.json",
+  "title": "RunRecord",
+  "description": "Durable inspectable agent run state (LangGraph state object). Compatible with sandbox failure_signature, validation_results, and result_id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "tenant_id",
+    "status",
+    "created_at",
+    "updated_at",
+    "trigger",
+    "repository",
+    "commit_sha",
+    "evidence",
+    "candidate_patches",
+    "validation_results",
+    "policy_decisions",
+    "audit_events",
+    "attempt_count",
+    "sandbox_mode"
+  ],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "audit_id": {
+      "type": "string",
+      "description": "Immutable audit id for the run (may equal run_id in Phase 0)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "success_draft_pr_ready",
+        "escalated",
+        "failed_closed"
+      ],
+      "description": "Phase 0 terminals: success_draft_pr_ready | escalated | failed_closed"
+    },
+    "current_node": {
+      "type": ["string", "null"],
+      "enum": [
+        "ingest",
+        "evidence",
+        "diagnose",
+        "reproduce",
+        "patch",
+        "validate",
+        "publish_or_escalate",
+        null
+      ]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "received_at"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["github_workflow_run", "github_check_run", "k8s_workload", "fixture", "manual"]
+        },
+        "event_id": { "type": "string" },
+        "received_at": { "type": "string", "format": "date-time" },
+        "raw_ref": {
+          "type": "string",
+          "description": "Pointer to stored raw event; not the full payload"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "name"],
+      "properties": {
+        "owner": { "type": "string" },
+        "name": { "type": "string" },
+        "clone_url": { "type": "string" }
+      }
+    },
+    "commit_sha": { "type": "string", "minLength": 7 },
+    "target_environment": { "type": ["string", "null"] },
+    "affected_resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "name"],
+        "properties": {
+          "kind": { "type": "string" },
+          "name": { "type": "string" },
+          "namespace": { "type": "string" }
+        }
+      }
+    },
+    "workspace_path": {
+      "type": ["string", "null"],
+      "description": "Local/controller workspace for sandbox deploy (fixture path in Phase 0)"
+    },
+    "manifests": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["yaml", "helm", "kustomize"]
+        },
+        "path": { "type": "string" },
+        "fixed_path": {
+          "type": "string",
+          "description": "Optional fixed manifests path for stub validate path"
+        },
+        "chart": { "type": "string" },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "overlay": { "type": "string" },
+        "release_name": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "evidence_item.json" }
+    },
+    "redaction_report": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "items_redacted": { "type": "integer", "minimum": 0 },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "failure_signature": {
+      "description": "Observed or expected signature (sandbox shape)",
+      "$ref": "../sandbox/failure_signature.json"
+    },
+    "diagnosis": { "$ref": "diagnosis_result.json" },
+    "sandbox_id": { "type": ["string", "null"] },
+    "sandbox_mode": {
+      "type": "string",
+      "enum": ["live", "recorded_stub", "skipped"],
+      "description": "Whether sandbox HTTP was live, recorded offline stubs, or skipped"
+    },
+    "reproduction_result": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "reproduced": { "type": "boolean" },
+        "matched_expected": { "type": ["boolean", "null"] },
+        "signature_key": { "type": ["string", "null"] },
+        "artifact_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "message": { "type": "string" }
+      }
+    },
+    "candidate_patches": {
+      "type": "array",
+      "items": { "$ref": "patch_proposal.json" }
+    },
+    "active_patch_id": { "type": ["string", "null"] },
+    "validation_results": {
+      "type": "array",
+      "items": { "$ref": "../sandbox/validation_results.json" }
+    },
+    "result_id": {
+      "type": ["string", "null"],
+      "description": "Frozen sandbox validated_fix_record.result_id; required before publish"
+    },
+    "validated_fix_record": {
+      "description": "Optional copy/pointer payload of frozen sandbox record",
+      "$ref": "../sandbox/validated_fix_record.json"
+    },
+    "policy_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "decision", "at"],
+        "properties": {
+          "rule": { "type": "string" },
+          "decision": {
+            "type": "string",
+            "enum": ["allow", "deny", "escalate"]
+          },
+          "message": { "type": "string" },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "attempt_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnosis", "patch"],
+      "properties": {
+        "diagnosis": { "type": "integer", "minimum": 0 },
+        "patch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "token_and_cost_usage": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "model_tokens": { "type": "integer", "minimum": 0 },
+        "estimated_cost_usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "escalation_report": { "$ref": "escalation_report.json" },
+    "pull_request_url": {
+      "type": ["string", "null"],
+      "description": "Always null in Phase 0 (no GitHub publish)"
+    },
+    "terminal_reason": { "type": ["string", "null"] },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "retryable": { "type": "boolean" },
+          "node": { "type": "string" }
+        }
+      }
+    },
+    "audit_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "node", "event"],
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "node": { "type": "string" },
+          "event": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

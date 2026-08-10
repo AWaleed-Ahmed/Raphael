@@ -22,11 +22,11 @@ Full product intent: [`prd.md`](prd.md).
 | Area | Status |
 |------|--------|
 | **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
-| **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) |
+| **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
 | **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
-| **LangGraph agent / GitHub PRs** | Not started yet (separate track) |
+| **LangGraph agent / GitHub PRs** | **Started** — Phase 0 skeleton under [`agent/`](agent/) (stub graph, sandbox client, no real LLM/PRs yet) |
 
-The sandbox is the safe “reproduce + prove the fix” engine. A future agent will call it with a few typed HTTP verbs instead of free-form `kubectl`.
+The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
 
 ---
 
@@ -38,7 +38,11 @@ Raphael/
 ├── prd.md                    ← product requirements
 ├── CODING_RULE.md            ← engineering rules for this codebase
 ├── decision.md               ← architecture decision log
-├── contracts/sandbox/        ← frozen API schemas
+├── contracts/
+│   ├── sandbox/              ← frozen sandbox API schemas
+│   └── agent/                ← frozen agent run/evidence/diagnosis schemas
+├── agent/                    ← Engineer B (Phase 0 skeleton)
+│   └── README.md             ← how to run the stub smoke path
 └── sandbox/                  ← Engineer A implementation
     ├── README.md             ← detailed how-to / all commands
     ├── controller/           ← Rust HTTP service
@@ -86,4 +90,4 @@ Why we chose things: [`decision.md`](decision.md).
 
 ## Status
 
-Sandbox P0–P2 is complete. Next major track is the **agent** (LangGraph diagnosis, patch loop, draft GitHub PR from a frozen `result_id`).
+Sandbox P0–P2 is complete. Agent Phase 0 skeleton is under [`agent/`](agent/) (stub LangGraph + sandbox client). Next: Phase 1 ingest (webhooks / watcher → `run_record`).

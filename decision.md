@@ -30,6 +30,18 @@
 
 ## Decision log (newest first)
 
+### D-20260810-02 — Agent Phase 0: `agent/` package + in-memory LangGraph stub
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Place the agent track under top-level `agent/` with importable package `raphael_agent` (not under `sandbox/`, not named `raphael_agent/` at repo root). Freeze agent wire shapes in `contracts/agent/`. Phase 0 LangGraph uses an **in-memory** compiled graph (no checkpointer); the inspectable durable object is the `run_record` / `RunState` dict. Sandbox HTTP base URL defaults to `http://127.0.0.1:8090` via `RAPHAEL_SANDBOX_URL`. Offline smoke uses recorded fixtures when `/health` is down.
+- **Why:** Matches CODING_RULE boundary (agent outside `sandbox/`); `agent/` is the suggested short layout; checkpointer/persistence can land in Phase 2 without rewriting node contracts.
+- **Alternatives:**
+  - `raphael_agent/` at repo root — clearer package name, noisier tree next to `sandbox/`.
+  - Sqlite/Postgres LangGraph checkpointer in Phase 0 — premature before real ingest.
+  - Put orchestration under `sandbox/harness` — rejected; harness is not the agent.
+- **Consequences:** Engineer B extends `agent/raphael_agent/{ingest,evidence,...}`; publish remains a no-op until a sandbox `result_id` exists. Supersedes the “do not start agent” portion of D-20260809-02 for this explicit Phase 0 request.
+
 ### D-20260810-01 — P0: clone-at-SHA, secret fixtures, observe artifacts; Docker blocked without sudo
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -202,6 +214,8 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-02 | Agent Phase 0 `agent/` + in-memory LangGraph |
+| D-20260810-01 | P0 clone-at-SHA / fixtures / Docker sudo gate |
 | D-20260809-00 | Product baseline (PRD) |
 | D-20260809-01 | Co-plan / rules-first / phased co-dev |
 | D-20260809-02 | `sandbox/` boundary until agent connect |

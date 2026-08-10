@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/escalation_report.json",
+  "title": "EscalationReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reason_code",
+    "summary",
+    "what_happened",
+    "evidence_ids",
+    "hypotheses_considered",
+    "attempts",
+    "why_no_fix",
+    "recommended_next_checks",
+    "escalated_at"
+  ],
+  "properties": {
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "insufficient_evidence",
+        "low_confidence",
+        "blocked_category",
+        "reproduction_failed",
+        "fidelity_gap",
+        "policy_blocked",
+        "validation_failed",
+        "budget_exhausted",
+        "system_error",
+        "cancelled"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line operator summary"
+    },
+    "what_happened": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "hypotheses_considered": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hypothesis_id", "statement", "confidence"],
+        "properties": {
+          "hypothesis_id": { "type": "string" },
+          "statement": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "status"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["reproduce", "patch", "validate", "other"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["skipped", "failed", "blocked", "partial"]
+          },
+          "detail": { "type": "string" },
+          "patch_id": { "type": "string" }
+        }
+      }
+    },
+    "why_no_fix": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recommended_next_checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "failure_signature": {
+      "description": "Optional observed sandbox signature",
+      "$ref": "../sandbox/failure_signature.json"
+    },
+    "sandbox_id": { "type": ["string", "null"] },
+    "result_id": {
+      "type": ["string", "null"],
+      "description": "Usually null on escalation; reserved if a prior finalize exists"
+    },
+    "escalated_at": { "type": "string", "format": "date-time" }
+  }
+}

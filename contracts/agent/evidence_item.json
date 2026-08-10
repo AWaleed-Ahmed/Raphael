@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/evidence_item.json",
+  "title": "EvidenceItem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "kind",
+    "source",
+    "collected_at",
+    "redacted",
+    "provenance"
+  ],
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id within the run"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "ci_log",
+        "k8s_event",
+        "pod_status",
+        "container_log",
+        "manifest",
+        "commit_diff",
+        "runbook",
+        "artifact",
+        "other"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system"],
+      "properties": {
+        "system": {
+          "type": "string",
+          "enum": ["github_actions", "kubernetes", "git", "sandbox", "fixture", "other"]
+        },
+        "ref": {
+          "type": "string",
+          "description": "External reference (job id, pod name, file path, artifact id)"
+        },
+        "url": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Optional human summary; never drives control flow alone"
+    },
+    "content_excerpt": {
+      "type": "string",
+      "description": "Bounded excerpt after redaction"
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "sha256 hex of stored/redacted payload when persisted"
+    },
+    "redacted": {
+      "type": "boolean",
+      "description": "True if secret-like values were stripped before storage/model access"
+    },
+    "redaction_notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What classes of tokens were redacted (not the secrets themselves)"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collector", "query"],
+      "properties": {
+        "collector": {
+          "type": "string",
+          "description": "Adapter or node that collected this item"
+        },
+        "query": {
+          "type": "string",
+          "description": "Sanitized query / command / API path used"
+        },
+        "tool_version": { "type": "string" },
+        "parent_evidence_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "collected_at": { "type": "string", "format": "date-time" },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

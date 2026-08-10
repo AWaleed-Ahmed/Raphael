@@ -1,0 +1,190 @@
+{
+  "create": {
+    "sandbox_id": "sb-recorded-001",
+    "run_id": "agent-smoke-001",
+    "namespace": "raphael-run-agent-smoke-001",
+    "cluster_backend": "mock",
+    "status": "ready",
+    "service_account": "raphael-sandbox",
+    "created_at": "2026-08-10T12:01:00Z",
+    "expires_at": "2026-08-10T12:21:00Z"
+  },
+  "observe_broken": {
+    "sandbox_id": "sb-recorded-001",
+    "signature": {
+      "class": "probe_misconfiguration",
+      "key": "probe_port_mismatch:payments-api:8080!=9090",
+      "normalized": {
+        "reason": "ReadinessProbePortMismatch",
+        "message": "readiness probe port does not match container port",
+        "resource_kind": "Deployment",
+        "resource_name": "payments-api",
+        "container": "payments-api",
+        "attributes": {
+          "probe_port": 9090,
+          "container_port": 8080
+        }
+      },
+      "reproduced": true,
+      "confidence": 0.95,
+      "evidence_refs": [
+        {
+          "kind": "k8s_event",
+          "id": "event-recorded-0"
+        }
+      ],
+      "summary": "Recorded stub probe mismatch",
+      "observed_at": "2026-08-10T12:02:00Z"
+    },
+    "matched_expected": null,
+    "artifact_ids": ["art-recorded-obs-1"]
+  },
+  "observe_fixed": {
+    "sandbox_id": "sb-recorded-001",
+    "signature": {
+      "class": "healthy",
+      "key": "healthy:payments-api",
+      "normalized": {
+        "reason": "Available",
+        "resource_kind": "Deployment",
+        "resource_name": "payments-api"
+      },
+      "reproduced": false,
+      "confidence": 1.0,
+      "evidence_refs": [
+        {
+          "kind": "pod_status",
+          "id": "pod-recorded-0"
+        }
+      ],
+      "observed_at": "2026-08-10T12:03:00Z"
+    },
+    "matched_expected": null,
+    "artifact_ids": ["art-recorded-obs-2"]
+  },
+  "validation": {
+    "sandbox_id": "sb-recorded-001",
+    "passed": true,
+    "fail_closed": false,
+    "full_validation": true,
+    "checks": [
+      {
+        "name": "rollout",
+        "kind": "rollout",
+        "status": "passed",
+        "mandatory": true,
+        "duration_ms": 10
+      },
+      {
+        "name": "signature_absent",
+        "kind": "signature_compare",
+        "status": "passed",
+        "mandatory": true,
+        "duration_ms": 5
+      }
+    ],
+    "before_signature_key": "probe_port_mismatch:payments-api:8080!=9090",
+    "after_signature_key": "healthy:payments-api",
+    "signature_cleared": true,
+    "completed_at": "2026-08-10T12:04:00Z"
+  },
+  "finalize": {
+    "sandbox_id": "sb-recorded-001",
+    "result_id": "res-recorded-001",
+    "status": "finalized",
+    "finalized_at": "2026-08-10T12:05:00Z",
+    "record": {
+      "result_id": "res-recorded-001",
+      "sandbox_id": "sb-recorded-001",
+      "run_id": "agent-smoke-001",
+      "repository": {
+        "owner": "raphael",
+        "name": "demo"
+      },
+      "base_commit_sha": "abcdef1234567",
+      "deployed_sha": "abcdef1234567",
+      "patch": null,
+      "rendered_manifest_artifact_id": "art-recorded-manifest",
+      "before_signature": {
+        "class": "probe_misconfiguration",
+        "key": "probe_port_mismatch:payments-api:8080!=9090",
+        "normalized": {
+          "reason": "ReadinessProbePortMismatch",
+          "resource_kind": "Deployment",
+          "resource_name": "payments-api"
+        },
+        "reproduced": true,
+        "evidence_refs": [
+          {
+            "kind": "k8s_event",
+            "id": "event-recorded-0"
+          }
+        ],
+        "observed_at": "2026-08-10T12:02:00Z"
+      },
+      "after_signature": {
+        "class": "healthy",
+        "key": "healthy:payments-api",
+        "normalized": {
+          "reason": "Available",
+          "resource_kind": "Deployment",
+          "resource_name": "payments-api"
+        },
+        "reproduced": false,
+        "evidence_refs": [
+          {
+            "kind": "pod_status",
+            "id": "pod-recorded-0"
+          }
+        ],
+        "observed_at": "2026-08-10T12:03:00Z"
+      },
+      "validation": {
+        "sandbox_id": "sb-recorded-001",
+        "passed": true,
+        "fail_closed": false,
+        "full_validation": true,
+        "checks": [
+          {
+            "name": "rollout",
+            "kind": "rollout",
+            "status": "passed",
+            "mandatory": true,
+            "duration_ms": 10
+          },
+          {
+            "name": "signature_absent",
+            "kind": "signature_compare",
+            "status": "passed",
+            "mandatory": true,
+            "duration_ms": 5
+          }
+        ],
+        "before_signature_key": "probe_port_mismatch:payments-api:8080!=9090",
+        "after_signature_key": "healthy:payments-api",
+        "signature_cleared": true,
+        "completed_at": "2026-08-10T12:04:00Z"
+      },
+      "fidelity": {
+        "score": 0.8,
+        "checklist": {
+          "same_commit": true,
+          "same_render_path": true,
+          "same_image_digest_or_tag": false,
+          "equivalent_non_secret_config": true,
+          "dependencies_available": true
+        },
+        "material_gaps": [
+          "recorded stub — not a live cluster"
+        ]
+      },
+      "artifact_ids": [
+        "art-recorded-obs-1",
+        "art-recorded-obs-2"
+      ],
+      "content_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "notes": "Phase 0 recorded sandbox finalize stub",
+      "finalized_at": "2026-08-10T12:05:00Z"
+    }
+  }
+}

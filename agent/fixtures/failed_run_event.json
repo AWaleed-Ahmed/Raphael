@@ -1,0 +1,28 @@
+{
+  "run_id": "agent-smoke-001",
+  "tenant_id": "local-dev",
+  "event_id": "evt-fixture-001",
+  "trigger_kind": "fixture",
+  "received_at": "2026-08-10T12:00:00Z",
+  "raw_ref": "fixtures/failed_run_event.json",
+  "repository": {
+    "owner": "raphael",
+    "name": "demo"
+  },
+  "commit_sha": "abcdef1234567",
+  "target_environment": "staging",
+  "affected_resources": [
+    {
+      "kind": "Deployment",
+      "name": "payments-api",
+      "namespace": "payments"
+    }
+  ],
+  "workspace_path": null,
+  "manifests": {
+    "type": "yaml",
+    "path": "deploy/manifests",
+    "fixed_path": "deploy/manifests_fixed"
+  },
+  "notes": "Phase 0 fake failed-run event; workspace_path is filled by smoke runner to sandbox/harness/scenarios/probe_port_mismatch"
+}
