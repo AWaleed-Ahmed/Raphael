@@ -1,0 +1,17 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 5544332211,
+    "name": "Deploy staging",
+    "head_sha": "abcdef1234567890deadbeef",
+    "conclusion": "failure",
+    "html_url": "https://github.com/raphael/demo/actions/runs/5544332211",
+    "event": "push",
+    "status": "completed"
+  },
+  "repository": {
+    "name": "demo",
+    "clone_url": "https://github.com/raphael/demo.git",
+    "owner": { "login": "raphael" }
+  }
+}

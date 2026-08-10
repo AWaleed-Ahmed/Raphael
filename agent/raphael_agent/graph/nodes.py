@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from raphael_agent.diagnosis import stub_diagnose
-from raphael_agent.evidence import stub_collect_evidence
+from raphael_agent.evidence import collect_evidence
 from raphael_agent.patch import stub_propose_patch
 from raphael_agent.publish import stub_publish
 from raphael_agent.graph.state import RunState, append_audit, utc_now
@@ -34,20 +34,24 @@ def _touch(state: RunState, node: str) -> dict[str, Any]:
 
 def node_ingest(state: RunState) -> dict[str, Any]:
     updates = _touch(state, "ingest")
-    # Event already seeded into state by smoke runner; mark ingest complete.
+    detail = (
+        f"fingerprint={state.get('failure_fingerprint')}"
+        if state.get("failure_fingerprint")
+        else "event accepted"
+    )
     updates["audit_events"] = append_audit(
-        {**state, **updates}, "ingest", "normalized", "fixture event accepted"
+        {**state, **updates}, "ingest", "normalized", detail
     )
     return updates
 
 
 def node_evidence(state: RunState) -> dict[str, Any]:
     updates = _touch(state, "evidence")
-    evidence = stub_collect_evidence(state)
+    evidence = collect_evidence(state)
     updates["evidence"] = evidence
     updates["redaction_report"] = {
         "items_redacted": sum(1 for e in evidence if e.get("redacted")),
-        "notes": ["stub collector marks all fixture evidence redacted"],
+        "notes": ["collect_evidence applies redaction adapters"],
     }
     updates["audit_events"] = append_audit(
         {**state, **updates}, "evidence", "collected", f"n={len(evidence)}"

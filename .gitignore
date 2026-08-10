@@ -19,8 +19,10 @@ sandbox/tests/.venv/
 # --- Raphael local runtime data ---
 .raphael-data/
 .raphael-artifacts/
+.raphael-agent-data/
 sandbox/controller/.raphael-data/
 sandbox/controller/.raphael-artifacts/
+agent/.raphael-agent-data/
 
 # --- Rust ---
 sandbox/controller/target/

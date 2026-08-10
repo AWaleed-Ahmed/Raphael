@@ -24,7 +24,7 @@ Full product intent: [`prd.md`](prd.md).
 | **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
 | **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
 | **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
-| **LangGraph agent / GitHub PRs** | **Started** — Phase 0 skeleton under [`agent/`](agent/) (stub graph, sandbox client, no real LLM/PRs yet) |
+| **LangGraph agent / GitHub PRs** | **Phase 1** — GitHub webhook ingest + run store/dedupe under [`agent/`](agent/); graph still stub (no real LLM/PRs) |
 
 The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
 

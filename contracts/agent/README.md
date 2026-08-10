@@ -11,6 +11,7 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 | Schema | Purpose |
 |---|---|
 | `run_record.json` | Durable / inspectable run state (LangGraph state object) |
+| `ingest_decision.json` | Webhook/event accept outcome (dedupe / cooldown / concurrency) |
 | `evidence_item.json` | Single evidence item with provenance + redaction flags |
 | `diagnosis_result.json` | Ranked hypotheses, confidence, structured classification |
 | `patch_proposal.json` | Constrained file/path change candidate |
@@ -22,11 +23,14 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 - `validation_results` → [`../sandbox/validation_results.json`](../sandbox/validation_results.json)
 - `result_id` / frozen record → [`../sandbox/validated_fix_record.json`](../sandbox/validated_fix_record.json)
 - Sandbox lifecycle remains six verbs (+ health / GET result); agent never gets raw kubectl.
+- `run_record.failure_fingerprint` + `correlation` support FR-003/004 ingest.
 
-## Phase 0 terminal statuses
+## Terminal statuses
 
-Stub graph terminals (may be refined toward PRD §9.3 names in later phases):
+Graph terminals:
 
 - `success_draft_pr_ready` — validated `result_id` present; publish is still a no-op placeholder
 - `escalated` — insufficient confidence / unreproducible / policy / budget
 - `failed_closed` — mandatory check unavailable or system error
+
+Ingest-only decisions (see `ingest_decision.json`) do not always create a run.

@@ -61,3 +61,38 @@ def validate_agent(name: str, instance: Any) -> None:
 
 def validate_sandbox(name: str, instance: Any) -> None:
     validate_against(load_sandbox_schema(name), instance)
+
+
+def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
+    """Drop optional None fields so run_record schema validation succeeds."""
+    skip_if_none = {
+        "failure_signature",
+        "diagnosis",
+        "reproduction_result",
+        "validated_fix_record",
+        "escalation_report",
+        "redaction_report",
+        "token_and_cost_usage",
+        "manifests",
+        "workspace_path",
+        "target_environment",
+        "current_node",
+        "pull_request_url",
+        "terminal_reason",
+        "sandbox_id",
+        "result_id",
+        "active_patch_id",
+        "audit_id",
+        "failure_fingerprint",
+        "correlation",
+    }
+    out: dict[str, Any] = {}
+    for key, value in state.items():
+        if key in skip_if_none and value is None:
+            continue
+        out[key] = value
+    repo = dict(out.get("repository") or {})
+    if repo.get("clone_url") is None:
+        repo.pop("clone_url", None)
+    out["repository"] = repo
+    return out

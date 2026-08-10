@@ -10,8 +10,11 @@ import pytest
 from raphael_agent.graph import initial_run_state, run_stub_graph
 from raphael_agent.ingest import normalize_failed_run_event
 from raphael_agent.sandbox_client import SandboxClient
-from raphael_agent.schema_util import validate_agent
-from raphael_agent.scripts.smoke import _for_validation, choose_sandbox_mode
+from raphael_agent.schema_util import for_run_record_validation, validate_agent
+from raphael_agent.scripts.smoke import choose_sandbox_mode
+
+# back-compat name used in this module
+_for_validation = for_run_record_validation
 
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = AGENT_ROOT.parent

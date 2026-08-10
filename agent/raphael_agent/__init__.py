@@ -1,9 +1,9 @@
-"""Raphael agent package (Phase 0 skeleton).
+"""Raphael agent package.
 
-Modules map to the diagnose → reproduce → patch → validate → publish loop.
-No production writes and no GitHub PR publication in Phase 0.
+Phase 1: GitHub webhook ingest, run persistence, dedupe/cooldown/concurrency.
+Phase 0: LangGraph stub + sandbox client (no PR publish, no production writes).
 """
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

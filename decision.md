@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-03 — Agent Phase 1: GitHub ingest + JSON run store + policy gates
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Implement FR-001/003–006 under `agent/raphael_agent/ingest` with Starlette webhook (`/v1/webhooks/github`), HMAC via `RAPHAEL_GITHUB_WEBHOOK_SECRET` (optional in local dev when unset), durable JSON `RunStore` under `RAPHAEL_AGENT_DATA_DIR`, and fingerprint `tenant|repo|commit|env|provisional_failure_key`. Cooldown + max concurrent runs are env-configurable. Evidence facade calls GitHub Actions adapter then fixture stub; redaction helpers land now. K8s watcher deferred. Graph auto-run from webhook is opt-in (`RAPHAEL_INGEST_RUN_GRAPH`).
+- **Why:** Keeps Phase 0 entry shape (`normalize → initial_run_state → graph`) while making ingest real and fail-closed on duplicates/runaway concurrency.
+- **Alternatives:** Require secret always (blocks local curl demos); SQLite immediately (premature); always run full graph on webhook (too heavy for intake).
+- **Consequences:** Phase 2 can attach analyzers/patch without redesigning fingerprints or webhook auth. Supplements D-20260810-02.
+
 ### D-20260810-02 — Agent Phase 0: `agent/` package + in-memory LangGraph stub
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -214,6 +223,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-03 | Agent Phase 1 GitHub ingest + run store/policy |
 | D-20260810-02 | Agent Phase 0 `agent/` + in-memory LangGraph |
 | D-20260810-01 | P0 clone-at-SHA / fixtures / Docker sudo gate |
 | D-20260809-00 | Product baseline (PRD) |

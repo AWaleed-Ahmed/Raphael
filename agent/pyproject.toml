@@ -1,7 +1,7 @@
 [project]
 name = "raphael-agent"
-version = "0.1.0"
-description = "Raphael self-healing deployment agent (Phase 0 skeleton + stubs)"
+version = "0.2.0"
+description = "Raphael self-healing deployment agent (Phase 1 ingest + Phase 0 graph stubs)"
 requires-python = ">=3.12"
 dependencies = [
   "httpx>=0.27",
@@ -9,10 +9,13 @@ dependencies = [
   "langgraph>=0.2",
   "pydantic>=2.7",
   "pytest>=8.2",
+  "starlette>=0.38",
+  "uvicorn>=0.30",
 ]
 
 [project.scripts]
 raphael-agent-smoke = "raphael_agent.scripts.smoke:main"
+raphael-agent-serve = "raphael_agent.http_api.app:main"
 
 [build-system]
 requires = ["setuptools>=68"]

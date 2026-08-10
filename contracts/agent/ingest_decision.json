@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/ingest_decision.json",
+  "title": "IngestDecision",
+  "description": "Outcome of accepting a failed-run event (FR-001, FR-003–006). Only accepted decisions create/continue a run_record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision",
+    "event_id",
+    "fingerprint",
+    "decided_at",
+    "reason"
+  ],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "ignored",
+        "duplicate",
+        "cooldown",
+        "concurrency_limit",
+        "unauthorized",
+        "invalid"
+      ]
+    },
+    "event_id": { "type": "string", "minLength": 1 },
+    "fingerprint": {
+      "type": "string",
+      "description": "Dedupe key: tenant|repo|commit|environment|provisional_failure_key"
+    },
+    "run_id": {
+      "type": ["string", "null"],
+      "description": "Set when a run_record was created or an existing run was attached"
+    },
+    "existing_run_id": {
+      "type": ["string", "null"],
+      "description": "Prior run sharing the fingerprint when decision is duplicate/cooldown"
+    },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "reason": { "type": "string" },
+    "trigger_kind": {
+      "type": "string",
+      "enum": [
+        "github_workflow_run",
+        "github_check_run",
+        "github_deployment_status",
+        "k8s_workload",
+        "fixture",
+        "manual"
+      ]
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "commit_sha": { "type": "string" },
+    "cooldown_seconds_remaining": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "active_run_count": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    }
+  }
+}

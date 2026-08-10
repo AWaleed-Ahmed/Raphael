@@ -1,0 +1,16 @@
+{
+  "action": "completed",
+  "check_run": {
+    "id": 99887766,
+    "name": "deploy / helm-upgrade",
+    "head_sha": "abcdef1234567890deadbeef",
+    "conclusion": "failure",
+    "html_url": "https://github.com/raphael/demo/runs/99887766",
+    "status": "completed"
+  },
+  "repository": {
+    "name": "demo",
+    "clone_url": "https://github.com/raphael/demo.git",
+    "owner": { "login": "raphael" }
+  }
+}

@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, TypedDict
 
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+from raphael_agent.timeutil import utc_now
 
 
 class RunState(TypedDict, total=False):
@@ -47,6 +44,8 @@ class RunState(TypedDict, total=False):
     terminal_reason: str | None
     errors: list[dict[str, Any]]
     audit_events: list[dict[str, Any]]
+    failure_fingerprint: str
+    correlation: dict[str, Any]
 
 
 def append_audit(state: RunState, node: str, event: str, detail: str | None = None) -> list[dict[str, Any]]:
@@ -79,6 +78,8 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         affected_resources=list(seed.get("affected_resources") or []),
         workspace_path=seed.get("workspace_path"),
         manifests=seed.get("manifests"),
+        failure_fingerprint=seed.get("failure_fingerprint"),
+        correlation=seed.get("correlation"),
         evidence=[],
         redaction_report=None,
         sandbox_id=None,
