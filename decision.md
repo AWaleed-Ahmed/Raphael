@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-16 — Interface layer folder + deferred GitHub-native / IDE PRDs
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Add `interface/` as a separate product layer (not under `agent/` or `sandbox/`) with umbrella PRD plus `interface/github-native/prd.md` and `interface/IDE/prd.md`. Surfaces are GitHub-native interaction and a Cursor/VS Code extension. Implementation deferred; I0 (agent action API contracts) is a hard dependency before UX. Interfaces are thin clients: no sandbox calls, no auto-merge, no production writes. ChatOps remains out of this folder (root prd §25).
+- **Why:** Lock product intent for the next interactive workstreams without blocking current agent/sandbox delivery.
+- **Alternatives:** Build a full web operator console first — rejected for now (Git/editor-first). Put UI code inside `agent/` — rejected to keep core workflow free of presentation.
+- **Consequences:** Future interface code lands only under `interface/`; agent gains shared action endpoints when I0 starts; handoff points here for “what’s next after learning.”
+
 ### D-20260810-15 — Post-MVP learning loop: offline feedback → diagnosis/patch priors
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -331,6 +340,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-16 | Interface layer PRDs (GitHub-native + IDE/Cursor; deferred) |
 | D-20260810-15 | Post-MVP learning loop (offline feedback → priors) |
 | D-20260810-14 | Option B K8s watcher + App JWT + CODEOWNERS + SQLite store |
 | D-20260810-13 | Phase 6 dual-path CI + labeled Issues + optional model |

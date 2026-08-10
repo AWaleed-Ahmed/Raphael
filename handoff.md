@@ -80,6 +80,7 @@ Real partner week: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
 
 1. **Real partner week** — secrets, ≥5 dry-run failures, permission approval  
 2. **Accumulate feedback → rebuild learning snapshots** in partner envs (`RAPHAEL_LEARNING=1`)  
-3. Broader Post-MVP adapters (GitLab, ChatOps, …) from prd §25  
+3. **Interface layer (PRD only today)** — [`interface/README.md`](interface/README.md) + CLI guide [`interface/Usage.md`](interface/Usage.md); build later: GitHub-native + IDE/Cursor under `interface/github-native/` and `interface/IDE/`  
+4. Broader Post-MVP adapters (GitLab, ChatOps, …) from prd §25  
 
 Do **not** invent auto-merge or production remediation.
