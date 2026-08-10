@@ -13,7 +13,8 @@ When a deploy fails in CI or a workload goes unhealthy, Raphael’s job is to:
 
 Production stays **read-only** in the MVP. Durable changes only enter through your normal Git review and CI path.
 
-Full product intent: [`prd.md`](prd.md).
+Full product intent: [`prd.md`](prd.md).  
+**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).
 
 ---
 
