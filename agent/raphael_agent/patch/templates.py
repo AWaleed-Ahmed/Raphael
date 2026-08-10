@@ -154,6 +154,18 @@ def generate_files_for_diagnosis(run: dict[str, Any]) -> tuple[list[dict[str, An
     """Return (files, summary) for the selected failure class."""
     diagnosis = run.get("diagnosis") or {}
     failure_class = (diagnosis.get("classification") or {}).get("failure_class")
+    if not failure_class:
+        return None, "No deterministic fix template for failure class"
+
+    from raphael_agent.learning import template_weight_for_run
+
+    weight = template_weight_for_run(run, str(failure_class))
+    if weight < 0.4:
+        return (
+            None,
+            f"Learning demoted template for {failure_class} (weight={weight})",
+        )
+
     if failure_class == "probe_misconfiguration":
         files = fix_probe_port_mismatch(run)
         return files, "Align readiness probe port with containerPort"

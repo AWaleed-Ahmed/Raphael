@@ -36,7 +36,8 @@
             "deployment_regression",
             "policy_blocked",
             "unknown",
-            "healthy"
+            "healthy",
+            "issue_model_fix"
           ]
         },
         "blocked_reason": {
@@ -130,6 +131,19 @@
     "notes": {
       "type": ["string", "null"],
       "description": "Optional prose; structured fields above drive control flow"
+    },
+    "learning": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Audit of applied learning_snapshot priors (Post-MVP)",
+      "properties": {
+        "snapshot_id": { "type": "string" },
+        "failure_class": { "type": "string" },
+        "confidence_delta": { "type": "number" },
+        "prefer_escalate": { "type": "boolean" },
+        "template_weight": { "type": "number" },
+        "samples": { "type": "integer" }
+      }
     },
     "diagnosed_at": { "type": "string", "format": "date-time" }
   }

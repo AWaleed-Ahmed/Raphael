@@ -18,6 +18,7 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 | `publish_result.json` | Draft PR publication outcome (`result_id`, branch, dry_run/live) |
 | `budget_snapshot.json` | Wall/attempt/cost caps captured at run start |
 | `feedback_event.json` | FR-065 human/PR outcome audit event (jsonl) |
+| `learning_snapshot.json` | Offline priors from feedback (Post-MVP learning loop) |
 | `escalation_report.json` | Safe stop: why no PR, what was tried, next checks |
 | `fix_rules.json` | Preset/derived Route B writable-path + must/must-not constraints |
 

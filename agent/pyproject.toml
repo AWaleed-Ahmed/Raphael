@@ -20,6 +20,7 @@ raphael-agent-demo = "raphael_agent.scripts.demo_partner:main"
 raphael-agent-go-nogo = "raphael_agent.scripts.pilot_go_nogo:main"
 raphael-agent-feedback = "raphael_agent.scripts.record_feedback:main"
 raphael-agent-metrics = "raphael_agent.scripts.metrics:main"
+raphael-agent-learn = "raphael_agent.scripts.learn:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -32,3 +33,6 @@ include = ["raphael_agent*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+  "kind: exercises live sandbox controller (kind cluster on RAPHAEL_SANDBOX_URL)",
+]

@@ -53,8 +53,25 @@ pip install -e .
 | `RAPHAEL_K8S_WATCHER` | `0` | Enable `POST /v1/webhooks/k8s` (FR-002) |
 | `RAPHAEL_AGENT_STORE` | `json` | `json` \| `sqlite` |
 | `RAPHAEL_REVIEWERS_FROM_CODEOWNERS` | `0` | Merge CODEOWNERS user logins into PR reviewers |
-| `RAPHAEL_FEEDBACK_RECORDER` | `jsonl` | `jsonl` \| `off` |
-| `RAPHAEL_FEEDBACK_ON_PUBLISH` | unset | `1` to log dry_run_prepared / draft_opened |
+| `RAPHAEL_LEARNING` | `0` | Apply offline learning_snapshot priors |
+| `RAPHAEL_LEARNING_MIN_SAMPLES` | `3` | Min feedback samples per class before prior |
+| `RAPHAEL_LEARNING_SNAPSHOT` | data dir file | Path to frozen snapshot |
+
+### Learning loop (Post-MVP; off by default)
+
+```bash
+# 1) Collect feedback during/after runs (already wired)
+python -m raphael_agent.scripts.record_feedback --outcome merged --run-id ...
+
+# 2) Rebuild offline priors (does not change live policy/allowlists)
+python -m raphael_agent.scripts.learn
+
+# 3) Apply on subsequent runs
+export RAPHAEL_LEARNING=1
+python -m raphael_agent.scripts.demo_partner
+```
+
+Priors nudge diagnosis confidence / escalate sooner on chronically rejected classes, and can demote weak templates. Still draft-PR / human merge only.
 
 ### Optional model (OpenAI-compatible, including local)
 

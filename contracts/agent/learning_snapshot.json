@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/learning_snapshot.json",
+  "title": "LearningSnapshot",
+  "description": "Offline priors derived from FR-065 feedback. Applied at diagnosis/patch time when RAPHAEL_LEARNING=1. Never widens allowlists or disables policy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_id", "built_at", "source", "min_samples", "classes", "version"],
+  "properties": {
+    "snapshot_id": { "type": "string", "minLength": 1 },
+    "built_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "string",
+      "enum": ["feedback_jsonl", "manual", "test"]
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "min_samples": { "type": "integer", "minimum": 1 },
+    "feedback_events_total": { "type": "integer", "minimum": 0 },
+    "notes": { "type": "string" },
+    "classes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["failure_class", "samples", "confidence_delta", "prefer_escalate"],
+        "properties": {
+          "failure_class": { "type": "string", "minLength": 1 },
+          "repository": {
+            "type": ["string", "null"],
+            "description": "owner/name scope; null = global"
+          },
+          "samples": { "type": "integer", "minimum": 0 },
+          "accepted_or_merged": { "type": "integer", "minimum": 0 },
+          "edited": { "type": "integer", "minimum": 0 },
+          "rejected_or_closed": { "type": "integer", "minimum": 0 },
+          "deploy_failed": { "type": "integer", "minimum": 0 },
+          "confidence_delta": {
+            "type": "number",
+            "minimum": -0.3,
+            "maximum": 0.3,
+            "description": "Additive adjustment to diagnosis confidence (capped)"
+          },
+          "prefer_escalate": {
+            "type": "boolean",
+            "description": "When true, clear selected_hypothesis unless confidence stays high"
+          },
+          "template_weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "description": "Relative preference for deterministic template (1.0 = neutral)"
+          }
+        }
+      }
+    }
+  }
+}

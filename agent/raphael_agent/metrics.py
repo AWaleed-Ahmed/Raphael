@@ -60,6 +60,7 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
 
     avg_duration = sum(durations) / len(durations) if durations else None
     feedback = summarize_feedback()
+    learning = summarize_learning()
     return {
         "generated_at": utc_now(),
         "runs_total": len(runs),
@@ -69,11 +70,31 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
         "patch_attempts_total": patch_attempts_total,
         "avg_run_duration_seconds": avg_duration,
         "feedback": feedback,
+        "learning": learning,
         "notes": [
             "Sandbox force-cleanup remains controller-side (POST /v1/admin/force-cleanup).",
             "Agent metrics are read-only aggregates over RAPHAEL_AGENT_DATA_DIR.",
-            "FR-065 feedback aggregates are audit-only (no learning loop).",
+            "FR-065 feedback aggregates are audit-only unless RAPHAEL_LEARNING=1 applies a snapshot.",
         ],
+    }
+
+
+def summarize_learning() -> dict[str, Any]:
+    from raphael_agent.learning import learning_enabled, load_learning_snapshot
+
+    snap = load_learning_snapshot()
+    if not snap:
+        return {
+            "enabled": learning_enabled(),
+            "snapshot_loaded": False,
+            "classes": 0,
+        }
+    return {
+        "enabled": learning_enabled(),
+        "snapshot_loaded": True,
+        "snapshot_id": snap.get("snapshot_id"),
+        "classes": len(snap.get("classes") or []),
+        "built_at": snap.get("built_at"),
     }
 
 

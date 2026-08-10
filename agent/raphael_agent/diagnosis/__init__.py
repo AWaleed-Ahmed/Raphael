@@ -202,6 +202,9 @@ def diagnose(run: dict[str, Any]) -> dict[str, Any]:
                 "diagnosed_at": utc_now(),
             }
 
+    from raphael_agent.learning import apply_learning_to_diagnosis
+
+    result = apply_learning_to_diagnosis(run, result)
     validate_agent("diagnosis_result.json", result)
     return result
 

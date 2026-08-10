@@ -79,6 +79,7 @@ Real partner week: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
 ## What’s next
 
 1. **Real partner week** — secrets, ≥5 dry-run failures, permission approval  
-2. **Post-MVP** — prd §25–§26 with partner findings  
+2. **Accumulate feedback → rebuild learning snapshots** in partner envs (`RAPHAEL_LEARNING=1`)  
+3. Broader Post-MVP adapters (GitLab, ChatOps, …) from prd §25  
 
 Do **not** invent auto-merge or production remediation.

@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260810-15 — Post-MVP learning loop: offline feedback → diagnosis/patch priors
+- **Status:** accepted
+- **Date:** 2026-08-10
+- **Owners:** Engineer B + coding agent
+- **Decision:** Close the FR-065 loop offline: `python -m raphael_agent.scripts.learn` builds `learning_snapshot.json` from feedback outcomes (accepted/merged/edited/rejected/deploy_*). When `RAPHAEL_LEARNING=1`, diagnosis applies capped confidence deltas and optional `prefer_escalate`; templates with weight < 0.4 are skipped. Never widens allowlists, never unblocks blocked classes, never auto-merges. Default `RAPHAEL_LEARNING=0`. Contract: `contracts/agent/learning_snapshot.json`.
+- **Why:** Partner feedback should improve next runs without training mid-incident or weakening guardrails.
+- **Alternatives:** Online RL / fine-tune LLM from feedback — rejected for MVP safety. Docs-only metrics — does not change agent behavior.
+- **Consequences:** Operators rebuild snapshots periodically; runs audit applied priors under `diagnosis.learning`.
+
 ### D-20260810-14 — Option B: K8s watcher ingest + App JWT + CODEOWNERS + SQLite store
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -322,6 +331,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260810-15 | Post-MVP learning loop (offline feedback → priors) |
 | D-20260810-14 | Option B K8s watcher + App JWT + CODEOWNERS + SQLite store |
 | D-20260810-13 | Phase 6 dual-path CI + labeled Issues + optional model |
 | D-20260810-12 | Agent terminals / confidence / ports / RunStore / ingest defaults |
