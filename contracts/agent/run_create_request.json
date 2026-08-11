@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_create_request.json",
+  "title": "RunCreateRequest",
+  "description": "I0 POST /v1/runs body (manual UI/IDE/GitHub trigger). Not served until agent implements I0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trigger_kind", "action_id", "repository", "commit_sha"],
+  "properties": {
+    "trigger_kind": {
+      "type": "string",
+      "enum": ["manual_ui", "manual_ide", "manual_github"]
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Client idempotency key"
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "name"],
+      "properties": {
+        "owner": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "clone_url": { "type": "string" }
+      }
+    },
+    "commit_sha": { "type": "string", "minLength": 7 },
+    "tenant_id": { "type": "string" },
+    "target_environment": { "type": "string" },
+    "workspace_path": { "type": ["string", "null"] },
+    "manifests": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "sandbox_mode": {
+      "type": "string",
+      "enum": ["live", "recorded_stub", "skipped"]
+    },
+    "issue_number": { "type": ["integer", "null"], "minimum": 1 },
+    "pull_request_number": { "type": ["integer", "null"], "minimum": 1 },
+    "notes": { "type": ["string", "null"], "maxLength": 2000 },
+    "actor": { "type": ["string", "null"] }
+  }
+}

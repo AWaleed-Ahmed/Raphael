@@ -1,0 +1,107 @@
+{
+  "name": "raphael-ide",
+  "displayName": "Raphael",
+  "description": "Raphael self-healing deployment agent — inspect runs, apply fixes, open draft PRs (local agent).",
+  "version": "0.2.1",
+  "publisher": "raphael",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AWaleed-Ahmed/Raphael.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "raphael",
+          "title": "Raphael",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "raphael": [
+        {
+          "type": "webview",
+          "id": "raphael.panel",
+          "name": "Raphael"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "raphael.focusPanel",
+        "title": "Raphael: Open Sidebar"
+      },
+      {
+        "command": "raphael.testConnection",
+        "title": "Raphael: Test Connection"
+      },
+      {
+        "command": "raphael.refreshRuns",
+        "title": "Raphael: Refresh Runs",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "raphael.openRun",
+        "title": "Raphael: Open Run…"
+      },
+      {
+        "command": "raphael.showRunMarkdown",
+        "title": "Raphael: Show Run Markdown"
+      },
+      {
+        "command": "raphael.applyFix",
+        "title": "Raphael: Apply Fix from Run"
+      },
+      {
+        "command": "raphael.openDraftPr",
+        "title": "Raphael: Open Draft PR"
+      },
+      {
+        "command": "raphael.feedbackAccepted",
+        "title": "Raphael: Feedback Accepted"
+      },
+      {
+        "command": "raphael.feedbackRejected",
+        "title": "Raphael: Feedback Rejected"
+      },
+      {
+        "command": "raphael.setApiToken",
+        "title": "Raphael: Set API Token"
+      }
+    ],
+    "configuration": {
+      "title": "Raphael",
+      "properties": {
+        "raphael.agentBaseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8091",
+          "description": "Base URL of the local Raphael agent (I0 HTTP API). Do not point at the sandbox controller (:8090)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies",
+    "test:unit": "node --test out/applyPatch.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}

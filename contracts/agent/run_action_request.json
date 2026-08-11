@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_action_request.json",
+  "title": "RunActionRequest",
+  "description": "I0 POST /v1/runs/{run_id}/actions body. Not served until agent implements I0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verb", "action_id"],
+  "properties": {
+    "verb": {
+      "type": "string",
+      "enum": ["retry", "escalate", "cancel", "feedback"]
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Client idempotency key"
+    },
+    "outcome": {
+      "type": "string",
+      "description": "Required when verb=feedback; FR-065 outcome enum",
+      "enum": [
+        "accepted",
+        "edited",
+        "rejected",
+        "merged",
+        "closed_unmerged",
+        "deploy_succeeded",
+        "deploy_failed",
+        "other"
+      ]
+    },
+    "notes": { "type": ["string", "null"], "maxLength": 2000 },
+    "actor": { "type": ["string", "null"] },
+    "sandbox_mode": {
+      "type": "string",
+      "enum": ["live", "recorded_stub", "skipped"],
+      "description": "Optional override for verb=retry"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "verb": { "const": "feedback" } },
+        "required": ["verb"]
+      },
+      "then": { "required": ["outcome"] }
+    }
+  ]
+}

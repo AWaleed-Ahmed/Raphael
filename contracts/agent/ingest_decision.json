@@ -49,7 +49,10 @@
         "github_issue",
         "k8s_workload",
         "fixture",
-        "manual"
+        "manual",
+        "manual_ui",
+        "manual_ide",
+        "manual_github"
       ]
     },
     "repository": {

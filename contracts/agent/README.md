@@ -21,6 +21,13 @@ These shapes are **compatible with** [`contracts/sandbox/`](../sandbox/): when a
 | `learning_snapshot.json` | Offline priors from feedback (Post-MVP learning loop) |
 | `escalation_report.json` | Safe stop: why no PR, what was tried, next checks |
 | `fix_rules.json` | Preset/derived Route B writable-path + must/must-not constraints |
+| `run_list_response.json` | **I0 (served)** — `GET /v1/runs` list |
+| `run_create_request.json` | **I0 (served)** — `POST /v1/runs` body |
+| `run_create_response.json` | **I0 (served)** — `POST /v1/runs` response |
+| `run_action_request.json` | **I0 (served)** — `POST /v1/runs/{id}/actions` body |
+| `run_action_response.json` | **I0 (served)** — `POST /v1/runs/{id}/actions` response |
+
+Interface I0 product contract: [`../../interface/prd-i0-api.md`](../../interface/prd-i0-api.md).
 
 ## Compatibility notes
 
@@ -38,7 +45,8 @@ Graph terminals:
 
 - `success_draft_pr_ready` — validated `result_id` + draft PR publish attempted (dry-run or live)
 - `success_fix_proposed` — Route B fix snippet prepared/posted; developer opens the PR
-- `escalated` — insufficient confidence / unreproducible / policy / budget / model required
+- `escalated` — insufficient confidence / unreproducible / policy / budget / model required / human_requested (I0)
 - `failed_closed` — mandatory check unavailable or system error
+- `cancelled` — I0 human cancel of an in-flight run (schema ready; graph support when I0 is implemented)
 
 Ingest-only decisions (see `ingest_decision.json`) do not always create a run.

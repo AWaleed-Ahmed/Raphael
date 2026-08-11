@@ -140,3 +140,13 @@ $env:RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES="probe_misconfiguration"
 $env:RAPHAEL_GITHUB_TOKEN="ghp_..."
 python -m raphael_agent.scripts.pilot_go_nogo
 ```
+
+---
+
+## Interface / I0 (deferred)
+
+Human UIs (GitHub slash commands, Cursor/VS Code) are specified under [`../interface/`](../interface/README.md). **CLI remains the interactive path today** — see [`../interface/Usage.md`](../interface/Usage.md).
+
+- Agent HTTP default listen: **`127.0.0.1:8091`** (`RAPHAEL_AGENT_LISTEN`). Sandbox controller stays on **`:8090`**.
+- I0 APIs **served**: `GET/POST /v1/runs`, `POST /v1/runs/{id}/actions` — see [`../interface/prd-i0-api.md`](../interface/prd-i0-api.md).
+- Decisions: `D-20260811-01` (locks), `D-20260811-02` (implementation).

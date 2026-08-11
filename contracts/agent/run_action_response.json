@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_action_response.json",
+  "title": "RunActionResponse",
+  "description": "I0 POST /v1/runs/{run_id}/actions response. Not served until agent implements I0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verb", "action_id", "source_run_id", "idempotent_replay"],
+  "properties": {
+    "verb": {
+      "type": "string",
+      "enum": ["retry", "escalate", "cancel", "feedback"]
+    },
+    "action_id": { "type": "string", "minLength": 1 },
+    "source_run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run that received the action"
+    },
+    "result_run_id": {
+      "type": ["string", "null"],
+      "description": "New run_id when verb=retry; else usually source_run_id"
+    },
+    "status": {
+      "type": ["string", "null"],
+      "description": "Status of result_run_id or source after action"
+    },
+    "idempotent_replay": { "type": "boolean" },
+    "feedback_event_id": {
+      "type": ["string", "null"],
+      "description": "Set when verb=feedback"
+    },
+    "message": { "type": "string" },
+    "terminal_reason": { "type": ["string", "null"] }
+  }
+}

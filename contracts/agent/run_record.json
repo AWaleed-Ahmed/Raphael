@@ -37,9 +37,14 @@
         "success_draft_pr_ready",
         "success_fix_proposed",
         "escalated",
-        "failed_closed"
+        "failed_closed",
+        "cancelled"
       ],
-      "description": "Terminals: success_draft_pr_ready (CI draft PR) | success_fix_proposed (Issues snippet) | escalated | failed_closed"
+      "description": "Terminals: success_draft_pr_ready (CI draft PR) | success_fix_proposed (Issues snippet) | escalated | failed_closed | cancelled (I0 human cancel)"
+    },
+    "parent_run_id": {
+      "type": ["string", "null"],
+      "description": "I0: set when this run was created by retry from another run"
     },
     "current_node": {
       "type": ["string", "null"],
@@ -70,8 +75,12 @@
             "github_issue",
             "k8s_workload",
             "fixture",
-            "manual"
-          ]
+            "manual",
+            "manual_ui",
+            "manual_ide",
+            "manual_github"
+          ],
+          "description": "manual retained for back-compat; prefer manual_ui|manual_ide|manual_github for I0"
         },
         "event_id": { "type": "string" },
         "received_at": { "type": "string", "format": "date-time" },
@@ -280,6 +289,11 @@
     "pull_request_url": {
       "type": ["string", "null"],
       "description": "Draft PR URL after publish; dry-run uses a documented placeholder compare URL"
+    },
+    "pull_request_number": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "I0 correlation: GitHub pull request number when known"
     },
     "pull_request_branch": {
       "type": ["string", "null"],

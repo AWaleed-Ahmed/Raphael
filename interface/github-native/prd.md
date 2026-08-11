@@ -5,7 +5,8 @@
 **Folder:** `interface/github-native/`  
 **Product stage:** Post-MVP (I1 / I3 in parent plan)  
 **Primary users:** Platform/SRE on-call, application engineers reviewing Raphael PRs  
-**Depends on:** Agent webhooks + run store; GitHub App (PAT insufficient for rich Checks UX long-term)
+**Depends on:** Agent webhooks + run store; single GitHub App for pilot; I0 action APIs in [`../prd-i0-api.md`](../prd-i0-api.md)  
+**Command host (pilot):** Agent HTTP (`RAPHAEL_GITHUB_COMMANDS=1`); this folder owns PRD + reply templates until a process split is justified
 
 ---
 
@@ -37,10 +38,27 @@ Root PRD §13 already requires PRs to be understandable without an agent console
 | `workflow_run` / `check_run` / deployment-status → ingest | Same; plus **interactive** issue/PR comment commands |
 | Label `raphael:fix` → Route B | Keep; add command verbs and status replies |
 | Draft PR body (FR-060–064) | Structured follow-up comments + Check annotations |
-| `pull_request` webhook → feedback jsonl | Explicit `/raphael accept\|reject` and mapped review events |
+| `pull_request` webhook → feedback jsonl | Explicit `/raphael feedback accepted\|rejected\|edited` and mapped review events |
 | Partner dry-run placeholder PR URLs | Commands must not imply live publish when dry-run |
 
-**Boundary:** Detection/normalization stays in `agent/raphael_agent/ingest`. This package owns **command parsing, reply templates, Check Run presentation, and GitHub App UX wiring** that call agent APIs.
+**Boundary:** Detection/normalization stays in `agent/raphael_agent/ingest`. Pilot **command parsing** also runs in the agent when `RAPHAEL_GITHUB_COMMANDS=1`, calling I0 action handlers. This package owns **reply templates, Check Run presentation copy, and (later) a thin client** — not a second diagnosis engine.
+
+### 3.1 Run correlation
+
+Resolve `run_id` for `/raphael status` and related verbs:
+
+1. Explicit arg: `/raphael status run-abc123`  
+2. Thread marker: `<!-- raphael:run_id=… -->` or footer `raphael:run_id=…`  
+3. Store lookup: latest run for `issue_number` / `pull_request_number` via I0 `GET /v1/runs`
+
+Retries set `parent_run_id` and copy correlation unless overridden.
+
+### 3.2 Escalate semantics
+
+See I0 state machine. Summary:
+
+- **In-flight** (`pending`/`running`): stop patch/publish → `escalated`, `terminal_reason=human_requested`; never invent a patch.  
+- **Already terminal:** audit + optional notes/feedback only; do not rewrite a success terminal to escalated.
 
 ---
 
@@ -65,7 +83,7 @@ Commands appear as Issue or PR comments (bot ignores its own comments). Prefix c
 | GH-007 | `fix` | Route B-style: only if label/policy allows; never widens allowlist | P1 |
 | GH-008 | `help` | List verbs + current partner/publish mode (no secrets) | P0 |
 
-**ACL (default proposal):** collaborators with `write` on the repo may run P0 verbs; `diagnose` / `fix` / anything that can open a live draft requires repo `admin` **or** membership in a configured GitHub team (`RAPHAEL_GITHUB_COMMAND_TEAM`). Final choice is open question #5 in parent PRD.
+**ACL (locked):** collaborators with `write` may run `status`, `help`, `feedback`; `retry` / `diagnose` / `fix` / `escalate` / `cancel` require repo `admin` **or** membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
 
 ### 4.2 Automatic comments (P0)
 
@@ -93,8 +111,8 @@ Commands appear as Issue or PR comments (bot ignores its own comments). Prefix c
 | GH-030 | Create/update a Check Run `Raphael` on the failing SHA when a run starts | P1 |
 | GH-031 | Check output summarizes diagnosis, validation matrix, link to draft PR or escalation | P1 |
 | GH-032 | Annotations point at allowlisted file paths when patch touches them | P1 |
-| GH-033 | Check conclusion: `neutral` for dry-run success, `success` only when policy says validation passed, `failure` for failed_closed, `cancelled` for cancel | P1 |
-| GH-034 | Never mark GitHub “success” in a way that bypasses required human review for merge | P0 |
+| GH-033 | Check conclusion: default **`neutral`** (advisory). Optional opt-in non-required `success` only when partner explicitly configures advisory-success; never a required check for merge | P1 |
+| GH-034 | Never mark GitHub in a way that bypasses required human review for merge; Check name should read as advisory (e.g. `Raphael (advisory)`) | P0 |
 
 ### 4.5 Pull request experience extensions (P0/P1)
 
@@ -123,7 +141,8 @@ Commands appear as Issue or PR comments (bot ignores its own comments). Prefix c
 
 - ChatOps outside GitHub (Slack/Teams).
 - Editing production Kubernetes from a comment.
-- Auto-merge on `/raphael accept`.
+- Auto-merge on `/raphael feedback accepted` (feedback only; never merge).  
+- Slash alias `/raphael accept` (rejected grammar — use `feedback accepted`).
 - Replacing branch protection or required checks with Raphael Checks alone.
 - Hosting a separate comment parser inside the sandbox controller.
 - Scraping arbitrary Issue HTML; only GitHub API + webhook payloads.
@@ -165,7 +184,7 @@ interface/github-native/
   tests/
 ```
 
-Language choice at I0: prefer **TypeScript** if the GitHub App runs as a small Node service, or **Python** if handlers live beside `agent/` as an optional extra package. Product requirement is language-agnostic; **do not** put handlers inside `sandbox/`.
+Language: reply templates may be Markdown files here; **runtime command parse for pilot is in `agent/`**. A future Node/Python worker under this folder is optional and must not fork diagnosis.
 
 ### 7.2 Event flow
 
@@ -173,14 +192,12 @@ Language choice at I0: prefer **TypeScript** if the GitHub App runs as a small N
 sequenceDiagram
   participant User
   participant GitHub
-  participant GHN as github-native
   participant Agent
   User->>GitHub: comment /raphael retry
-  GitHub->>GHN: issue_comment webhook
-  GHN->>GHN: ACL + rate limit + parse
-  GHN->>Agent: POST /v1/runs/{id}/actions retry
-  Agent-->>GHN: new run_id
-  GHN->>GitHub: create comment status
+  GitHub->>Agent: issue_comment webhook
+  Note over Agent: RAPHAEL_GITHUB_COMMANDS parse ACL rate limit
+  Agent->>Agent: run action retry with action_id
+  Agent->>GitHub: reply comment with new run_id
 ```
 
 ### 7.3 GitHub App permissions (proposed)
@@ -201,10 +218,11 @@ sequenceDiagram
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `RAPHAEL_GITHUB_COMMAND_PREFIX` | `/raphael` | Command prefix |
-| `RAPHAEL_GITHUB_COMMANDS` | `1` when package enabled | Master switch |
-| `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Optional team slug for privileged verbs |
-| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | Enable Checks (I3) |
-| `RAPHAEL_INTERFACE_AGENT_URL` | agent base URL | Where to call API |
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | Master switch (agent-side command parse) |
+| `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Team slug for privileged verbs |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | Enable Checks (I3); conclusions default `neutral` |
+| `RAPHAEL_INTERFACE_AGENT_URL` | `http://127.0.0.1:8091` | Agent base when a split worker exists |
+| `RAPHAEL_INTERFACE_TOKEN` | unset | Bearer for non-loopback agent API |
 
 ---
 
@@ -242,12 +260,12 @@ sequenceDiagram
 
 ---
 
-## 11. Open questions
+## 11. Resolved questions
 
-1. Single App vs ingest App + commands App?
-2. Should `/raphael accept` mean feedback-only, or also approve the GitHub PR review (still not merge)?
-3. Deep link format for IDE (“Open in Cursor”) — custom protocol vs https landing page?
-4. Store command transcripts only on run audit, or also a dedicated `interface_events.jsonl`?
+1. **Single App** for pilot (ingest + interactive commands).  
+2. `/raphael feedback accepted` is **feedback-only** (never GitHub PR “approve” unless a future opt-in is added; never merge).  
+3. IDE deep link: `vscode://raphael.raphael-ide/run/{run_id}` with copy-`run_id` fallback (see IDE PRD).  
+4. Command transcripts on run `audit_events`; optional `interface_events.jsonl` later — not required for I1.
 
 ---
 
@@ -256,3 +274,4 @@ sequenceDiagram
 | Version | Date | Notes |
 |---------|------|-------|
 | 0.1.0 | 2026-08-10 | Initial github-native PRD; implementation deferred |
+| 0.2.0 | 2026-08-11 | Feedback grammar, escalate/correlation, Checks neutral, agent-hosted commands |

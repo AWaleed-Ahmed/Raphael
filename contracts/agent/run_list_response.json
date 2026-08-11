@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_list_response.json",
+  "title": "RunListResponse",
+  "description": "I0 GET /v1/runs list response (not served until agent implements I0).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runs", "limit"],
+  "properties": {
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run_id",
+          "status",
+          "repository",
+          "commit_sha",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "run_id": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "success_draft_pr_ready",
+              "success_fix_proposed",
+              "escalated",
+              "failed_closed",
+              "cancelled"
+            ]
+          },
+          "repository": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["owner", "name"],
+            "properties": {
+              "owner": { "type": "string", "minLength": 1 },
+              "name": { "type": "string", "minLength": 1 }
+            }
+          },
+          "commit_sha": { "type": "string", "minLength": 7 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "terminal_reason": { "type": ["string", "null"] },
+          "failure_class": { "type": ["string", "null"] },
+          "issue_number": { "type": ["integer", "null"], "minimum": 1 },
+          "pull_request_number": { "type": ["integer", "null"], "minimum": 1 },
+          "pull_request_url": { "type": ["string", "null"] },
+          "parent_run_id": { "type": ["string", "null"] },
+          "trigger_kind": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "next_cursor": {
+      "type": ["string", "null"],
+      "description": "Opaque cursor for the next page; null when exhausted"
+    }
+  }
+}

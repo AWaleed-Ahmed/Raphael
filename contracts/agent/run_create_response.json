@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/run_create_response.json",
+  "title": "RunCreateResponse",
+  "description": "I0 POST /v1/runs response. Not served until agent implements I0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "status", "action_id", "idempotent_replay"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "success_draft_pr_ready",
+        "success_fix_proposed",
+        "escalated",
+        "failed_closed",
+        "cancelled"
+      ]
+    },
+    "action_id": { "type": "string", "minLength": 1 },
+    "idempotent_replay": {
+      "type": "boolean",
+      "description": "True when this action_id already created the returned run"
+    },
+    "run": {
+      "description": "Optional full run_record when graph already finished",
+      "$ref": "run_record.json"
+    },
+    "message": { "type": "string" }
+  }
+}

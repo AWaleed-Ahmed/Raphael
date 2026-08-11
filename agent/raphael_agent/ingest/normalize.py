@@ -99,6 +99,10 @@ def normalize_fixture_event(event: dict[str, Any]) -> dict[str, Any]:
         seed["failure_class_hint"] = event["failure_class_hint"]
     if event.get("fix_rules") is not None:
         seed["fix_rules"] = event["fix_rules"]
+    if event.get("parent_run_id") is not None:
+        seed["parent_run_id"] = event["parent_run_id"]
+    if event.get("pull_request_number") is not None:
+        seed["pull_request_number"] = event["pull_request_number"]
     seed["failure_fingerprint"] = build_fingerprint(seed)
     # ensure provisional key stable on seed
     seed["correlation"]["provisional_failure_key"] = provisional_failure_key(seed)

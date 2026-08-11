@@ -1,4 +1,4 @@
-"""HTTP entrypoints for GitHub webhooks (Phase 1)."""
+"""HTTP entrypoints for GitHub webhooks (Phase 1) + I0 run APIs."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from raphael_agent.http_api.auth import check_interface_auth, error_envelope
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest import (
     WebhookAuthError,
@@ -20,6 +21,7 @@ from raphael_agent.ingest import (
     verify_github_signature,
 )
 from raphael_agent.ingest.policy import IngestPolicyConfig
+from raphael_agent.runs import RunApiError, apply_run_action, create_run, list_runs
 from raphael_agent.store import open_run_store
 
 
@@ -72,13 +74,87 @@ async def post_feedback(request: Request) -> JSONResponse:
     return JSONResponse(recorded, status_code=201)
 
 
+async def list_runs_http(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
+    qp = request.query_params
+
+    def _opt_int(name: str) -> int | None:
+        raw = qp.get(name)
+        if raw is None or raw == "":
+            return None
+        try:
+            return int(raw)
+        except ValueError as exc:
+            raise RunApiError("invalid_request", f"invalid {name}") from exc
+
+    try:
+        limit_raw = qp.get("limit") or "20"
+        limit = int(limit_raw)
+        payload = list_runs(
+            _store(),
+            owner=qp.get("owner") or None,
+            repo=qp.get("repo") or None,
+            status=qp.get("status") or None,
+            issue_number=_opt_int("issue_number"),
+            pull_request_number=_opt_int("pull_request_number"),
+            limit=limit,
+            cursor=qp.get("cursor") or None,
+        )
+    except RunApiError as exc:
+        return error_envelope(exc.code, exc.message, status=exc.status)
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope("invalid_request", str(exc), status=400)
+    return JSONResponse(payload)
+
+
+async def create_run_http(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return error_envelope("invalid_request", "invalid_json", status=400)
+    if not isinstance(body, dict):
+        return error_envelope("invalid_request", "body_must_be_object", status=400)
+    try:
+        result = create_run(body, store=_store())
+    except RunApiError as exc:
+        return error_envelope(exc.code, exc.message, status=exc.status)
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope("invalid_request", str(exc), status=400)
+    status = 200 if result.get("idempotent_replay") else 201
+    return JSONResponse(result, status_code=status)
+
+
+async def run_action_http(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
+    run_id = request.path_params["run_id"]
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return error_envelope("invalid_request", "invalid_json", status=400)
+    if not isinstance(body, dict):
+        return error_envelope("invalid_request", "body_must_be_object", status=400)
+    try:
+        result = apply_run_action(run_id, body, store=_store())
+    except RunApiError as exc:
+        return error_envelope(exc.code, exc.message, status=exc.status)
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope("invalid_request", str(exc), status=400)
+    return JSONResponse(result, status_code=200)
+
+
 async def github_webhook(request: Request) -> JSONResponse:
     body = await request.body()
     event_name = request.headers.get("x-github-event", "")
     delivery_id = request.headers.get("x-github-delivery")
     signature = request.headers.get("x-hub-signature-256")
 
-    # FR-065: pull_request outcomes → feedback jsonl (still HMAC-checked).
     if event_name == "pull_request":
         from raphael_agent.feedback import (
             default_feedback_recorder,
@@ -222,7 +298,7 @@ async def k8s_webhook(request: Request) -> JSONResponse:
         decision = {
             "decision": "ignored",
             "event_id": delivery_id,
-            "fingerprint": f"ignored|k8s_workload",
+            "fingerprint": "ignored|k8s_workload",
             "decided_at": utc_now(),
             "reason": str(exc),
             "trigger_kind": "k8s_workload",
@@ -269,10 +345,13 @@ async def k8s_webhook(request: Request) -> JSONResponse:
 
 
 async def get_run(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
     run_id = request.path_params["run_id"]
     run = _store().get_run(run_id)
     if run is None:
-        return JSONResponse({"error": "not_found", "run_id": run_id}, status_code=404)
+        return error_envelope("not_found", f"run not found: {run_id}", status=404)
     return JSONResponse(run)
 
 
@@ -285,6 +364,9 @@ def create_app() -> Starlette:
             Route("/v1/feedback", post_feedback, methods=["POST"]),
             Route("/v1/webhooks/github", github_webhook, methods=["POST"]),
             Route("/v1/webhooks/k8s", k8s_webhook, methods=["POST"]),
+            Route("/v1/runs", list_runs_http, methods=["GET"]),
+            Route("/v1/runs", create_run_http, methods=["POST"]),
+            Route("/v1/runs/{run_id}/actions", run_action_http, methods=["POST"]),
             Route("/v1/runs/{run_id}", get_run, methods=["GET"]),
         ]
     )

@@ -129,4 +129,8 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         state["failure_class_hint"] = seed["failure_class_hint"]
     if seed.get("fix_rules") is not None:
         state["fix_rules"] = seed["fix_rules"]
+    if seed.get("parent_run_id") is not None:
+        state["parent_run_id"] = seed["parent_run_id"]
+    if seed.get("pull_request_number") is not None:
+        state["pull_request_number"] = seed["pull_request_number"]
     return state

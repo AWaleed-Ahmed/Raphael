@@ -30,6 +30,46 @@
 
 ## Decision log (newest first)
 
+### D-20260811-03 — Raphael IDE extension P0 (VS Code / Cursor VSIX)
+- **Status:** accepted
+- **Date:** 2026-08-11
+- **Owners:** Engineer B + coding agent
+- **Decision:** Ship P0 under `interface/IDE/` as VS Code extension `raphael.raphael-ide` (works in Cursor). Features: agent client to `:8091`, Runs tree, Open Run markdown, Apply Fix (file contents / allowlist guards), Open Draft PR, Feedback accepted/rejected, status bar, SecretStorage token. Distribution via VSIX (`vsce package`) + GitHub Release instructions in `interface/IDE/README.md`. No Merge, no sandbox calls, local agent only.
+- **Why:** IDE-first interface track after I0 APIs; partners can Install from VSIX from the GitHub repo.
+- **Alternatives:** Marketplace-only publish — deferred. Cursor SDK cloud agent — out of scope for P0.
+- **Consequences:** Maintainers build/attach VSIX; users need local `raphael-agent-serve`; GitHub-native commands remain next (I1).
+
+### D-20260811-02 — Implement I0 run list/create/actions HTTP APIs
+- **Status:** accepted
+- **Date:** 2026-08-11
+- **Owners:** Engineer B + coding agent
+- **Decision:** Serve I0 routes on the agent: `GET /v1/runs`, `POST /v1/runs`, `POST /v1/runs/{run_id}/actions` (verbs `retry|escalate|cancel|feedback`) with `action_id` idempotency (`interface_actions.jsonl`). Interface bearer auth via `RAPHAEL_INTERFACE_TOKEN` (required when set on loopback; always required for non-loopback). Manual creates use `trigger_kind=manual_ui|manual_ide|manual_github` and default graph run unless `RAPHAEL_MANUAL_RUN_GRAPH=0`. Escalate in-flight → `escalated`/`human_requested`; terminal escalate is notes-only. Cancel in-flight → `cancelled`. Retry creates a new run with `parent_run_id`. Helper `delivery_patch_from_run` for IDE apply. Tests in `tests/test_i0_runs.py`. Product locks from D-20260811-01 remain in force.
+- **Why:** Interfaces and operators need real steer/list/create APIs, not contracts-only.
+- **Alternatives:** Leave routes unimplemented until GitHub/IDE code — rejected; blocks both. Separate microservice for actions — rejected for pilot.
+- **Consequences:** `interface/prd-i0-api.md` and Usage mark routes as served; GitHub slash commands (I1) and IDE (I2) can call these next.
+
+### D-20260811-01 — Interface I0 API lock + PRD consistency
+- **Status:** accepted (contracts + docs; HTTP implemented by D-20260811-02)
+- **Date:** 2026-08-11
+- **Owners:** Engineer B + coding agent
+- **Decision:** Freeze interface review resolutions in `interface/prd-i0-api.md` and additive contracts (`run_list_response`, `run_create_*`, `run_action_*`). Locked product table:
+  - Manual triggers: `manual_ui` \| `manual_ide` \| `manual_github` + client `action_id`
+  - Single GitHub App for pilot (ingest + commands)
+  - IDE I2: local agent only (`127.0.0.1:8091`); cloud URL deferred to I5
+  - IDE git P0: open agent PR URL only; local branch opt-in P1; no auto-push
+  - Command grammar: `/raphael feedback accepted|rejected|edited` only (no `/raphael accept`)
+  - Command host: agent behind `RAPHAEL_GITHUB_COMMANDS` (default off); `interface/github-native/` = docs/templates until split
+  - ACL: write → `status`/`help`/`feedback`; privileged team/admin → `retry`/`diagnose`/`fix`/`escalate`/`cancel`
+  - Checks: advisory name; conclusion **`neutral`** by default (never required for merge)
+  - Agent listen: **`127.0.0.1:8091`**
+  - Auth: loopback may omit token if unset; non-loopback requires Bearer + `RAPHAEL_INTERFACE_TOKEN`
+  - `delivery_patch`: candidate `unified_diff` / hunks then `publish.fix_snippet`
+  - Escalate: in-flight → `escalated`/`human_requested`; terminal → audit/notes only; never invent a patch
+  - Correlation: `raphael:run_id=…` markers + `issue_number` / `pull_request_number` / `parent_run_id`
+- **Why:** Close PRD blockers before I1/I2 coding; keep repo wording consistent without deleting existing CLI/Usage content.
+- **Alternatives:** Implement full I0 HTTP in the same change — followed as D-20260811-02. Separate GitHub App for commands — rejected for pilot ops simplicity.
+- **Consequences:** UI work uses these locks; schemas validated in agent tests.
+
 ### D-20260810-16 — Interface layer folder + deferred GitHub-native / IDE PRDs
 - **Status:** accepted
 - **Date:** 2026-08-10
@@ -340,6 +380,9 @@
 
 | ID | Topic |
 |---|---|
+| D-20260811-03 | Raphael IDE extension P0 (VS Code/Cursor VSIX) |
+| D-20260811-02 | Implement I0 run list/create/actions HTTP APIs |
+| D-20260811-01 | Interface I0 API lock + PRD consistency |
 | D-20260810-16 | Interface layer PRDs (GitHub-native + IDE/Cursor; deferred) |
 | D-20260810-15 | Post-MVP learning loop (offline feedback → priors) |
 | D-20260810-14 | Option B K8s watcher + App JWT + CODEOWNERS + SQLite store |

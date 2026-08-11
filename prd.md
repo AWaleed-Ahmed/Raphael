@@ -881,7 +881,7 @@ The MVP is complete when all of the following are true:
 - Automated issue creation for cases that cannot safely produce a PR.
 - Progressive canary validation in a dedicated non-production environment.
 - ChatOps approval and guided investigation.
-- GitHub-native interactive commands and IDE/Cursor plugin (PRDs under [`interface/`](interface/prd.md); implementation deferred).
+- GitHub-native interactive commands and IDE/Cursor plugin (PRDs under [`interface/`](interface/prd.md); I0 API lock [`interface/prd-i0-api.md`](interface/prd-i0-api.md); implementation deferred).
 - Policy-approved runtime mitigations such as a rollback or restart, always behind explicit customer controls.
 - Fleet analytics identifying repeated failure patterns across repositories.
 - Learning from accepted, edited, rejected, reverted, and successful fixes.

@@ -18,7 +18,7 @@ For product intent of future UIs, see [`README.md`](README.md) and the PRDs. For
 4. [Safe pilot loop (recommended)](#4-safe-pilot-loop-recommended)  
 5. [Smoke & partner demo](#5-smoke--partner-demo)  
 6. [Live sandbox (kind)](#6-live-sandbox-kind)  
-7. [Serve the agent HTTP API](#7-serve-the-agent-http-api)  
+7. [Serve the agent HTTP API](#7-serve-the-agent-http-api) (includes [I0 action API](#i0-action-api-served))  
 8. [Feedback (accept / reject / merge)](#8-feedback-accept--reject--merge)  
 9. [Learning loop](#9-learning-loop)  
 10. [Metrics & go/no-go](#10-metrics--gono-go)  
@@ -250,6 +250,10 @@ export RAPHAEL_PARTNER_MODE=dry_run
 export RAPHAEL_PUBLISH_MODE=dry_run
 export RAPHAEL_AGENT_LISTEN=127.0.0.1:8091   # default if unset
 
+# Optional: require bearer even on loopback (recommended when RAPHAEL_INTERFACE_TOKEN is set)
+# export RAPHAEL_INTERFACE_TOKEN='…'
+# Non-loopback binds MUST set RAPHAEL_INTERFACE_TOKEN (I0 lock — enforced when auth middleware lands)
+
 # Optional: auto-run graph on webhook (off by default — ingest only → pending)
 # export RAPHAEL_INGEST_RUN_GRAPH=1
 # export RAPHAEL_AGENT_SANDBOX_MODE=recorded_stub   # or live
@@ -265,6 +269,36 @@ raphael-agent-serve
 | `/v1/feedback` | POST | Same as CLI feedback |
 | `/v1/metrics` | GET | Metrics JSON |
 | `/v1/pilot/go-nogo` | GET | Pilot gate JSON |
+| `/v1/runs` | GET | List runs (I0) |
+| `/v1/runs` | POST | Manual create run (I0) |
+| `/v1/runs/{id}/actions` | POST | retry / escalate / cancel / feedback (I0) |
+
+### I0 action API (served)
+
+Contract: [`prd-i0-api.md`](prd-i0-api.md). Decisions: `D-20260811-01`, `D-20260811-02`.
+
+```bash
+# List
+curl -sS "http://127.0.0.1:8091/v1/runs?owner=raphael&repo=demo&limit=20"
+
+# Create (runs graph by default unless RAPHAEL_MANUAL_RUN_GRAPH=0)
+curl -sS -X POST "http://127.0.0.1:8091/v1/runs" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trigger_kind": "manual_ui",
+    "action_id": "demo-create-1",
+    "repository": {"owner": "raphael", "name": "demo"},
+    "commit_sha": "abcdef1234567",
+    "workspace_path": "'"$PWD"'/../sandbox/harness/scenarios/probe_port_mismatch",
+    "manifests": {"type": "yaml", "path": "deploy/manifests", "fixed_path": "deploy/manifests_fixed"},
+    "sandbox_mode": "recorded_stub"
+  }'
+
+# Action retry (set RAPHAEL_INTERFACE_TOKEN + Bearer when token is configured)
+curl -sS -X POST "http://127.0.0.1:8091/v1/runs/<run_id>/actions" \
+  -H "Content-Type: application/json" \
+  -d '{"verb":"retry","action_id":"demo-retry-1","sandbox_mode":"recorded_stub"}'
+```
 
 ### Example: inspect a run
 
@@ -471,6 +505,8 @@ If allowlist is empty, code **forces dry-run** even when publish says live.
 | `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | empty | Empty ⇒ no live PRs |
 | `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Live smoke / live graph |
 | `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | `raphael-agent-serve` bind |
+| `RAPHAEL_INTERFACE_TOKEN` | unset | I0: required for non-loopback agent API |
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | I1: in-agent `/raphael` comment commands |
 | `RAPHAEL_INGEST_RUN_GRAPH` | off | Webhook auto-runs graph |
 | `RAPHAEL_AGENT_SANDBOX_MODE` | `skipped` | Mode used when webhook autorun |
 | `RAPHAEL_K8S_WATCHER` | `0` | Enable `/v1/webhooks/k8s` |
@@ -491,8 +527,8 @@ Use this table when the UIs land — behavior should stay equivalent.
 | “Is pilot config safe?” | `raphael-agent-go-nogo` | `/raphael help` (shows mode) | Pilot / status bar |
 | “Run the happy path” | `raphael-agent-demo` | Label + webhook / `/raphael diagnose` | Start Diagnosis |
 | “Show me this run” | `smoke --json` / `GET /v1/runs/{id}` | `/raphael status` | Open Run |
-| “I reject this fix” | `raphael-agent-feedback --outcome rejected` | `/raphael feedback rejected` | Feedback Rejected |
 | “I accept / merged” | `--outcome accepted\|merged` | `/raphael feedback accepted` + PR webhook | Feedback Accepted |
+| “I reject this fix” | `raphael-agent-feedback --outcome rejected` | `/raphael feedback rejected` | Feedback Rejected |
 | “Apply the snippet” | manual edit / copy from Issue | comment + IDE deep link | **Apply Fix from Run** |
 | “Retry” | re-run smoke / new webhook | `/raphael retry` | Manual trigger |
 | “Learn from history” | `raphael-agent-learn` | (ops job; not a chat command that widens policy) | read-only badge |

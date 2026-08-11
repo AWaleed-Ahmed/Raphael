@@ -1,9 +1,9 @@
 # IDE / Cursor plugin — Product Requirements
 
-**Document status:** Draft for later implementation  
+**Document status:** P0 implemented (VSIX) — see [`README.md`](README.md)  
 **Parent:** [`../prd.md`](../prd.md)  
 **Folder:** `interface/IDE/`  
-**Product stage:** Post-MVP (I2 / I4 in parent plan)  
+**Product stage:** I2 P0 shipped (`D-20260811-03`)  
 **Primary users:** Application engineers and FDEs working in Cursor or VS Code  
 **Companion surface:** [`../github-native/prd.md`](../github-native/prd.md)  
 **Depends on:** Agent HTTP API (`GET /v1/runs`, feedback, future action APIs); GitHub auth for opening PRs
@@ -51,7 +51,7 @@ This is **not** a Cursor Cloud Agent product rewrite. Optional later integration
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| IDE-001 | Setting `raphael.agentBaseUrl` (default `http://127.0.0.1:8088` or documented agent serve port) | P0 |
+| IDE-001 | Setting `raphael.agentBaseUrl` (default `http://127.0.0.1:8091`) | P0 |
 | IDE-002 | Setting `raphael.apiToken` (secret storage via SecretStorage API) | P0 |
 | IDE-003 | Command **Raphael: Test Connection** → hits go-nogo or health-equivalent | P0 |
 | IDE-004 | Status bar item: Connected / Degraded / Offline + partner mode if exposed by API | P0 |
@@ -75,7 +75,7 @@ Route B today posts a unified diff or fenced patch on the Issue. The IDE must ma
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| IDE-020 | **Raphael: Apply Fix from Run** loads patch from run record / publish payload | P0 |
+| IDE-020 | **Raphael: Apply Fix from Run** loads **`delivery_patch`** per [`../prd-i0-api.md`](../prd-i0-api.md) §5 (`candidate_patches[].unified_diff` → hunks → `publish.fix_snippet`) | P0 |
 | IDE-021 | Show diff preview before write; require confirm | P0 |
 | IDE-022 | Apply via workspace edit; honor `.gitignore` / binary refusal | P0 |
 | IDE-023 | Block apply if any path escapes workspace or fails allowlist metadata | P0 |
@@ -105,7 +105,7 @@ Route B today posts a unified diff or fenced patch on the Issue. The IDE must ma
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| IDE-050 | **Raphael: Start Diagnosis for Workspace** → calls future `POST /v1/runs` with `trigger_kind=manual_ide`, commit SHA from git, repo from `git remote` | P1 |
+| IDE-050 | **Raphael: Start Diagnosis for Workspace** → `POST /v1/runs` with `trigger_kind=manual_ide`, `action_id`, commit SHA from git, repo from `git remote` (I0; local agent only in I2) | P1 |
 | IDE-051 | Default sandbox mode from settings: `recorded_stub` \| `live` \| `skipped`; live only if user confirms | P1 |
 | IDE-052 | Respect agent partner/publish gates; show errors inline | P0 |
 
@@ -207,7 +207,7 @@ Auth header: `Authorization: Bearer <raphael.apiToken>` (exact scheme fixed at I
 
 ### 7.3 Patch apply algorithm
 
-1. Load patch from run (`patch_proposal` / publish artifact / issue snippet field — contract must expose a stable field at I0).  
+1. Load **delivery_patch** from the run (I0 resolution order).  
 2. Parse unified diff.  
 3. Verify every `+++` path is under workspace and allowlisted.  
 4. Preview in webview.  
@@ -268,19 +268,21 @@ If SDK is used later, durable remediations still require agent validation + huma
 | IDE-M1 | Settings, connection, Open Run, markdown detail |
 | IDE-M2 | Apply fix + confirm + allowlist guard |
 | IDE-M3 | Feedback buttons + Open Draft PR |
-| IDE-M4 | Deep links + run list API |
-| IDE-M5 | Manual start diagnosis + local branch opt-in |
-| IDE-M6 | Optional Cursor SDK experiment (doc-only gate) |
+| IDE-M4 | Deep links + consume I0 `GET /v1/runs` list |
+| IDE-M5 | Manual start diagnosis (`manual_ide`) + local branch opt-in (no auto-push) |
+| IDE-M6 | Optional Cursor SDK experiment (doc-only gate); cloud agent URL only after I5 auth |
 
 ---
 
-## 12. Open questions
+## 12. Resolved questions
 
-1. Agent listen port convention for local IDE (`raphael-agent-serve` default today — document and pin).  
-2. Is patch always on the run record, or fetched from GitHub Issue body as fallback?  
-3. Publisher identity / signing for partner VSIX.  
-4. Should IDE support multi-repo workspaces (code-workspace) in P1 or P2?  
-5. GitHub App user-to-server auth vs PAT for “Open PR” assist?
+1. Agent listen port: **`127.0.0.1:8091`** (`RAPHAEL_AGENT_LISTEN`).  
+2. Patch source: **`delivery_patch`** resolution in I0 (not Issue-body scrape as primary).  
+3. Publisher / VSIX signing: decide at IDE-M1 packaging; pilot may sideload unsigned VSIX.  
+4. Multi-root workspaces: **P2** (single folder P0/P1).  
+5. “Open PR” assist: open agent `pull_request_url` in P0; `gh`/PAT optional in P1; no merge.
+
+**I2 network lock:** extension talks to **local** agent only; non-loopback + bearer is I5.
 
 ---
 
@@ -289,3 +291,4 @@ If SDK is used later, durable remediations still require agent validation + huma
 | Version | Date | Notes |
 |---------|------|-------|
 | 0.1.0 | 2026-08-10 | Initial IDE/Cursor PRD; implementation deferred |
+| 0.2.0 | 2026-08-11 | Port 8091, delivery_patch, I2 local-only, resolved questions |

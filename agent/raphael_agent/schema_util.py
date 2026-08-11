@@ -96,6 +96,8 @@ def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
         "issue_comment_url",
         "failure_class_hint",
         "fix_rules",
+        "parent_run_id",
+        "pull_request_number",
     }
     out: dict[str, Any] = {}
     ephemeral = {"validation_retryable"}
