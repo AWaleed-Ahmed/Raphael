@@ -598,3 +598,189 @@ def test_feedback_visible_as_fr065_event(tmp_path, monkeypatch):
         "feedback_event.json",
         {k: v for k, v in rows[0].items() if v is not None},
     )
+
+
+def test_label_mapping_per_terminal_status():
+    from raphael_agent.github_commands.labels import (
+        LABEL_DRAFT,
+        LABEL_ESCALATED,
+        LABEL_FIX,
+        LABEL_LEARNING_DEMOTED,
+        LABEL_NEEDS_HUMAN,
+        human_has_next_step,
+        labels_for_terminal_status,
+    )
+
+    assert labels_for_terminal_status("success_draft_pr_ready") == [LABEL_DRAFT]
+    assert not human_has_next_step("success_draft_pr_ready")
+    assert labels_for_terminal_status("success_fix_proposed") == [LABEL_NEEDS_HUMAN]
+    escalated = labels_for_terminal_status("escalated")
+    assert escalated == [LABEL_ESCALATED, LABEL_NEEDS_HUMAN]
+    failed = labels_for_terminal_status("failed_closed")
+    assert failed == [LABEL_ESCALATED, LABEL_NEEDS_HUMAN]
+    assert labels_for_terminal_status("running") == []
+    for status in (
+        "success_draft_pr_ready",
+        "success_fix_proposed",
+        "escalated",
+        "failed_closed",
+    ):
+        mapped = labels_for_terminal_status(status)
+        assert LABEL_FIX not in mapped
+        assert LABEL_LEARNING_DEMOTED not in mapped
+
+
+def test_apply_labels_does_not_strip_raphael_fix():
+    from raphael_agent.github_commands.labels import LABEL_FIX, apply_terminal_labels
+
+    applied: list[list[str]] = []
+
+    def _labeler(owner, repo, number, labels):
+        applied.append(list(labels))
+        return {"ok": True}
+
+    result = apply_terminal_labels(
+        _run_record(),
+        target=("raphael", "demo", 42),
+        labeler=_labeler,
+    )
+    assert result["posted"] is True
+    assert result["removed"] == []
+    assert LABEL_FIX not in result["labels"]
+    assert LABEL_FIX not in applied[0]
+
+
+def test_labels_not_applied_when_knob_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RAPHAEL_GITHUB_COMMANDS", "0")
+    monkeypatch.delenv("RAPHAEL_GITHUB_AUTO_COMMENTS", raising=False)
+    from raphael_agent.github_commands.auto_comments import maybe_on_terminal
+
+    called: list[list[str]] = []
+
+    def _labeler(owner, repo, number, labels):
+        called.append(list(labels))
+
+    skipped = maybe_on_terminal(
+        _run_record(),
+        labeler=_labeler,
+        comment_lister=lambda *_a: [],
+    )
+    assert skipped["decision"] == "skipped"
+    assert called == []
+    assert skipped["labels"] == []
+
+    monkeypatch.setenv("RAPHAEL_GITHUB_COMMANDS", "1")
+    monkeypatch.setenv("RAPHAEL_GITHUB_AUTO_COMMENTS", "0")
+    still = maybe_on_terminal(
+        _run_record(),
+        labeler=_labeler,
+        comment_lister=lambda *_a: [],
+    )
+    assert still["decision"] == "skipped"
+    assert called == []
+
+    monkeypatch.delenv("RAPHAEL_GITHUB_AUTO_COMMENTS", raising=False)
+    enabled = maybe_on_terminal(
+        _run_record(),
+        store=RunStore(tmp_path),
+        labeler=_labeler,
+        comment_lister=lambda *_a: [],
+        poster=lambda *_a: {"id": 1, "body": "ok"},
+    )
+    assert enabled["decision"] == "emitted"
+    assert called
+    assert "raphael:draft" in called[0]
+
+
+def test_sticky_create_vs_update():
+    from raphael_agent.github_commands.sticky import STICKY_MARKER, upsert_sticky_footer
+
+    run = _run_record()
+    created: list[str] = []
+
+    def _poster(owner, repo, number, body):
+        created.append(body)
+        return {"id": 501, "body": body}
+
+    first = upsert_sticky_footer(
+        run,
+        target=("raphael", "demo", 42),
+        lister=lambda *_a: [],
+        poster=_poster,
+    )
+    assert first["action"] == "create"
+    assert first["posted"] is True
+    assert STICKY_MARKER in first["reply"]
+    assert "run-abc123" in first["reply"]
+    assert len(created) == 1
+
+    updates: list[tuple[int, str]] = []
+
+    def _updater(owner, repo, comment_id, body):
+        updates.append((comment_id, body))
+        return {"id": comment_id, "body": body}
+
+    def _must_not_create(owner, repo, number, body):
+        raise AssertionError("sticky already exists; must update, not create")
+
+    second = upsert_sticky_footer(
+        run,
+        target=("raphael", "demo", 42),
+        lister=lambda *_a: [{"id": 501, "body": created[0]}],
+        poster=_must_not_create,
+        updater=_updater,
+    )
+    assert second["action"] == "update"
+    assert second["posted"] is True
+    assert updates == [(501, second["reply"])]
+    assert STICKY_MARKER in updates[0][1]
+
+
+def test_sticky_footer_redacts_secrets_and_write_acl():
+    from raphael_agent.evidence.redaction import redact_text
+    from raphael_agent.github_commands.acl import acl_allows
+    from raphael_agent.github_commands.parse import (
+        PRIVILEGED_VERBS,
+        WRITE_VERBS,
+        parse_command,
+    )
+    from raphael_agent.github_commands.replies import render_sticky
+    from raphael_agent.github_commands.sticky import STICKY_MARKER
+
+    secret = "Authorization: Bearer SUPERSECRETTOKEN"
+    run = _run_record()
+    run["diagnosis"]["classification"]["failure_class"] = secret
+    text = render_sticky(run, prefix="/raphael")
+    redacted, _notes = redact_text(text)
+    assert STICKY_MARKER in redacted
+    assert "run-abc123" in redacted
+    assert "SUPERSECRETTOKEN" not in redacted
+    assert "res-xyz" in redacted
+    assert "0.81" in redacted
+    assert "/raphael status" in redacted
+    assert "/raphael help" in redacted
+    assert "feedback accepted|rejected|edited" in redacted
+    assert "/raphael retry" not in redacted
+    assert "/raphael escalate" not in redacted
+    assert "/raphael merge" not in redacted.lower()
+    assert "/raphael cancel" not in redacted
+    assert "/raphael diagnose" not in redacted
+    assert "/raphael fix" not in redacted
+    listed: list[str] = []
+    for line in redacted.splitlines():
+        stripped = line.strip().lstrip("- ").strip("`")
+        parsed = parse_command(stripped, prefix="/raphael")
+        if parsed is None or parsed.error == "missing_verb":
+            continue
+        listed.append(parsed.verb)
+        assert parsed.verb in WRITE_VERBS
+        assert parsed.verb not in PRIVILEGED_VERBS
+        assert acl_allows(
+            parsed.verb, association="COLLABORATOR", login="alice"
+        )
+    assert "status" in listed
+    assert "help" in listed
+    assert "feedback" in listed
+    assert not acl_allows("retry", association="COLLABORATOR", login="alice")
+    assert not acl_allows("escalate", association="COLLABORATOR", login="alice")

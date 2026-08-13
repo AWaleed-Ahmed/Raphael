@@ -30,7 +30,7 @@ Until GitHub-native UX and the IDE package ship, **operators use the agent CLI a
 | [`prd.md`](prd.md) | Umbrella PRD — shared principles + locked decisions |
 | [`prd-i0-api.md`](prd-i0-api.md) | **I0** endpoints, auth, escalate FSM, `delivery_patch`, correlation |
 | [`github-native/prd.md`](github-native/prd.md) | GitHub Issues/PRs/Checks slash-command product spec |
-| [`github-native/templates/`](github-native/templates/) | GH-M1 reply copy (`status.md`, `help.md`) |
+| [`github-native/templates/`](github-native/templates/) | Reply copy (`status.md`, `help.md`, terminal + `sticky.md`) |
 | [`IDE/prd.md`](IDE/prd.md) | Cursor / VS Code extension product spec |
 | [`IDE/README.md`](IDE/README.md) | **Install VSIX + use the P0 extension** |
 
@@ -102,7 +102,7 @@ Full walkthrough: **[`Usage.md`](Usage.md)**.
 | Operator metrics | `metrics` |
 | Offline learning snapshot | `learn` + `RAPHAEL_LEARNING=1` |
 
-### 2. GitHub-native (GH-M1/M2 in agent — default off)
+### 2. GitHub-native (GH-M1–M3 in agent — default off)
 
 Runtime lives in the **agent** (`raphael_agent.github_commands`), not a split worker. `interface/github-native/` owns the PRD and reply templates.
 
@@ -116,7 +116,7 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (no Teams API in GH-M1) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands / hour / repo+actor (GH-053) |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this login (and `login[bot]`) |
-| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `COMMANDS`; `0` off; `1` on without parse |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `COMMANDS`; `0` off; `1` on without parse. Also GH-M3 labels + sticky footer |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** |
 
 | Verb | Status |
@@ -126,12 +126,12 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `feedback accepted\|rejected\|edited` | GH-M1 — FR-065 jsonl, never merge |
 | `retry [run_id]` | **GH-M2** — admin/team; new run + `parent_run_id`; refuse if parent in-flight |
 | `escalate [run_id] [notes]` | **GH-M2** — admin/team; in-flight → `human_requested`; terminal → notes only |
-| `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M3+) |
+| `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M4) |
 | Check Runs | **Not implemented** (GH-M4); advisory `neutral` when it lands |
 
 ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. `retry` / `escalate` and later privileged verbs require admin (`OWNER`) or team membership.
 
-Terminal auto-comments on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed` include `run_id`, class, confidence, `result_id`, and are redacted. They follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (see `D-20260814-03`).
+Terminal auto-comments on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed` include `run_id`, class, confidence, `result_id`, and are redacted. GH-M3 applies additive labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`; never strips `raphael:fix`) and keeps one sticky “Raphael actions” footer (`<!-- raphael:sticky -->`) listing `status` / `feedback` / `help` only — no Merge. Comments, labels, and the footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (see `D-20260814-03` and `D-20260814-04`).
 
 Local test (no GitHub token; webhook JSON includes the markdown `reply`):
 
@@ -159,11 +159,11 @@ ChatOps (Slack/Teams) is **not** in this folder — root [`prd.md`](../prd.md) �
 flowchart TB
   subgraph now [Available_now]
     CLI[Agent_CLI_and_serve]
-    GH[GitHub_native_GH_M1]
+    GH[GitHub_native_GH_M1_M3]
     IDE[Cursor_VSCode]
   end
   subgraph later [Deferred_UI]
-    GH2[retry_escalate_Checks]
+    GH2[Check_Runs_GH_M4]
   end
   subgraph core [Core]
     API[Agent_HTTP_8091]
@@ -186,7 +186,7 @@ flowchart TB
 | Phase | Focus | Exit |
 |-------|--------|------|
 | **I0** | Contracts (docs+schemas done; HTTP next) | [`prd-i0-api.md`](prd-i0-api.md) |
-| **I1** | GitHub-native P0 commands in agent | GH-M1 `status`/`help`/`feedback` + GH-M2 `retry`/`escalate`; cancel/Checks still later |
+| **I1** | GitHub-native P0 commands in agent | GH-M1–M3 (`status`/`help`/`feedback`/`retry`/`escalate` + labels/sticky); cancel/Checks still later |
 | **I2** | IDE P0 vs local agent | Apply fix + feedback |
 | **I3** | Advisory Checks | `neutral` default |
 | **I4** | IDE decorations / branch opt-in | |

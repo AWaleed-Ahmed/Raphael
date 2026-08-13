@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-04 — GH-M3 terminal labels + sticky footer share auto-comment gating
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Extend the GH-M2 `publish_or_escalate` terminal hook with GH-021 labels and a GH-041 sticky “Raphael actions” footer. **Labels:** `success_draft_pr_ready` → `raphael:draft`; `success_fix_proposed` → `raphael:needs-human`; `escalated` / `failed_closed` → `raphael:escalated` plus `raphael:needs-human` when a human still has a next step (snippet apply, takeover, or inspect/retry). Additive `GitHubPublisher.add_issue_labels` only — never DELETE, never strip `raphael:fix` (GH-023), do not apply `raphael:learning-demoted` (GH-022 P2). **Sticky footer:** one Issue/PR comment marked `<!-- raphael:sticky -->`; update in place if present. Lists `/raphael status`, `/raphael feedback accepted|rejected|edited`, `/raphael help` only (write-collaborator verbs). No Merge action (GH-044), no privileged verbs in the footer. Redacted; includes `run_id` like terminal comments. **Gating:** same knob as GH-M2 — `RAPHAEL_GITHUB_AUTO_COMMENTS` unset inherits `RAPHAEL_GITHUB_COMMANDS`; default off. Labels and comments stay coupled so partners who have not opted in get neither chatter nor label writes. **Still deferred:** `cancel`, `diagnose`, `fix`, Check Runs (GH-M4).
+- **Why:** Operators need triage labels and a durable command cheat-sheet on the thread without a second diagnosis/publish path. Splitting a labels-only flag would surprise partners who enabled commands for inspect-only and suddenly saw GitHub label writes.
+- **Alternatives:** Separate `RAPHAEL_GITHUB_LABELS` / sticky flags — rejected (no strong reason; more surprise modes). Strip `raphael:fix` on terminal — rejected (GH-023: that label only gates new Route B triggers). Put retry/escalate in the sticky footer — rejected (write collaborators must not be invited to privileged verbs).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_COMMANDS=1` (or `RAPHAEL_GITHUB_AUTO_COMMENTS=1`). Graph terminal handling posts/updates the sticky comment and POSTs labels when a token is present. Unit tests cover mapping, sticky create vs update, ACL, redaction, and knob-off.
+
 ### D-20260814-03 — GH-M2 retry/escalate + independently gated terminal auto-comments
 - **Status:** accepted
 - **Date:** 2026-08-14

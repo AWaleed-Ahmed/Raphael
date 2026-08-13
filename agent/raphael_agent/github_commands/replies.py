@@ -1,4 +1,4 @@
-"""Markdown reply templates for GitHub-native commands (GH-M1/M2)."""
+"""Markdown reply templates for GitHub-native commands (GH-M1–M3)."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} retry [run_id]` — new run from the same fingerprint; sets `parent_run_id`
 - `{prefix} escalate [run_id] [notes]` — in-flight → `escalated`/`human_requested`; terminal → notes only
 
-**Deferred (not implemented — GH-M3/M4)** — admin or team:
+**Deferred (not implemented — GH-M4)** — admin or team:
 - `{prefix} cancel` / `{prefix} diagnose` / `{prefix} fix`
 - Check Runs (`RAPHAEL_GITHUB_CHECK_RUNS`) — advisory, conclusion `neutral` when enabled later
 """
@@ -98,6 +98,21 @@ _TERMINAL_FAILED = """\
 {next_step}
 
 Commands: `{prefix} retry` · `{prefix} status` · `{prefix} help`
+"""
+
+_STICKY_FALLBACK = """\
+<!-- raphael:sticky -->
+<!-- raphael:run_id={run_id} -->
+### Raphael actions
+Latest run: `{run_id}` · **Status:** {status} · **Class:** {failure_class} (confidence {confidence})
+Sandbox result: `{result_id}` · **Mode:** partner={partner_mode} publish={publish_mode}
+
+Write collaborators:
+- `{prefix} status`
+- `{prefix} feedback accepted|rejected|edited`
+- `{prefix} help`
+
+Raphael never merges. There is no Merge action here.
 """
 
 _TERMINAL_BY_STATUS = {
@@ -188,6 +203,12 @@ def render_terminal(run: dict[str, Any], *, prefix: str) -> str | None:
     return _load(name, fallback).format_map(_Fmt(fields)).strip() + "\n"
 
 
+def render_sticky(run: dict[str, Any], *, prefix: str) -> str:
+    fields = run_summary_fields(run)
+    fields["prefix"] = prefix
+    return _load("sticky.md", _STICKY_FALLBACK).format_map(_Fmt(fields)).strip() + "\n"
+
+
 def render_help(*, prefix: str) -> str:
     partner, publish = current_modes()
     return _load("help.md", _HELP_FALLBACK).format_map(
@@ -267,9 +288,9 @@ def render_denied(*, verb: str, prefix: str) -> str:
 
 def render_deferred(*, verb: str, prefix: str) -> str:
     return (
-        f"`{prefix} {verb}` is **not implemented** yet (GH-M3/M4). "
-        "GH-M2 supports `retry` and `escalate` plus GH-M1 `status`/`help`/`feedback`. "
-        "Check Runs are also deferred.\n"
+        f"`{prefix} {verb}` is **not implemented** yet (GH-M4). "
+        "GH-M1/M2 support `status`/`help`/`feedback`/`retry`/`escalate`. "
+        "Cancel, diagnose, fix, and Check Runs are deferred.\n"
     )
 
 

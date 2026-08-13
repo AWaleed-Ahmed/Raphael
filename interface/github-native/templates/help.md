@@ -10,6 +10,6 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} retry [run_id]` — new run from the same fingerprint; sets `parent_run_id`
 - `{prefix} escalate [run_id] [notes]` — in-flight → `escalated`/`human_requested`; terminal → notes only
 
-**Deferred (not implemented — GH-M3/M4)** — admin or team:
+**Deferred (not implemented — GH-M4)** — admin or team:
 - `{prefix} cancel` / `{prefix} diagnose` / `{prefix} fix`
 - Check Runs (`RAPHAEL_GITHUB_CHECK_RUNS`) — advisory, conclusion `neutral` when enabled later

@@ -694,11 +694,11 @@ def route_after_validate(state: RunState) -> RouteAfterValidate:
 
 
 def _maybe_terminal_comment(state: RunState, updates: dict[str, Any]) -> None:
-    """GH-M2 auto-comment; must never fail the graph or call sandbox HTTP."""
+    """GH-M2/M3 terminal GitHub surfaces; never fail the graph or call sandbox HTTP."""
     try:
-        from raphael_agent.github_commands.auto_comments import maybe_emit_terminal_comment
+        from raphael_agent.github_commands.auto_comments import maybe_on_terminal
 
-        maybe_emit_terminal_comment({**state, **updates})
+        maybe_on_terminal({**state, **updates})
     except Exception:  # noqa: BLE001
         return
 

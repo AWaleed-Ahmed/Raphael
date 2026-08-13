@@ -62,7 +62,7 @@ pip install -e .
 | `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (tests / no Teams API) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands per hour per repo+actor |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this account’s comments |
-| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on. Also gates GH-M3 labels + sticky footer |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** — do not enable yet |
 
 ### Learning loop (Post-MVP; off by default)
@@ -151,7 +151,7 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## GitHub-native commands (GH-M1/M2, default off)
+## GitHub-native commands (GH-M1–M3, default off)
 
 Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
 
@@ -162,7 +162,7 @@ ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`hel
 
 `retry` copies fingerprint/seed, sets `parent_run_id`, and refuses if the source run is still `pending`/`running`. `escalate` marks in-flight runs `escalated`/`human_requested`; terminal runs get an audit/feedback note only.
 
-Terminal auto-comments (draft-ready / snippet / escalated / failed) follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`).
+Terminal auto-comments (draft-ready / snippet / escalated / failed) plus GH-M3 labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`) and a sticky “Raphael actions” footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`). The footer lists write-collaborator verbs only (no Merge, no retry/escalate). Labels are additive and never strip `raphael:fix`.
 
 Local tests (no GitHub token):
 

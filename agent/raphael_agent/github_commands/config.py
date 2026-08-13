@@ -15,11 +15,11 @@ def github_commands_enabled() -> bool:
 
 
 def github_auto_comments_enabled() -> bool:
-    """Terminal auto-comments (GH-010–014).
+    """Terminal GitHub presentation (GH-010–014 comments, GH-021 labels, GH-041 sticky).
 
     ``RAPHAEL_GITHUB_AUTO_COMMENTS`` unset → inherit ``RAPHAEL_GITHUB_COMMANDS``.
-    Explicit ``0`` disables comments even when commands are on; ``1`` enables
-    comments without enabling slash-command parse.
+    Explicit ``0`` disables comments/labels/footer even when commands are on;
+    ``1`` enables them without enabling slash-command parse.
     """
     raw = os.environ.get("RAPHAEL_GITHUB_AUTO_COMMENTS")
     if raw is None or raw.strip() == "":

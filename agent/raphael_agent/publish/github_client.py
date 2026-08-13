@@ -168,10 +168,8 @@ class GitHubPublisher:
         labels = pr_labels()
         if labels and pr.get("number"):
             try:
-                self._request(
-                    "POST",
-                    f"/repos/{owner}/{repo}/issues/{pr['number']}/labels",
-                    json={"labels": labels},
+                self.add_issue_labels(
+                    owner, repo, issue_number=int(pr["number"]), labels=labels
                 )
             except GitHubApiError:
                 # Labels are best-effort (may not exist in repo).
@@ -188,6 +186,46 @@ class GitHubPublisher:
                 pass
         return pr
 
+    def add_issue_labels(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        issue_number: int,
+        labels: list[str],
+    ) -> Any:
+        """POST labels onto an Issue/PR. Additive — never removes existing labels."""
+        if not labels:
+            return None
+        return self._request(
+            "POST",
+            f"/repos/{owner}/{repo}/issues/{issue_number}/labels",
+            json={"labels": list(labels)},
+        )
+
+    def list_issue_comments(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        issue_number: int,
+    ) -> list[dict[str, Any]]:
+        comments: list[dict[str, Any]] = []
+        page = 1
+        while page <= 20:
+            data = self._request(
+                "GET",
+                f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
+                params={"per_page": 100, "page": page},
+            )
+            if not isinstance(data, list) or not data:
+                break
+            comments.extend(item for item in data if isinstance(item, dict))
+            if len(data) < 100:
+                break
+            page += 1
+        return comments
+
     def create_issue_comment(
         self,
         owner: str,
@@ -199,5 +237,19 @@ class GitHubPublisher:
         return self._request(
             "POST",
             f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            json={"body": body},
+        )
+
+    def update_issue_comment(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        comment_id: int,
+        body: str,
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"/repos/{owner}/{repo}/issues/comments/{comment_id}",
             json={"body": body},
         )

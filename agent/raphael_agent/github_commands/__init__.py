@@ -1,4 +1,4 @@
-"""GitHub-native slash commands hosted in the agent (GH-M1)."""
+"""GitHub-native slash commands hosted in the agent (GH-M1–M3)."""
 
 from raphael_agent.github_commands.config import (
     github_auto_comments_enabled,

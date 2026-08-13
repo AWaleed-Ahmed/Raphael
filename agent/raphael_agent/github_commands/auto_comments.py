@@ -1,4 +1,4 @@
-"""Terminal auto-comments for GH-010–014. Never calls the sandbox HTTP API."""
+"""Terminal GitHub surfaces (comments, labels, sticky footer). No sandbox HTTP."""
 
 from __future__ import annotations
 
@@ -12,7 +12,13 @@ from raphael_agent.github_commands.config import (
     command_prefix,
     github_auto_comments_enabled,
 )
+from raphael_agent.github_commands.labels import Labeler, apply_terminal_labels
 from raphael_agent.github_commands.replies import render_terminal
+from raphael_agent.github_commands.sticky import (
+    CommentLister,
+    CommentUpdater,
+    upsert_sticky_footer,
+)
 from raphael_agent.graph.state import append_audit
 from raphael_agent.store import RunStore
 from raphael_agent.timeutil import utc_now
@@ -103,6 +109,54 @@ def _post(
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def maybe_on_terminal(
+    run: dict[str, Any],
+    *,
+    store: RunStore | None = None,
+    poster: CommentPoster | None = None,
+    labeler: Labeler | None = None,
+    comment_lister: CommentLister | None = None,
+    comment_updater: CommentUpdater | None = None,
+    prefix: str | None = None,
+) -> dict[str, Any]:
+    """GH-M2/M3 terminal hook: labels + sticky footer + one-shot comment.
+
+    Gated by ``RAPHAEL_GITHUB_AUTO_COMMENTS`` (unset inherits commands).
+    Never raises. Never calls sandbox HTTP.
+    """
+    if not github_auto_comments_enabled():
+        return {
+            "decision": "skipped",
+            "reason": "auto_comments_disabled",
+            "labels": [],
+        }
+    status = str(run.get("status") or "")
+    if status not in TERMINAL_AUTO_STATUSES:
+        return {"decision": "skipped", "reason": f"status={status}", "labels": []}
+
+    prefix = prefix if prefix is not None else command_prefix()
+    target = _comment_target(run)
+    labels = apply_terminal_labels(run, target=target, labeler=labeler)
+    sticky = upsert_sticky_footer(
+        run,
+        target=target,
+        prefix=prefix,
+        lister=comment_lister,
+        poster=poster,
+        updater=comment_updater,
+    )
+    comment = maybe_emit_terminal_comment(
+        run, store=store, poster=poster, prefix=prefix
+    )
+    return {
+        "decision": "emitted",
+        "status": status,
+        "labels": labels,
+        "sticky": sticky,
+        "comment": comment,
+    }
 
 
 def maybe_emit_terminal_comment(
