@@ -26,6 +26,8 @@ Full product intent: [`prd.md`](prd.md).
 | **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
 | **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
 | **LangGraph agent / GitHub PRs** | **Phase 6** — dual-path: CI templates → draft PR **and** labeled Issues → optional model → fix snippet (human opens PR). See [`agent/`](agent/) |
+| **GitHub-native commands** | **GH-M1–M5** — `/raphael status\|help\|feedback\|retry\|escalate` in the agent (default off), plus labels/sticky footer and opt-in advisory Checks. See [`interface/github-native/prd.md`](interface/github-native/prd.md) |
+| **IDE (VS Code / Cursor)** | **P0 shipped** — [`interface/IDE/README.md`](interface/IDE/README.md) |
 
 The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
 
@@ -43,7 +45,8 @@ Raphael/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
 ├── docs/                     ← pilot install / permissions / acceptance / week runbook
-├── agent/                    ← Engineer B (Phase 0–6 dual-path)
+├── interface/                ← CLI usage, I0 API, GitHub-native PRD/templates, IDE
+├── agent/                    ← Engineer B (Phase 0–6 dual-path + GitHub-native commands)
 │   └── README.md             ← partner dry-run + allowlist
 └── sandbox/                  ← Engineer A implementation
     ├── README.md             ← detailed how-to / all commands
@@ -92,4 +95,4 @@ Why we chose things: [`decision.md`](decision.md).
 
 ## Status
 
-Sandbox P0–P2 complete. Agent Phase 0–6 (dual-path CI + labeled Issues) under [`agent/`](agent/) + [`docs/`](docs/). Partner week ops checklist remains in [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
+Sandbox P0–P2 complete. Agent Phase 0–6 (dual-path CI + labeled Issues) under [`agent/`](agent/) + [`docs/`](docs/). GitHub-native GH-M1–M5 (commands + pilot docs, default off) in [`interface/github-native/prd.md`](interface/github-native/prd.md). Partner week ops checklist: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).

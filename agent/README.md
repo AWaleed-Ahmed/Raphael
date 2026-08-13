@@ -152,12 +152,12 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## GitHub-native commands (GH-M1–M4, default off)
+## GitHub-native commands (GH-M1–M5, default off)
 
 Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
 
 Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`, **`retry`**, **`escalate`**.  
-**Not implemented:** `cancel`, `diagnose`, `fix` (GH-M5+).
+**Not implemented:** `cancel`, `diagnose`, `fix` (deferred; GH-M5 was docs only).
 
 ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`help`/`feedback`. `retry` / `escalate` require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
 

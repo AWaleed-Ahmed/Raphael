@@ -1,7 +1,7 @@
 # Raphael Interface — Usage (CLI)
 
 **Audience:** operators, FDEs, and engineers using Raphael **today**  
-**Status:** CLI is the full operator path. GitHub-native **GH-M1–M4** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
+**Status:** CLI is the full operator path. GitHub-native **GH-M1–M5** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs; GH-M5 = pilot docs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
 **Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode  
 
 GitHub `cancel` / `diagnose` / `fix` are **not implemented**. Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.

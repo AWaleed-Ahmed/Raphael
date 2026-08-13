@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-06 — GH-M5 closes github-native with docs only (no new verbs)
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Close GH-M5 as **documentation only**. Do **not** implement `cancel` / `diagnose` / `fix`. Finish the GitHub-native permission matrix (issue_comment replies, additive labels, sticky footer, opt-in Checks write that is never required for merge). Align `docs/pilot-install.md` webhook subscriptions (`issue_comment` plus `workflow_run` / `check_run` / `pull_request` / `issues`) and App permissions with github-native PRD §7.3 (Checks r/w optional; no Administration / Secrets / Environments write / Workflows write). Record default-off knobs `RAPHAEL_GITHUB_COMMANDS`, `RAPHAEL_GITHUB_AUTO_COMMENTS`, `RAPHAEL_GITHUB_CHECK_RUNS`. Add a dry-run command smoke to the pilot week runbook and acceptance checklist (`status` / `help` / `feedback` on a fixture Issue; `retry` under `PARTNER_MODE=dry_run` never live-publishes). Mark GH-M1–M4 **Proven (code)** and Checks **opt-in / never merge-gating**. Update `handoff.md` and root `README.md` so GitHub-native is no longer described as PRD-only.
+- **Why:** The command/Check surface is already in the agent (GH-M1–M4). Pilot partners need an accurate permission and webhook picture before flipping knobs. Shipping `cancel`/`diagnose`/`fix` in the same change would mix product verbs with an ops-doc milestone.
+- **Alternatives:** Implement the three remaining verbs in GH-M5 — rejected (explicitly out of this phase). Treat Checks as required for merge in the matrix — rejected (GH-033/034).
+- **Consequences:** Enable GitHub-native with `RAPHAEL_GITHUB_COMMANDS=1` (and separately `RAPHAEL_GITHUB_CHECK_RUNS=1` if Checks write is granted). Branch protection must not require `Raphael (advisory)`. Remaining verbs stay deferred.
+
 ### D-20260814-05 — GH-M4 advisory Check Runs are a separate opt-in
 - **Status:** accepted
 - **Date:** 2026-08-14
@@ -416,6 +425,11 @@
 
 | ID | Topic |
 |---|---|
+| D-20260814-06 | GH-M5 permission matrix + pilot docs (no new verbs) |
+| D-20260814-05 | GH-M4 advisory Check Runs (separate opt-in) |
+| D-20260814-04 | GH-M3 labels + sticky footer |
+| D-20260814-03 | GH-M2 retry/escalate + auto-comments |
+| D-20260814-02 | GH-M1 GitHub-native commands in the agent |
 | D-20260811-03 | Raphael IDE extension P0 (VS Code/Cursor VSIX) |
 | D-20260811-02 | Implement I0 run list/create/actions HTTP APIs |
 | D-20260811-01 | Interface I0 API lock + PRD consistency |

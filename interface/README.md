@@ -1,9 +1,9 @@
 # Raphael Interface Layer
 
-**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · **GitHub-native GH-M1/M2 shipped in agent** (`status` / `help` / `feedback` / `retry` / `escalate`, default off)  
-**Interactive path today:** [CLI → `Usage.md`](Usage.md) · [IDE → `IDE/README.md`](IDE/README.md)  
+**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · **GitHub-native GH-M1–M5** (commands + labels/sticky + opt-in Checks in agent, default off; GH-M5 = pilot docs)  
+**Interactive path today:** [CLI → `Usage.md`](Usage.md) · [IDE → `IDE/README.md`](IDE/README.md) · [GitHub-native → `github-native/prd.md`](github-native/prd.md)  
 **I0 API lock:** [`prd-i0-api.md`](prd-i0-api.md)  
-**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md), [`D-20260814-02`](../decision.md), [`D-20260814-03`](../decision.md)
+**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md), [`D-20260814-02`](../decision.md) … [`D-20260814-06`](../decision.md)
 
 ---
 
@@ -17,7 +17,7 @@
 | Agent | `agent/` | Ingest → diagnose → patch → draft PR / issue snippet (+ future I0 actions / GitHub commands) |
 | **Interface** | **`interface/`** | **How humans steer, inspect, apply, and give feedback** |
 
-Until GitHub-native UX and the IDE package ship, **operators use the agent CLI and HTTP API** documented in [`Usage.md`](Usage.md). Those CLIs are **interface v0**; every planned UI action maps to one of them (or to an I0 API once implemented).
+Until a process split, GitHub-native runtime lives in the **agent**. Operators can also use the CLI and HTTP API in [`Usage.md`](Usage.md) (interface v0). The IDE is a VSIX — [`IDE/README.md`](IDE/README.md).
 
 ---
 
@@ -102,7 +102,7 @@ Full walkthrough: **[`Usage.md`](Usage.md)**.
 | Operator metrics | `metrics` |
 | Offline learning snapshot | `learn` + `RAPHAEL_LEARNING=1` |
 
-### 2. GitHub-native (GH-M1–M4 in agent — default off)
+### 2. GitHub-native (GH-M1–M5 — commands in agent, default off)
 
 Runtime lives in the **agent** (`raphael_agent.github_commands`), not a split worker. `interface/github-native/` owns the PRD and reply templates.
 
@@ -127,14 +127,14 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `feedback accepted\|rejected\|edited` | GH-M1 — FR-065 jsonl, never merge |
 | `retry [run_id]` | **GH-M2** — admin/team; new run + `parent_run_id`; refuse if parent in-flight |
 | `escalate [run_id] [notes]` | **GH-M2** — admin/team; in-flight → `human_requested`; terminal → notes only |
-| `cancel` / `diagnose` / `fix` | **Not implemented** (later / GH-M5) |
+| `cancel` / `diagnose` / `fix` | **Not implemented** (deferred; not part of GH-M5) |
 | Check Runs | **GH-M4** — `RAPHAEL_GITHUB_CHECK_RUNS=1`; name `Raphael (advisory)`; conclusion `neutral` (optional advisory `success`) |
 
 ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. `retry` / `escalate` and later privileged verbs require admin (`OWNER`) or team membership.
 
 Terminal auto-comments on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed` include `run_id`, class, confidence, `result_id`, and are redacted. GH-M3 applies additive labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`; never strips `raphael:fix`) and keeps one sticky “Raphael actions” footer (`<!-- raphael:sticky -->`) listing `status` / `feedback` / `help` only — no Merge. Comments, labels, and the footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (see `D-20260814-03` and `D-20260814-04`).
 
-GH-M4 Check Runs (`D-20260814-05`) are a **separate** opt-in: `RAPHAEL_GITHUB_CHECK_RUNS=1`. They do not inherit command/auto-comment flags. The Check is named `Raphael (advisory)`, defaults to conclusion `neutral`, never `failure`, and must not be a required merge check.
+GH-M4 Check Runs (`D-20260814-05`) are a **separate** opt-in: `RAPHAEL_GITHUB_CHECK_RUNS=1`. They do not inherit command/auto-comment flags. The Check is named `Raphael (advisory)`, defaults to conclusion `neutral`, never `failure`, and must not be a required merge check. GH-M5 (`D-20260814-06`) is documentation only — permission matrix + pilot install/week/acceptance; `cancel` / `diagnose` / `fix` stay unimplemented.
 
 Local test (no GitHub token; webhook JSON includes the markdown `reply`):
 
@@ -162,7 +162,7 @@ ChatOps (Slack/Teams) is **not** in this folder — root [`prd.md`](../prd.md) �
 flowchart TB
   subgraph now [Available_now]
     CLI[Agent_CLI_and_serve]
-    GH[GitHub_native_GH_M1_M4]
+    GH[GitHub_native_GH_M1_M5]
     IDE[Cursor_VSCode]
   end
   subgraph later [Deferred_UI]
@@ -189,7 +189,7 @@ flowchart TB
 | Phase | Focus | Exit |
 |-------|--------|------|
 | **I0** | Contracts (docs+schemas done; HTTP next) | [`prd-i0-api.md`](prd-i0-api.md) |
-| **I1** | GitHub-native P0 commands in agent | GH-M1–M4 (`status`/`help`/`feedback`/`retry`/`escalate` + labels/sticky + opt-in Checks); cancel/diagnose/fix later |
+| **I1** | GitHub-native P0 commands in agent | **Done GH-M1–M5** (`status`/`help`/`feedback`/`retry`/`escalate` + labels/sticky + opt-in Checks + pilot docs); `cancel`/`diagnose`/`fix` still later |
 | **I2** | IDE P0 vs local agent | Apply fix + feedback |
 | **I3** | Advisory Checks | **Done (GH-M4)** — `RAPHAEL_GITHUB_CHECK_RUNS=1`, conclusion `neutral` |
 | **I4** | IDE decorations / branch opt-in | |

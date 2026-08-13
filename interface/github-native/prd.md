@@ -1,6 +1,6 @@
 # GitHub-native interface — Product Requirements
 
-**Document status:** GH-M1–M4 implemented in the agent (commands/auto-comments/Checks default off) · GH-M5 still draft  
+**Document status:** GH-M1–M5 complete (commands/auto-comments/Checks default off in the agent; GH-M5 is documentation). `cancel` / `diagnose` / `fix` remain unimplemented.  
 **Parent:** [`../prd.md`](../prd.md)  
 **Folder:** `interface/github-native/`  
 **Product stage:** Post-MVP (I1 / I3 in parent plan)  
@@ -171,7 +171,7 @@ Commands: `/raphael feedback accepted` · `/raphael feedback rejected` · `/raph
 
 ---
 
-## 7. Technical design (implement later)
+## 7. Technical design (pilot runtime is in the agent)
 
 ### 7.1 Suggested package layout
 
@@ -200,7 +200,7 @@ sequenceDiagram
   Agent->>GitHub: reply comment with new run_id
 ```
 
-### 7.3 GitHub App permissions (proposed)
+### 7.3 GitHub App permissions (pilot)
 
 | Permission | Access | Why |
 |------------|--------|-----|
@@ -258,7 +258,7 @@ sequenceDiagram
 | GH-M2 | `retry` / `escalate` + terminal auto-comments | **Done** (agent; auto-comments via `RAPHAEL_GITHUB_AUTO_COMMENTS`) |
 | GH-M3 | Labels + sticky PR footer | **Done** (agent; same `RAPHAEL_GITHUB_AUTO_COMMENTS` gate as GH-M2) |
 | GH-M4 | Check Runs + annotations | **Done** (agent; `RAPHAEL_GITHUB_CHECK_RUNS=1`, conclusion `neutral`) |
-| GH-M5 | Permission-matrix + pilot doc updates | **Not implemented** |
+| GH-M5 | Permission-matrix + pilot doc updates | **Done** ([`docs/permission-matrix.md`](../../docs/permission-matrix.md), install/week/acceptance; `D-20260814-06`) |
 
 ---
 
@@ -281,3 +281,4 @@ sequenceDiagram
 | 0.4.0 | 2026-08-14 | GH-M2 `retry`/`escalate` + terminal auto-comments |
 | 0.5.0 | 2026-08-14 | GH-M3 labels + sticky footer |
 | 0.6.0 | 2026-08-14 | GH-M4 advisory Check Runs; cancel/diagnose/fix and GH-M5 still deferred |
+| 0.7.0 | 2026-08-14 | GH-M5 permission matrix + pilot docs; `cancel`/`diagnose`/`fix` still unimplemented |
