@@ -185,6 +185,7 @@ On `destroy_sandbox`:
 3. Do not one-shot unrelated phases; each phase has exit criteria.
 4. Do not edit the attached implementation plan file as a substitute for code/docs.
 5. Commit only when explicitly requested by the user.
+6. **Branching:** new work on `feature/<name>` (or `fix/<name>`). PR into `main`. Promote `main` → `prod` only when pinning a demo/partner snapshot. Park unfinished commits on `stash/<name>`. Use `git stash` only for uncommitted local dirt when switching branches. Never commit on `prod`. Never force-push `main` or `prod`. Full workflow: [`docs/BRANCHING.md`](docs/BRANCHING.md).
 
 ---
 

@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-01 — Git branches: `feature/*` → `main` → `prod`; `stash/*` for parked WIP
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Stop landing work directly on `main`. Integration stays `main` (PR target). `prod` is a fast-forward-only promote from `main` for partner/demo pins. Day-to-day work uses `feature/<short-name>` (or `fix/`). Unfinished *commits* park on `stash/<short-name>` (not a shared immortal `stash` branch). Uncommitted dirt uses `git stash`. Documented in [`docs/BRANCHING.md`](docs/BRANCHING.md). Initial `prod` snapshot = `main` at `6c64964`.
+- **Why:** Two-person repo had a single `main`; teammate and agents were colliding on the default branch. Need a stable pin (`prod`) without blocking integration.
+- **Alternatives:** GitHub Flow with only `main` + features (no `prod`) — weaker demo pin. `develop` + `main` git-flow — extra hop for a two-person team. One shared `stash` branch — force-push fights.
+- **Consequences:** Agents must create a feature branch before the first commit of a task. Protect `main`/`prod` on GitHub. First promote of `prod` is a no-op until `main` moves.
+
 ### D-20260811-03 — Raphael IDE extension P0 (VS Code / Cursor VSIX)
 - **Status:** accepted
 - **Date:** 2026-08-11
@@ -380,6 +389,7 @@
 
 | ID | Topic |
 |---|---|
+| D-20260814-01 | Git `feature/*` → `main` → `prod`; `stash/*` WIP |
 | D-20260811-03 | Raphael IDE extension P0 (VS Code/Cursor VSIX) |
 | D-20260811-02 | Implement I0 run list/create/actions HTTP APIs |
 | D-20260811-01 | Interface I0 API lock + PRD consistency |

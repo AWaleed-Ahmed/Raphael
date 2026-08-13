@@ -14,7 +14,8 @@ When a deploy fails in CI or a workload goes unhealthy, Raphael’s job is to:
 Production stays **read-only** in the MVP. Durable changes only enter through your normal Git review and CI path.
 
 Full product intent: [`prd.md`](prd.md).  
-**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).
+**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).  
+**Git branches (`feature` / `main` / `prod` / `stash`):** [`docs/BRANCHING.md`](docs/BRANCHING.md).
 
 ---
 
@@ -42,7 +43,7 @@ Raphael/
 ├── contracts/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── docs/                     ← pilot install / permissions / acceptance / week runbook
+├── docs/                     ← branching, pilot install / permissions / runbook
 ├── agent/                    ← Engineer B (Phase 0–6 dual-path)
 │   └── README.md             ← partner dry-run + allowlist
 └── sandbox/                  ← Engineer A implementation

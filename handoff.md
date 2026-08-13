@@ -2,7 +2,7 @@
 
 **Audience:** teammate picking up the repo  
 **Repo:** https://github.com/AWaleed-Ahmed/Raphael (private)  
-**Branch:** `main` (tracking `origin/main`)  
+**Branches:** `feature/*` → `main` (PRs) → `prod` (promote). Park WIP on `stash/*`. See [`docs/BRANCHING.md`](docs/BRANCHING.md).  
 **Last agent work:** Phase 6 dual-path + Option B (K8s watcher, App JWT, CODEOWNERS, SQLite store)
 
 This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [`CODING_RULE.md`](CODING_RULE.md), [`decision.md`](decision.md).
@@ -45,7 +45,7 @@ Self-healing **deployment** agent for Kubernetes + GitHub:
 
 Terminals: `success_draft_pr_ready` | `success_fix_proposed` | `escalated` | `failed_closed`
 
-Decisions: `D-20260810-02` … `D-20260810-14`.
+Decisions: `D-20260810-02` … `D-20260814-01` (branching). Full list in [`decision.md`](decision.md).
 
 ---
 
@@ -59,6 +59,22 @@ Decisions: `D-20260810-02` … `D-20260810-14`.
 | `RAPHAEL_GITHUB_APP_ID` / `INSTALLATION_ID` / key | unset (PAT first) |
 | `RAPHAEL_REVIEWERS_FROM_CODEOWNERS` | `0` |
 | `RAPHAEL_AGENT_STORE` | `json` (`sqlite` opt-in) |
+
+---
+
+## Git (required from here on)
+
+Do **not** commit on `main` or `prod`.
+
+```bash
+git checkout main && git pull --ff-only origin main
+git checkout -b feature/short-name
+# work, then: git push -u origin HEAD  →  PR into main
+```
+
+- **`prod`:** partner/demo pin. Promote with `git checkout prod && git merge --ff-only main && git push`.
+- **`stash/<name>`:** parked commits. **`git stash`:** uncommitted local dirt only.
+- Never force-push `main` or `prod`.
 
 ---
 
