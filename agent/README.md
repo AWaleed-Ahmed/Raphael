@@ -56,6 +56,13 @@ pip install -e .
 | `RAPHAEL_LEARNING` | `0` | Apply offline learning_snapshot priors |
 | `RAPHAEL_LEARNING_MIN_SAMPLES` | `3` | Min feedback samples per class before prior |
 | `RAPHAEL_LEARNING_SNAPSHOT` | data dir file | Path to frozen snapshot |
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | `1` enables `/raphael` comment commands on `issue_comment` |
+| `RAPHAEL_GITHUB_COMMAND_PREFIX` | `/raphael` | Slash-command prefix |
+| `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged verb allowlist (slug and/or comma-separated logins) |
+| `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (tests / no Teams API) |
+| `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands per hour per repo+actor |
+| `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this account’s comments |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** — do not enable yet |
 
 ### Learning loop (Post-MVP; off by default)
 
@@ -143,10 +150,29 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## Interface / I0 (deferred)
+## GitHub-native commands (GH-M1, default off)
 
-Human UIs (GitHub slash commands, Cursor/VS Code) are specified under [`../interface/`](../interface/README.md). **CLI remains the interactive path today** — see [`../interface/Usage.md`](../interface/Usage.md).
+Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
+
+Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`.  
+**Not implemented:** `retry`, `escalate`, `cancel`, `diagnose`, `fix`, Check Runs.
+
+ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run the implemented verbs. Privileged verbs (deferred) require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
+
+Local tests (no GitHub token):
+
+```bash
+cd agent
+$env:RAPHAEL_GITHUB_COMMANDS="1"   # optional; tests set this themselves
+pytest -q tests/test_github_commands.py tests/test_i0_runs.py
+```
+
+`status` resolves `run_id` as: explicit arg → `<!-- raphael:run_id=… -->` / `raphael:run_id=…` on the Issue/PR body → latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).
+
+## Interface / I0
+
+Human UIs: GitHub slash commands (GH-M1 above) and Cursor/VS Code under [`../interface/`](../interface/README.md). CLI remains fully supported — [`../interface/Usage.md`](../interface/Usage.md).
 
 - Agent HTTP default listen: **`127.0.0.1:8091`** (`RAPHAEL_AGENT_LISTEN`). Sandbox controller stays on **`:8090`**.
 - I0 APIs **served**: `GET/POST /v1/runs`, `POST /v1/runs/{id}/actions` — see [`../interface/prd-i0-api.md`](../interface/prd-i0-api.md).
-- Decisions: `D-20260811-01` (locks), `D-20260811-02` (implementation).
+- Decisions: `D-20260811-01` (locks), `D-20260811-02` (I0 HTTP), `D-20260814-02` (GH-M1 commands).

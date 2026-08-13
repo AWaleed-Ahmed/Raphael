@@ -155,6 +155,41 @@ async def github_webhook(request: Request) -> JSONResponse:
     delivery_id = request.headers.get("x-github-delivery")
     signature = request.headers.get("x-hub-signature-256")
 
+    if event_name == "issue_comment":
+        from raphael_agent.github_commands import (
+            github_commands_enabled,
+            handle_issue_comment_event,
+        )
+
+        try:
+            verify_github_signature(body, signature)
+        except WebhookAuthError as exc:
+            return JSONResponse(
+                {"error": "unauthorized", "message": str(exc)}, status_code=401
+            )
+        if not github_commands_enabled():
+            return JSONResponse(
+                {
+                    "decision": "ignored",
+                    "reason": "RAPHAEL_GITHUB_COMMANDS is off (set to 1 to enable)",
+                    "event": "issue_comment",
+                },
+                status_code=202,
+            )
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            return JSONResponse({"error": "invalid", "message": str(exc)}, status_code=400)
+        if not isinstance(payload, dict):
+            return JSONResponse(
+                {"error": "invalid", "message": "webhook JSON must be an object"},
+                status_code=400,
+            )
+        result = handle_issue_comment_event(
+            payload, delivery_id=delivery_id, store=_store()
+        )
+        return JSONResponse(result, status_code=202)
+
     if event_name == "pull_request":
         from raphael_agent.feedback import (
             default_feedback_recorder,

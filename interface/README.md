@@ -1,9 +1,9 @@
 # Raphael Interface Layer
 
-**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · GitHub-native UI deferred  
+**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · **GitHub-native GH-M1 shipped in agent** (`status` / `help` / `feedback`, default off)  
 **Interactive path today:** [CLI → `Usage.md`](Usage.md) · [IDE → `IDE/README.md`](IDE/README.md)  
 **I0 API lock:** [`prd-i0-api.md`](prd-i0-api.md)  
-**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md)
+**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md), [`D-20260814-02`](../decision.md)
 
 ---
 
@@ -30,6 +30,7 @@ Until GitHub-native UX and the IDE package ship, **operators use the agent CLI a
 | [`prd.md`](prd.md) | Umbrella PRD — shared principles + locked decisions |
 | [`prd-i0-api.md`](prd-i0-api.md) | **I0** endpoints, auth, escalate FSM, `delivery_patch`, correlation |
 | [`github-native/prd.md`](github-native/prd.md) | GitHub Issues/PRs/Checks slash-command product spec |
+| [`github-native/templates/`](github-native/templates/) | GH-M1 reply copy (`status.md`, `help.md`) |
 | [`IDE/prd.md`](IDE/prd.md) | Cursor / VS Code extension product spec |
 | [`IDE/README.md`](IDE/README.md) | **Install VSIX + use the P0 extension** |
 
@@ -40,7 +41,8 @@ interface/
 ├── prd.md
 ├── prd-i0-api.md
 ├── github-native/
-│   └── prd.md
+│   ├── prd.md
+│   └── templates/
 └── IDE/
     └── prd.md
 ```
@@ -100,15 +102,43 @@ Full walkthrough: **[`Usage.md`](Usage.md)**.
 | Operator metrics | `metrics` |
 | Offline learning snapshot | `learn` + `RAPHAEL_LEARNING=1` |
 
-### 2. GitHub-native (planned — PRD)
+### 2. GitHub-native (GH-M1 in agent — default off)
 
-| Area | Features |
-|------|----------|
-| **Slash commands** | `/raphael status`, `retry`, `escalate`, `cancel`, `feedback …`, `diagnose`, `fix`, `help` |
-| **Auto comments** | Terminal posts with `run_id` + mode + correlation markers |
-| **Labels** | `raphael:fix` + draft/escalated/needs-human |
-| **Checks** | Advisory Check Run; **`neutral`** by default; never required for merge |
-| **Safety** | Partner gates, rate limits, idempotent `action_id`, audit |
+Runtime lives in the **agent** (`raphael_agent.github_commands`), not a split worker. `interface/github-native/` owns the PRD and reply templates.
+
+Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`. Bot self-comments are ignored. This path does **not** call the sandbox HTTP API and does **not** widen partner/publish allowlists.
+
+| Knob | Default | Meaning |
+|------|---------|---------|
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | Master switch for `issue_comment` command parse |
+| `RAPHAEL_GITHUB_COMMAND_PREFIX` | `/raphael` | Command prefix |
+| `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged-verb team slug and/or comma-separated logins |
+| `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (no Teams API in GH-M1) |
+| `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands / hour / repo+actor (GH-053) |
+| `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this login (and `login[bot]`) |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** |
+
+| Verb | GH-M1 |
+|------|--------|
+| `status [run_id]` | Implemented — explicit arg → thread marker → store lookup by Issue/PR number |
+| `help` | Implemented — verbs + partner/publish mode (no secrets) |
+| `feedback accepted\|rejected\|edited` | Implemented — FR-065 jsonl, never merge |
+| `retry` / `escalate` / `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M2+) |
+| Check Runs | **Not implemented** (GH-M4); advisory `neutral` when it lands |
+
+ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. Everything else requires admin (`OWNER`) or team membership.
+
+Local test (no GitHub token; webhook JSON includes the markdown `reply`):
+
+```bash
+cd agent
+pytest -q tests/test_github_commands.py
+# optional live webhook against raphael-agent-serve:
+#   RAPHAEL_GITHUB_COMMANDS=1
+#   POST /v1/webhooks/github  X-GitHub-Event: issue_comment
+```
+
+`status` / `feedback` correlation: `/raphael status run-abc123`, then `<!-- raphael:run_id=… -->` or `raphael:run_id=…` on the Issue/PR body, then latest run for that number. Duplicate GitHub deliveries are idempotent (`comment_id` / `X-GitHub-Delivery`).
 
 ### 3. IDE / Cursor plugin (P0 shipped)
 
@@ -124,10 +154,11 @@ ChatOps (Slack/Teams) is **not** in this folder — root [`prd.md`](../prd.md) �
 flowchart TB
   subgraph now [Available_now]
     CLI[Agent_CLI_and_serve]
+    GH[GitHub_native_GH_M1]
+    IDE[Cursor_VSCode]
   end
   subgraph later [Deferred_UI]
-    GH[GitHub_native]
-    IDE[Cursor_VSCode]
+    GH2[retry_escalate_Checks]
   end
   subgraph core [Core]
     API[Agent_HTTP_8091]
@@ -150,7 +181,7 @@ flowchart TB
 | Phase | Focus | Exit |
 |-------|--------|------|
 | **I0** | Contracts (docs+schemas done; HTTP next) | [`prd-i0-api.md`](prd-i0-api.md) |
-| **I1** | GitHub-native P0 commands in agent | Partner `/raphael …` |
+| **I1** | GitHub-native P0 commands in agent | GH-M1 `status`/`help`/`feedback` (this change); retry/escalate still GH-M2 |
 | **I2** | IDE P0 vs local agent | Apply fix + feedback |
 | **I3** | Advisory Checks | `neutral` default |
 | **I4** | IDE decorations / branch opt-in | |

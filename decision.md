@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-02 — GitHub-native GH-M1 commands hosted in the agent
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Implement GH-M1 (`status` / `help` / `feedback`) inside the existing agent HTTP webhook, gated by `RAPHAEL_GITHUB_COMMANDS` (default **0**). Parse `/raphael <verb> [args]` (prefix from `RAPHAEL_GITHUB_COMMAND_PREFIX`). ACL: write collaborators → `status`/`help`/`feedback`; other verbs need repo admin or `RAPHAEL_GITHUB_COMMAND_TEAM` membership. Rate-limit 10/hour per repo+actor (GH-053). Idempotency via GitHub `comment_id` / delivery id (GH-054). Ignore the bot’s own comments. Reply templates live under `interface/github-native/templates/`. **Not implemented:** `retry`, `escalate`, `cancel`, `diagnose`, `fix`, Check Runs (GH-M2+). Command path must not call sandbox HTTP and must not widen partner/publish gates. I0 helpers stay in `agent/raphael_agent/runs.py` (file, not a gitignored `runs/` directory).
+- **Why:** I1 needs GitHub as the operator console without a second process or a second diagnosis engine. Default-off avoids surprising partner webhooks. GH-M1 is inspect/feedback only so we can ship ACL + rate-limit + idempotency before privileged verbs.
+- **Alternatives:** Separate `interface/github-native` worker — rejected for pilot (one webhook URL). Implement retry/escalate in the same change — rejected (explicitly GH-M2). Treat `/raphael accept` as feedback — rejected (locked grammar).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Live reply comments need a GitHub token but unit tests assert the markdown on the webhook JSON. `raphael-agent-learn` already consumes `feedback.jsonl` (`source=github_webhook`). Partner mode / live allowlists unchanged.
+
 ### D-20260811-03 — Raphael IDE extension P0 (VS Code / Cursor VSIX)
 - **Status:** accepted
 - **Date:** 2026-08-11

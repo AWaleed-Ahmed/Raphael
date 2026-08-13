@@ -24,7 +24,6 @@ sandbox/controller/.raphael-data/
 sandbox/controller/.raphael-artifacts/
 agent/.raphael-agent-data/
 agent/.raphael-agent-data-*/
-agent/raphael_agent/runs/
 
 # --- Rust ---
 sandbox/controller/target/
