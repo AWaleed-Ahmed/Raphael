@@ -32,9 +32,13 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} retry [run_id]` — new run from the same fingerprint; sets `parent_run_id`
 - `{prefix} escalate [run_id] [notes]` — in-flight → `escalated`/`human_requested`; terminal → notes only
 
-**Deferred (not implemented — GH-M4)** — admin or team:
+**Deferred (not implemented)** — admin or team:
 - `{prefix} cancel` / `{prefix} diagnose` / `{prefix} fix`
-- Check Runs (`RAPHAEL_GITHUB_CHECK_RUNS`) — advisory, conclusion `neutral` when enabled later
+
+**Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
+- Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.
+- Optional `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1` may use `success` on draft-ready / snippet terminals only.
+- Advisory only — never a required merge check, never a Merge action.
 """
 
 _NOT_FOUND = """\
@@ -288,9 +292,9 @@ def render_denied(*, verb: str, prefix: str) -> str:
 
 def render_deferred(*, verb: str, prefix: str) -> str:
     return (
-        f"`{prefix} {verb}` is **not implemented** yet (GH-M4). "
-        "GH-M1/M2 support `status`/`help`/`feedback`/`retry`/`escalate`. "
-        "Cancel, diagnose, fix, and Check Runs are deferred.\n"
+        f"`{prefix} {verb}` is **not implemented** yet. "
+        "GH-M1–M4 support `status`/`help`/`feedback`/`retry`/`escalate` plus optional Check Runs. "
+        "Cancel, diagnose, and fix remain deferred.\n"
     )
 
 

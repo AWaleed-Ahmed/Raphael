@@ -1,7 +1,7 @@
 """Handle GitHub ``issue_comment`` webhooks for GH-M1/M2 commands.
 
 Does not call the sandbox HTTP API. Does not change partner/publish gates.
-``cancel`` / ``diagnose`` / ``fix`` / Check Runs are deferred (GH-M4).
+``cancel`` / ``diagnose`` / ``fix`` are deferred.
 """
 
 from __future__ import annotations

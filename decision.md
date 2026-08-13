@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-05 — GH-M4 advisory Check Runs are a separate opt-in
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Implement GH-030–034 as in-agent GitHub Check Runs named **`Raphael (advisory)`**. **Knob:** `RAPHAEL_GITHUB_CHECK_RUNS` default **0** and does **not** inherit `RAPHAEL_GITHUB_COMMANDS` / `RAPHAEL_GITHUB_AUTO_COMMENTS` (Checks write is a distinct GitHub permission and must not surprise partners who only wanted slash commands). Start: `run_stub_graph` (ingest/graph, including `/raphael retry` children) POSTs an `in_progress` Check on `commit_sha`. Complete: on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed`, PATCH with diagnosis, validation matrix, draft PR or escalation reason, `run_id`, class, confidence, `result_id` when present; redacted. `check_run_id` lives in sidecar `github_check_runs.json` (same pattern as terminal comments) — never extra `run_record.json` fields. Annotations (notice only) for allowlisted patch paths; skip secret-like content and non-allowlisted files. **Conclusion:** always `neutral` unless `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1`, which may use `success` only on the two happy terminals. Never `failure`. Copy states the Check is advisory, does not replace human review, and offers no Merge action. Missing token → skip, do not fail the run. No sandbox HTTP. **Still deferred:** `cancel` / `diagnose` / `fix`, GH-M5 full pilot-doc pass.
+- **Why:** Operators want a SHA-level advisory status without turning Raphael into a required merge gate. Coupling Checks to command/auto-comment flags would write Checks for partners who never granted `checks:write`.
+- **Alternatives:** Inherit auto-comments — rejected (different permission + surprise). Default conclusion `success`/`failure` — rejected (looks required / blocking). Store `check_run_id` on `run_record` — rejected (`additionalProperties: false`).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1` plus a token. GitHub App/PAT needs Checks write only when this flag is on; branch protection must not require `Raphael (advisory)`.
+
 ### D-20260814-04 — GH-M3 terminal labels + sticky footer share auto-comment gating
 - **Status:** accepted
 - **Date:** 2026-08-14

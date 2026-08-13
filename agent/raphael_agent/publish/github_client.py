@@ -253,3 +253,67 @@ class GitHubPublisher:
             f"/repos/{owner}/{repo}/issues/comments/{comment_id}",
             json={"body": body},
         )
+
+    def create_check_run(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        head_sha: str,
+        name: str,
+        status: str = "in_progress",
+        conclusion: str | None = None,
+        output: dict[str, Any] | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        external_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "name": name,
+            "head_sha": head_sha,
+            "status": status,
+        }
+        if conclusion:
+            payload["conclusion"] = conclusion
+        if output is not None:
+            payload["output"] = output
+        if started_at:
+            payload["started_at"] = started_at
+        if completed_at:
+            payload["completed_at"] = completed_at
+        if external_id:
+            payload["external_id"] = external_id
+        return self._request(
+            "POST",
+            f"/repos/{owner}/{repo}/check-runs",
+            json=payload,
+        )
+
+    def update_check_run(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        check_run_id: int,
+        name: str | None = None,
+        status: str | None = None,
+        conclusion: str | None = None,
+        output: dict[str, Any] | None = None,
+        completed_at: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if status is not None:
+            payload["status"] = status
+        if conclusion is not None:
+            payload["conclusion"] = conclusion
+        if output is not None:
+            payload["output"] = output
+        if completed_at:
+            payload["completed_at"] = completed_at
+        return self._request(
+            "PATCH",
+            f"/repos/{owner}/{repo}/check-runs/{check_run_id}",
+            json=payload,
+        )

@@ -102,7 +102,7 @@ Full walkthrough: **[`Usage.md`](Usage.md)**.
 | Operator metrics | `metrics` |
 | Offline learning snapshot | `learn` + `RAPHAEL_LEARNING=1` |
 
-### 2. GitHub-native (GH-M1–M3 in agent — default off)
+### 2. GitHub-native (GH-M1–M4 in agent — default off)
 
 Runtime lives in the **agent** (`raphael_agent.github_commands`), not a split worker. `interface/github-native/` owns the PRD and reply templates.
 
@@ -117,7 +117,8 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands / hour / repo+actor (GH-053) |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this login (and `login[bot]`) |
 | `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `COMMANDS`; `0` off; `1` on without parse. Also GH-M3 labels + sticky footer |
-| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **GH-M4** — `1` enables advisory Check Runs. Does **not** inherit commands/auto-comments |
+| `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | `1` may conclude `success` on draft-ready / snippet only; default `neutral`; never `failure` |
 
 | Verb | Status |
 |------|--------|
@@ -126,12 +127,14 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `feedback accepted\|rejected\|edited` | GH-M1 — FR-065 jsonl, never merge |
 | `retry [run_id]` | **GH-M2** — admin/team; new run + `parent_run_id`; refuse if parent in-flight |
 | `escalate [run_id] [notes]` | **GH-M2** — admin/team; in-flight → `human_requested`; terminal → notes only |
-| `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M4) |
-| Check Runs | **Not implemented** (GH-M4); advisory `neutral` when it lands |
+| `cancel` / `diagnose` / `fix` | **Not implemented** (later / GH-M5) |
+| Check Runs | **GH-M4** — `RAPHAEL_GITHUB_CHECK_RUNS=1`; name `Raphael (advisory)`; conclusion `neutral` (optional advisory `success`) |
 
 ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. `retry` / `escalate` and later privileged verbs require admin (`OWNER`) or team membership.
 
 Terminal auto-comments on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed` include `run_id`, class, confidence, `result_id`, and are redacted. GH-M3 applies additive labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`; never strips `raphael:fix`) and keeps one sticky “Raphael actions” footer (`<!-- raphael:sticky -->`) listing `status` / `feedback` / `help` only — no Merge. Comments, labels, and the footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (see `D-20260814-03` and `D-20260814-04`).
+
+GH-M4 Check Runs (`D-20260814-05`) are a **separate** opt-in: `RAPHAEL_GITHUB_CHECK_RUNS=1`. They do not inherit command/auto-comment flags. The Check is named `Raphael (advisory)`, defaults to conclusion `neutral`, never `failure`, and must not be a required merge check.
 
 Local test (no GitHub token; webhook JSON includes the markdown `reply`):
 
@@ -159,11 +162,11 @@ ChatOps (Slack/Teams) is **not** in this folder — root [`prd.md`](../prd.md) �
 flowchart TB
   subgraph now [Available_now]
     CLI[Agent_CLI_and_serve]
-    GH[GitHub_native_GH_M1_M3]
+    GH[GitHub_native_GH_M1_M4]
     IDE[Cursor_VSCode]
   end
   subgraph later [Deferred_UI]
-    GH2[Check_Runs_GH_M4]
+    GH2[cancel_diagnose_fix]
   end
   subgraph core [Core]
     API[Agent_HTTP_8091]
@@ -186,9 +189,9 @@ flowchart TB
 | Phase | Focus | Exit |
 |-------|--------|------|
 | **I0** | Contracts (docs+schemas done; HTTP next) | [`prd-i0-api.md`](prd-i0-api.md) |
-| **I1** | GitHub-native P0 commands in agent | GH-M1–M3 (`status`/`help`/`feedback`/`retry`/`escalate` + labels/sticky); cancel/Checks still later |
+| **I1** | GitHub-native P0 commands in agent | GH-M1–M4 (`status`/`help`/`feedback`/`retry`/`escalate` + labels/sticky + opt-in Checks); cancel/diagnose/fix later |
 | **I2** | IDE P0 vs local agent | Apply fix + feedback |
-| **I3** | Advisory Checks | `neutral` default |
+| **I3** | Advisory Checks | **Done (GH-M4)** — `RAPHAEL_GITHUB_CHECK_RUNS=1`, conclusion `neutral` |
 | **I4** | IDE decorations / branch opt-in | |
 | **I5** | Non-loopback auth, harden | Permission-matrix |
 

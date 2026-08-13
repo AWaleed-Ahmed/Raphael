@@ -63,7 +63,8 @@ pip install -e .
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands per hour per repo+actor |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this account’s comments |
 | `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on. Also gates GH-M3 labels + sticky footer |
-| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** — do not enable yet |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | `1` enables advisory Check Runs (`Raphael (advisory)`). Does **not** inherit commands/auto-comments |
+| `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | `1` may use Check conclusion `success` on draft-ready / snippet terminals only; default remains `neutral` |
 
 ### Learning loop (Post-MVP; off by default)
 
@@ -151,12 +152,12 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## GitHub-native commands (GH-M1–M3, default off)
+## GitHub-native commands (GH-M1–M4, default off)
 
 Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
 
 Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`, **`retry`**, **`escalate`**.  
-**Not implemented:** `cancel`, `diagnose`, `fix`, Check Runs.
+**Not implemented:** `cancel`, `diagnose`, `fix` (GH-M5+).
 
 ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`help`/`feedback`. `retry` / `escalate` require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
 
@@ -164,11 +165,13 @@ ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`hel
 
 Terminal auto-comments (draft-ready / snippet / escalated / failed) plus GH-M3 labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`) and a sticky “Raphael actions” footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`). The footer lists write-collaborator verbs only (no Merge, no retry/escalate). Labels are additive and never strip `raphael:fix`.
 
+**Check Runs (GH-M4):** `RAPHAEL_GITHUB_CHECK_RUNS=1` (default `0`, does not inherit commands) creates/updates a Check named `Raphael (advisory)` on `commit_sha`. Conclusion defaults to `neutral`. Optional `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1` may use `success` on draft-ready / snippet only. Never `failure`, never a required merge check, never a Merge action. `check_run_id` is stored in `github_check_runs.json`, not on `run_record.json`. Annotations are notice-level on allowlisted patch paths only.
+
 Local tests (no GitHub token):
 
 ```bash
 cd agent
-pytest -q tests/test_github_commands.py tests/test_i0_runs.py
+pytest -q tests/test_github_commands.py tests/test_github_check_runs.py tests/test_i0_runs.py
 ```
 
 `status` / `retry` / `escalate` resolve `run_id` as: explicit arg → `<!-- raphael:run_id=… -->` / `raphael:run_id=…` on the Issue/PR body → latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).

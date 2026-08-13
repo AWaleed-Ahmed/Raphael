@@ -27,6 +27,16 @@ def github_auto_comments_enabled() -> bool:
     return _flag("RAPHAEL_GITHUB_AUTO_COMMENTS", "0")
 
 
+def github_check_runs_enabled() -> bool:
+    """Advisory Check Runs (GH-030–034). Default off — does **not** inherit commands."""
+    return _flag("RAPHAEL_GITHUB_CHECK_RUNS", "0")
+
+
+def github_check_advisory_success() -> bool:
+    """Opt-in ``success`` conclusion on draft-ready / snippet terminals only (GH-033)."""
+    return _flag("RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS", "0")
+
+
 def command_prefix() -> str:
     raw = os.environ.get("RAPHAEL_GITHUB_COMMAND_PREFIX", "/raphael").strip()
     return raw or "/raphael"

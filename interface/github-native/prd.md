@@ -1,6 +1,6 @@
 # GitHub-native interface — Product Requirements
 
-**Document status:** GH-M1–M3 implemented in the agent (default off) · GH-M4+ still draft  
+**Document status:** GH-M1–M4 implemented in the agent (commands/auto-comments/Checks default off) · GH-M5 still draft  
 **Parent:** [`../prd.md`](../prd.md)  
 **Folder:** `interface/github-native/`  
 **Product stage:** Post-MVP (I1 / I3 in parent plan)  
@@ -204,7 +204,7 @@ sequenceDiagram
 
 | Permission | Access | Why |
 |------------|--------|-----|
-| Checks | Read & write | Check Runs / annotations |
+| Checks | Read & write | Opt-in Check Runs (`RAPHAEL_GITHUB_CHECK_RUNS=1`); never required for merge |
 | Contents | Read | Optional; agent publish may already use PAT/App |
 | Issues | Read & write | Commands + Route B comments |
 | Pull requests | Read & write | Draft PR comments / labels |
@@ -221,7 +221,8 @@ sequenceDiagram
 | `RAPHAEL_GITHUB_COMMANDS` | `0` | Master switch (agent-side command parse) |
 | `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit `COMMANDS` | Terminal comments + GH-M3 labels/sticky; unset inherits commands; `0`/`1` override |
 | `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Team slug for privileged verbs |
-| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | Enable Checks (I3); conclusions default `neutral` |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | Enable advisory Checks; does **not** inherit commands/auto-comments |
+| `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | Opt-in `success` conclusion on draft-ready / snippet only; never `failure` |
 | `RAPHAEL_INTERFACE_AGENT_URL` | `http://127.0.0.1:8091` | Agent base when a split worker exists |
 | `RAPHAEL_INTERFACE_TOKEN` | unset | Bearer for non-loopback agent API |
 
@@ -256,7 +257,7 @@ sequenceDiagram
 | GH-M1 | Parser + `status` / `help` / `feedback` against agent API | **Done** (agent, `RAPHAEL_GITHUB_COMMANDS=1`) |
 | GH-M2 | `retry` / `escalate` + terminal auto-comments | **Done** (agent; auto-comments via `RAPHAEL_GITHUB_AUTO_COMMENTS`) |
 | GH-M3 | Labels + sticky PR footer | **Done** (agent; same `RAPHAEL_GITHUB_AUTO_COMMENTS` gate as GH-M2) |
-| GH-M4 | Check Runs + annotations | **Not implemented** |
+| GH-M4 | Check Runs + annotations | **Done** (agent; `RAPHAEL_GITHUB_CHECK_RUNS=1`, conclusion `neutral`) |
 | GH-M5 | Permission-matrix + pilot doc updates | **Not implemented** |
 
 ---
@@ -277,4 +278,6 @@ sequenceDiagram
 | 0.1.0 | 2026-08-10 | Initial github-native PRD; implementation deferred |
 | 0.2.0 | 2026-08-11 | Feedback grammar, escalate/correlation, Checks neutral, agent-hosted commands |
 | 0.3.0 | 2026-08-14 | GH-M1 implemented in agent (`status`/`help`/`feedback`); later milestones still deferred |
-| 0.5.0 | 2026-08-14 | GH-M3 labels + sticky footer; cancel/diagnose/fix/Checks still deferred |
+| 0.4.0 | 2026-08-14 | GH-M2 `retry`/`escalate` + terminal auto-comments |
+| 0.5.0 | 2026-08-14 | GH-M3 labels + sticky footer |
+| 0.6.0 | 2026-08-14 | GH-M4 advisory Check Runs; cancel/diagnose/fix and GH-M5 still deferred |

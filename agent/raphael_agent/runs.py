@@ -460,6 +460,13 @@ def apply_run_action(
         run["updated_at"] = utc_now()
         store.save_run(run)
         result_run = run
+        if status in IN_FLIGHT:
+            try:
+                from raphael_agent.github_commands.check_runs import maybe_complete_check_run
+
+                maybe_complete_check_run(run, store=store)
+            except Exception:  # noqa: BLE001
+                pass
 
     elif verb == "cancel":
         if status not in IN_FLIGHT:
@@ -500,6 +507,16 @@ def apply_run_action(
         result_run = child
         message = f"retry created {child.get('run_id')}"
         terminal_reason = child.get("terminal_reason")
+        try:
+            from raphael_agent.github_commands.check_runs import (
+                maybe_complete_check_run,
+                maybe_start_check_run,
+            )
+
+            maybe_start_check_run(child, store=store)
+            maybe_complete_check_run(child, store=store)
+        except Exception:  # noqa: BLE001
+            pass
 
     else:
         raise RunApiError("invalid_request", f"unsupported verb: {verb}")

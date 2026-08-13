@@ -1,10 +1,10 @@
 # Raphael Interface — Usage (CLI)
 
 **Audience:** operators, FDEs, and engineers using Raphael **today**  
-**Status:** CLI is the full operator path. GitHub-native **GH-M1–M3** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer) is in the agent behind `RAPHAEL_GITHUB_COMMANDS=0`. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
+**Status:** CLI is the full operator path. GitHub-native **GH-M1–M4** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
 **Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode  
 
-GitHub `cancel` / `diagnose` / `fix` / Checks are **not implemented** (GH-M4). Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
+GitHub `cancel` / `diagnose` / `fix` are **not implemented**. Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
 
 For product intent, see [`README.md`](README.md) and the PRDs. For agent env reference, see [`../agent/README.md`](../agent/README.md).
 
@@ -511,6 +511,8 @@ If allowlist is empty, code **forces dry-run** even when publish says live.
 | `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged verbs (admin or these logins/slug) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Per repo+actor per hour |
 | `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Terminal comments + GH-M3 labels/sticky footer; unset follows `COMMANDS` |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | `1` enables advisory Check Runs (does not inherit commands) |
+| `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | Opt-in `success` conclusion on happy terminals only |
 | `RAPHAEL_INGEST_RUN_GRAPH` | off | Webhook auto-runs graph |
 | `RAPHAEL_AGENT_SANDBOX_MODE` | `skipped` | Mode used when webhook autorun |
 | `RAPHAEL_K8S_WATCHER` | `0` | Enable `/v1/webhooks/k8s` |
