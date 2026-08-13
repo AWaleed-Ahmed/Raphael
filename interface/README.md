@@ -1,9 +1,9 @@
 # Raphael Interface Layer
 
-**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · **GitHub-native GH-M1 shipped in agent** (`status` / `help` / `feedback`, default off)  
+**Status:** Direction accepted · I0 HTTP **served** · **IDE P0 shipped** (VSIX) · **GitHub-native GH-M1/M2 shipped in agent** (`status` / `help` / `feedback` / `retry` / `escalate`, default off)  
 **Interactive path today:** [CLI → `Usage.md`](Usage.md) · [IDE → `IDE/README.md`](IDE/README.md)  
 **I0 API lock:** [`prd-i0-api.md`](prd-i0-api.md)  
-**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md), [`D-20260814-02`](../decision.md)
+**Decisions:** [`D-20260810-16`](../decision.md), [`D-20260811-01`](../decision.md), [`D-20260811-02`](../decision.md), [`D-20260811-03`](../decision.md), [`D-20260814-02`](../decision.md), [`D-20260814-03`](../decision.md)
 
 ---
 
@@ -102,7 +102,7 @@ Full walkthrough: **[`Usage.md`](Usage.md)**.
 | Operator metrics | `metrics` |
 | Offline learning snapshot | `learn` + `RAPHAEL_LEARNING=1` |
 
-### 2. GitHub-native (GH-M1 in agent — default off)
+### 2. GitHub-native (GH-M1/M2 in agent — default off)
 
 Runtime lives in the **agent** (`raphael_agent.github_commands`), not a split worker. `interface/github-native/` owns the PRD and reply templates.
 
@@ -116,17 +116,22 @@ Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Parsing does **not** run at default `0`
 | `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (no Teams API in GH-M1) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands / hour / repo+actor (GH-053) |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this login (and `login[bot]`) |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `COMMANDS`; `0` off; `1` on without parse |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** |
 
-| Verb | GH-M1 |
+| Verb | Status |
 |------|--------|
-| `status [run_id]` | Implemented — explicit arg → thread marker → store lookup by Issue/PR number |
-| `help` | Implemented — verbs + partner/publish mode (no secrets) |
-| `feedback accepted\|rejected\|edited` | Implemented — FR-065 jsonl, never merge |
-| `retry` / `escalate` / `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M2+) |
+| `status [run_id]` | GH-M1 — explicit arg → thread marker → store lookup |
+| `help` | GH-M1 — verbs + partner/publish mode (no secrets) |
+| `feedback accepted\|rejected\|edited` | GH-M1 — FR-065 jsonl, never merge |
+| `retry [run_id]` | **GH-M2** — admin/team; new run + `parent_run_id`; refuse if parent in-flight |
+| `escalate [run_id] [notes]` | **GH-M2** — admin/team; in-flight → `human_requested`; terminal → notes only |
+| `cancel` / `diagnose` / `fix` | **Not implemented** (GH-M3+) |
 | Check Runs | **Not implemented** (GH-M4); advisory `neutral` when it lands |
 
-ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. Everything else requires admin (`OWNER`) or team membership.
+ACL: write collaborators (`OWNER` / `MEMBER` / `COLLABORATOR`) → `status` / `help` / `feedback`. `retry` / `escalate` and later privileged verbs require admin (`OWNER`) or team membership.
+
+Terminal auto-comments on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed` include `run_id`, class, confidence, `result_id`, and are redacted. They follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (see `D-20260814-03`).
 
 Local test (no GitHub token; webhook JSON includes the markdown `reply`):
 
@@ -138,7 +143,7 @@ pytest -q tests/test_github_commands.py
 #   POST /v1/webhooks/github  X-GitHub-Event: issue_comment
 ```
 
-`status` / `feedback` correlation: `/raphael status run-abc123`, then `<!-- raphael:run_id=… -->` or `raphael:run_id=…` on the Issue/PR body, then latest run for that number. Duplicate GitHub deliveries are idempotent (`comment_id` / `X-GitHub-Delivery`).
+Correlation: `/raphael status run-abc123`, then `<!-- raphael:run_id=… -->` or `raphael:run_id=…` on the Issue/PR body, then latest run for that number. Duplicate GitHub deliveries are idempotent (`comment_id` / `X-GitHub-Delivery`).
 
 ### 3. IDE / Cursor plugin (P0 shipped)
 
@@ -181,7 +186,7 @@ flowchart TB
 | Phase | Focus | Exit |
 |-------|--------|------|
 | **I0** | Contracts (docs+schemas done; HTTP next) | [`prd-i0-api.md`](prd-i0-api.md) |
-| **I1** | GitHub-native P0 commands in agent | GH-M1 `status`/`help`/`feedback` (this change); retry/escalate still GH-M2 |
+| **I1** | GitHub-native P0 commands in agent | GH-M1 `status`/`help`/`feedback` + GH-M2 `retry`/`escalate`; cancel/Checks still later |
 | **I2** | IDE P0 vs local agent | Apply fix + feedback |
 | **I3** | Advisory Checks | `neutral` default |
 | **I4** | IDE decorations / branch opt-in | |

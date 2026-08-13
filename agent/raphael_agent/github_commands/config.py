@@ -14,6 +14,19 @@ def github_commands_enabled() -> bool:
     return _flag("RAPHAEL_GITHUB_COMMANDS", "0")
 
 
+def github_auto_comments_enabled() -> bool:
+    """Terminal auto-comments (GH-010–014).
+
+    ``RAPHAEL_GITHUB_AUTO_COMMENTS`` unset → inherit ``RAPHAEL_GITHUB_COMMANDS``.
+    Explicit ``0`` disables comments even when commands are on; ``1`` enables
+    comments without enabling slash-command parse.
+    """
+    raw = os.environ.get("RAPHAEL_GITHUB_AUTO_COMMENTS")
+    if raw is None or raw.strip() == "":
+        return github_commands_enabled()
+    return _flag("RAPHAEL_GITHUB_AUTO_COMMENTS", "0")
+
+
 def command_prefix() -> str:
     raw = os.environ.get("RAPHAEL_GITHUB_COMMAND_PREFIX", "/raphael").strip()
     return raw or "/raphael"

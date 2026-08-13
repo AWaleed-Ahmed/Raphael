@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-IMPLEMENTED_VERBS = frozenset({"status", "help", "feedback"})
-DEFERRED_VERBS = frozenset({"retry", "escalate", "cancel", "diagnose", "fix"})
+IMPLEMENTED_VERBS = frozenset({"status", "help", "feedback", "retry", "escalate"})
+DEFERRED_VERBS = frozenset({"cancel", "diagnose", "fix"})
 ALL_VERBS = IMPLEMENTED_VERBS | DEFERRED_VERBS
 WRITE_VERBS = frozenset({"status", "help", "feedback"})
 PRIVILEGED_VERBS = frozenset({"retry", "escalate", "cancel", "diagnose", "fix"})

@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260814-03 — GH-M2 retry/escalate + independently gated terminal auto-comments
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Extend in-agent GitHub commands with `retry` and `escalate` (admin / `RAPHAEL_GITHUB_COMMAND_TEAM` only). Retry resolves the source run like `status`, refuses while the parent is `pending`/`running`, and otherwise enqueues a new run from the same fingerprint/seed with `parent_run_id`. Escalate in-flight → `escalated` + `terminal_reason=human_requested` (no patch invented); already-terminal → audit/feedback notes only (never rewrite success → escalated). GitHub retry never uses `sandbox_mode=live` (maps live → `recorded_stub`) so this path does not call sandbox HTTP. Partner/publish/allowlist gates are unchanged — retry still goes through existing `publish()`. Terminal auto-comments (GH-010–014) render via the GH-M1 template helper + evidence redaction. **Knob:** `RAPHAEL_GITHUB_AUTO_COMMENTS` unset inherits `RAPHAEL_GITHUB_COMMANDS`; explicit `0` disables comments while commands stay on; explicit `1` enables comments without slash-command parse. Default remains off for partners who have not opted in. **Still deferred:** `cancel`, `diagnose`, `fix`, Check Runs (GH-M3/M4).
+- **Why:** Operators need to retry/escalate from the PR/Issue without a console, and terminal runs should leave a reviewable comment. Auto-comments are independently toggleable because they fire on ingest/graph completion, not only on slash commands.
+- **Alternatives:** Always couple auto-comments to `RAPHAEL_GITHUB_COMMANDS` with no override — too coarse (cannot demo commands without bot chatter, or comments without parse). Auto-comments default on — rejected (surprise for partners). Retry while in-flight — rejected (duplicate work).
+- **Consequences:** Enable commands with `RAPHAEL_GITHUB_COMMANDS=1` (auto-comments follow unless overridden). Graph `publish_or_escalate` emits comments when the flag is on. I0 `POST /v1/runs/{id}/actions` retry now also refuses in-flight parents (`conflict_state`).
+
 ### D-20260814-02 — GitHub-native GH-M1 commands hosted in the agent
 - **Status:** accepted
 - **Date:** 2026-08-14

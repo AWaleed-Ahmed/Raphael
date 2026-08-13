@@ -443,9 +443,20 @@ def apply_run_action(
             message = "run escalated (human_requested)"
         else:
             message = "escalate on terminal run is notes/audit only"
+            terminal_reason = run.get("terminal_reason")
         run["audit_events"] = append_audit(
             run, "interface", "escalate", notes or "human_requested"
         )
+        if notes:
+            event = feedback_from_run(
+                run,
+                outcome="other",
+                source="http",
+                notes=notes,
+                actor=actor,
+            )
+            recorded = default_feedback_recorder().record(event)
+            feedback_event_id = recorded["event_id"]
         run["updated_at"] = utc_now()
         store.save_run(run)
         result_run = run
@@ -467,6 +478,12 @@ def apply_run_action(
         message = "run cancelled"
 
     elif verb == "retry":
+        if status in IN_FLIGHT:
+            raise RunApiError(
+                "conflict_state",
+                f"retry not needed; run {run_id} is still {status}",
+                status=409,
+            )
         sandbox_mode = body.get("sandbox_mode") or run.get("sandbox_mode") or "skipped"
         child = _seed_from_parent(run, sandbox_mode=str(sandbox_mode))
         parent_id = run["run_id"]

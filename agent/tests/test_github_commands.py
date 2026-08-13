@@ -78,6 +78,8 @@ def _run_record(**overrides) -> dict:
         "publish": {"result_id": "res-xyz"},
         "audit_events": [],
         "trigger": {"kind": "manual_ui", "received_at": "2026-08-14T00:00:00Z"},
+        "failure_fingerprint": "fp-demo",
+        "sandbox_mode": "skipped",
     }
     run.update(overrides)
     return run
@@ -137,8 +139,17 @@ def test_parse_verbs_and_feedback_grammar():
     retry = parse_command("/raphael retry")
     assert retry is not None
     assert retry.verb == "retry"
-    assert retry.implemented is False
+    assert retry.implemented is True
     assert retry.privileged is True
+
+    esc = parse_command("/raphael escalate run-abc123 please look")
+    assert esc is not None
+    assert esc.verb == "escalate"
+    assert esc.implemented is True
+
+    cancel = parse_command("/raphael cancel")
+    assert cancel is not None
+    assert cancel.implemented is False
 
     assert parse_command("not a command") is None
     empty = parse_command("/raphael")
@@ -231,16 +242,21 @@ def test_ignore_bot_self_comment(client):
 
 
 def test_http_acl_deny_privileged(client):
-    resp = _post_comment(
+    retry = _post_comment(
         client,
         _payload(body="/raphael retry", association="COLLABORATOR", comment_id=3),
         delivery="acl-deny-1",
     )
-    assert resp.status_code == 202
-    data = resp.json()
-    assert data["decision"] == "denied"
-    assert data["verb"] == "retry"
-    assert "admin" in data["reply"].lower() or "team" in data["reply"].lower()
+    assert retry.status_code == 202
+    assert retry.json()["decision"] == "denied"
+    assert retry.json()["verb"] == "retry"
+    escalate = _post_comment(
+        client,
+        _payload(body="/raphael escalate", association="COLLABORATOR", comment_id=4),
+        delivery="acl-deny-2",
+    )
+    assert escalate.json()["decision"] == "denied"
+    assert escalate.json()["verb"] == "escalate"
 
 
 def test_http_rate_limit(client, monkeypatch):
@@ -340,12 +356,12 @@ def test_help_lists_verbs_and_mode_no_secrets(client):
     assert "RAPHAEL_GITHUB_TOKEN" not in reply
 
 
-def test_deferred_privileged_verb_does_not_retry(client, tmp_path):
+def test_deferred_cancel_diagnose_fix(client, tmp_path):
     store = RunStore(tmp_path)
     store.save_run(_run_record())
     resp = _post_comment(
         client,
-        _payload(body="/raphael retry", association="OWNER", comment_id=40),
+        _payload(body="/raphael cancel", association="OWNER", comment_id=40),
         delivery="def-1",
     )
     assert resp.json()["decision"] == "deferred"
@@ -359,6 +375,209 @@ def test_no_sandbox_imports_in_command_package():
         combined += path.read_text(encoding="utf-8")
     assert "sandbox_client" not in combined
     assert "RAPHAEL_SANDBOX_URL" not in combined
+
+
+def test_retry_from_terminal_vs_in_flight(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_MANUAL_RUN_GRAPH", "0")
+    store = RunStore(tmp_path)
+    store.save_run(_run_record())
+
+    ok = _post_comment(
+        client,
+        _payload(
+            body="/raphael retry run-abc123",
+            association="OWNER",
+            comment_id=60,
+        ),
+        delivery="retry-term",
+    )
+    assert ok.status_code == 202
+    body = ok.json()
+    assert body["decision"] == "replied"
+    assert body["parent_run_id"] == "run-abc123"
+    child_id = body["run_id"]
+    assert child_id and child_id != "run-abc123"
+    child = store.get_run(child_id)
+    assert child is not None
+    assert child.get("parent_run_id") == "run-abc123"
+    assert child.get("failure_fingerprint") == store.get_run("run-abc123").get(
+        "failure_fingerprint"
+    )
+    assert "run-abc123" in body["reply"]
+    assert child_id in body["reply"]
+
+    store.save_run(_run_record(run_id="run-inflight", status="pending"))
+    blocked = _post_comment(
+        client,
+        _payload(
+            body="/raphael retry run-inflight",
+            association="OWNER",
+            comment_id=61,
+        ),
+        delivery="retry-inflight",
+    )
+    assert blocked.json()["reason"] == "retry_in_flight"
+    assert "not needed" in blocked.json()["reply"].lower()
+    assert store.get_run("run-inflight")["status"] == "pending"
+    assert len([r for r in store.list_runs() if r.get("parent_run_id") == "run-inflight"]) == 0
+
+
+def test_retry_honors_partner_dry_run(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_MANUAL_RUN_GRAPH", "1")
+    monkeypatch.setenv("RAPHAEL_PARTNER_MODE", "dry_run")
+    monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "live")
+    monkeypatch.setenv("RAPHAEL_GITHUB_TOKEN", "should-not-publish-live")
+    workspace = (
+        AGENT_ROOT.parent
+        / "sandbox"
+        / "harness"
+        / "scenarios"
+        / "probe_port_mismatch"
+    )
+    store = RunStore(tmp_path)
+    store.save_run(
+        _run_record(
+            sandbox_mode="recorded_stub",
+            workspace_path=str(workspace),
+            failure_fingerprint="fp-retry-1",
+        )
+    )
+    resp = _post_comment(
+        client,
+        _payload(body="/raphael retry run-abc123", association="OWNER", comment_id=70),
+        delivery="retry-partner",
+    )
+    assert resp.json()["decision"] == "replied"
+    child = store.get_run(resp.json()["run_id"])
+    assert child is not None
+    publish = child.get("publish") or {}
+    assert publish.get("mode") != "live"
+    if publish:
+        assert publish.get("dry_run") is True
+        url = str(child.get("pull_request_url") or publish.get("pull_request_url") or "")
+        if url:
+            assert "raphael_dry_run=1" in url or publish.get("dry_run") is True
+
+
+def test_escalate_in_flight_vs_terminal(client, tmp_path):
+    store = RunStore(tmp_path)
+    store.save_run(
+        _run_record(
+            run_id="run-esc-1",
+            status="running",
+            candidate_patches=[],
+        )
+    )
+    inflight = _post_comment(
+        client,
+        _payload(
+            body="/raphael escalate run-esc-1 probe looks wrong",
+            association="OWNER",
+            comment_id=80,
+        ),
+        delivery="esc-inflight",
+    )
+    assert inflight.json()["reason"] == "escalate_in_flight"
+    updated = store.get_run("run-esc-1")
+    assert updated["status"] == "escalated"
+    assert updated["terminal_reason"] == "human_requested"
+    assert updated.get("candidate_patches") == []
+    assert any(
+        e.get("event") == "escalate" for e in (updated.get("audit_events") or [])
+    )
+    rows = JsonlFeedbackRecorder(tmp_path / "feedback.jsonl").read_all()
+    assert any("probe looks wrong" in str(r.get("notes") or "") for r in rows)
+
+    store.save_run(_run_record(run_id="run-esc-2", status="success_draft_pr_ready"))
+    terminal = _post_comment(
+        client,
+        _payload(
+            body="/raphael escalate run-esc-2 leave it",
+            association="OWNER",
+            comment_id=81,
+        ),
+        delivery="esc-term",
+    )
+    assert terminal.json()["reason"] == "escalate_terminal"
+    still = store.get_run("run-esc-2")
+    assert still["status"] == "success_draft_pr_ready"
+    assert still.get("terminal_reason") != "human_requested"
+    assert "did not rewrite" in terminal.json()["reply"].lower() or "remains" in terminal.json()["reply"].lower()
+
+
+def test_terminal_auto_comment_templates_redact_secrets(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RAPHAEL_GITHUB_COMMANDS", "1")
+    monkeypatch.setenv("RAPHAEL_PARTNER_MODE", "dry_run")
+    monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "dry_run")
+    from raphael_agent.github_commands.replies import render_terminal
+
+    secret = "Authorization: Bearer SUPERSECRETTOKEN"
+    base = _run_record(
+        escalation_report={"summary": secret, "why_no_fix": secret},
+        terminal_reason="human_requested",
+    )
+    statuses = (
+        "success_draft_pr_ready",
+        "success_fix_proposed",
+        "escalated",
+        "failed_closed",
+    )
+    for status in statuses:
+        run = dict(base)
+        run["status"] = status
+        if status == "success_fix_proposed":
+            run["issue_comment_url"] = "https://github.com/raphael/demo/issues/42#comment-1"
+            run.pop("pull_request_url", None)
+        text = render_terminal(run, prefix="/raphael")
+        assert text is not None
+        from raphael_agent.evidence.redaction import redact_text
+
+        redacted, _ = redact_text(text)
+        assert "SUPERSECRETTOKEN" not in redacted
+        assert run["run_id"] in redacted
+        assert "probe_misconfiguration" in redacted
+        assert "0.81" in redacted
+        assert "res-xyz" in redacted
+        assert "partner=dry_run" in redacted
+        assert "RAPHAEL_GITHUB_TOKEN" not in redacted
+        if status == "success_draft_pr_ready":
+            assert "draft ready" in redacted.lower() or "review" in redacted.lower()
+        if status == "success_fix_proposed":
+            assert "snippet" in redacted.lower()
+        if status == "escalated":
+            assert "escalated" in redacted.lower()
+        if status == "failed_closed":
+            assert "failed" in redacted.lower()
+
+
+def test_auto_comments_gated_and_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RAPHAEL_GITHUB_COMMANDS", "0")
+    monkeypatch.delenv("RAPHAEL_GITHUB_AUTO_COMMENTS", raising=False)
+    from raphael_agent.github_commands.auto_comments import maybe_emit_terminal_comment
+
+    store = RunStore(tmp_path)
+    run = _run_record(issue_number=42)
+    store.save_run(run)
+    skipped = maybe_emit_terminal_comment(run, store=store)
+    assert skipped["decision"] == "skipped"
+
+    monkeypatch.setenv("RAPHAEL_GITHUB_COMMANDS", "1")
+    posted: list[str] = []
+
+    def _poster(owner, repo, number, body):
+        posted.append(body)
+        return {"html_url": "https://example.invalid/comment"}
+
+    first = maybe_emit_terminal_comment(run, store=store, poster=_poster)
+    assert first["decision"] == "emitted"
+    assert first["comment_posted"] is True
+    assert "run-abc123" in first["reply"]
+    assert "SUPERSECRET" not in first["reply"]
+    second = maybe_emit_terminal_comment(run, store=store, poster=_poster)
+    assert second["decision"] == "idempotent"
+    assert len(posted) == 1
 
 
 def test_feedback_visible_as_fr065_event(tmp_path, monkeypatch):

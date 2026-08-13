@@ -1,6 +1,6 @@
 # GitHub-native interface — Product Requirements
 
-**Document status:** GH-M1 implemented in the agent (default off) · later milestones still draft  
+**Document status:** GH-M1 + GH-M2 implemented in the agent (default off) · GH-M3+ still draft  
 **Parent:** [`../prd.md`](../prd.md)  
 **Folder:** `interface/github-native/`  
 **Product stage:** Post-MVP (I1 / I3 in parent plan)  
@@ -253,7 +253,7 @@ sequenceDiagram
 | Milestone | Deliverable | Status |
 |-----------|-------------|--------|
 | GH-M1 | Parser + `status` / `help` / `feedback` against agent API | **Done** (agent, `RAPHAEL_GITHUB_COMMANDS=1`) |
-| GH-M2 | `retry` / `escalate` + terminal auto-comments | **Not implemented** |
+| GH-M2 | `retry` / `escalate` + terminal auto-comments | **Done** (agent; auto-comments via `RAPHAEL_GITHUB_AUTO_COMMENTS`) |
 | GH-M3 | Labels + sticky PR footer | **Not implemented** |
 | GH-M4 | Check Runs + annotations | **Not implemented** |
 | GH-M5 | Permission-matrix + pilot doc updates | **Not implemented** |
@@ -276,3 +276,4 @@ sequenceDiagram
 | 0.1.0 | 2026-08-10 | Initial github-native PRD; implementation deferred |
 | 0.2.0 | 2026-08-11 | Feedback grammar, escalate/correlation, Checks neutral, agent-hosted commands |
 | 0.3.0 | 2026-08-14 | GH-M1 implemented in agent (`status`/`help`/`feedback`); later milestones still deferred |
+| 0.4.0 | 2026-08-14 | GH-M2 `retry`/`escalate` + terminal auto-comments; cancel/diagnose/fix/Checks still deferred |

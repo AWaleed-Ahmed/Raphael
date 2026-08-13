@@ -1,10 +1,10 @@
 # Raphael Interface — Usage (CLI)
 
 **Audience:** operators, FDEs, and engineers using Raphael **today**  
-**Status:** CLI is the full operator path. GitHub-native **GH-M1** (`status` / `help` / `feedback`) is in the agent behind `RAPHAEL_GITHUB_COMMANDS=0`. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
+**Status:** CLI is the full operator path. GitHub-native **GH-M1/M2** (`status` / `help` / `feedback` / `retry` / `escalate`) is in the agent behind `RAPHAEL_GITHUB_COMMANDS=0`. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
 **Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode  
 
-GitHub `retry` / `escalate` / Checks are **not implemented** (GH-M2+). Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
+GitHub `cancel` / `diagnose` / `fix` / Checks are **not implemented** (GH-M3+). Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
 
 For product intent, see [`README.md`](README.md) and the PRDs. For agent env reference, see [`../agent/README.md`](../agent/README.md).
 
@@ -510,6 +510,7 @@ If allowlist is empty, code **forces dry-run** even when publish says live.
 | `RAPHAEL_GITHUB_COMMAND_PREFIX` | `/raphael` | Command prefix |
 | `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged verbs (admin or these logins/slug) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Per repo+actor per hour |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Terminal bot comments; unset follows `COMMANDS` |
 | `RAPHAEL_INGEST_RUN_GRAPH` | off | Webhook auto-runs graph |
 | `RAPHAEL_AGENT_SANDBOX_MODE` | `skipped` | Mode used when webhook autorun |
 | `RAPHAEL_K8S_WATCHER` | `0` | Enable `/v1/webhooks/k8s` |
@@ -533,7 +534,7 @@ Use this table when the UIs land — behavior should stay equivalent.
 | “I accept / merged” | `--outcome accepted\|merged` | `/raphael feedback accepted` (GH-M1) + PR webhook | Feedback Accepted |
 | “I reject this fix” | `raphael-agent-feedback --outcome rejected` | `/raphael feedback rejected` (GH-M1) | Feedback Rejected |
 | “Apply the snippet” | manual edit / copy from Issue | comment + IDE deep link | **Apply Fix from Run** |
-| “Retry” | re-run smoke / new webhook | `/raphael retry` (**not implemented**, GH-M2) | Manual trigger |
+| “Retry” | re-run smoke / new webhook | `/raphael retry` (GH-M2; not while in-flight) | Manual trigger |
 | “Learn from history” | `raphael-agent-learn` | (ops job; not a chat command that widens policy) | read-only badge |
 
 ---

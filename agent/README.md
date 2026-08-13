@@ -62,6 +62,7 @@ pip install -e .
 | `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (tests / no Teams API) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands per hour per repo+actor |
 | `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this account’s comments |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | **Deferred (GH-M4)** — do not enable yet |
 
 ### Learning loop (Post-MVP; off by default)
@@ -150,24 +151,27 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## GitHub-native commands (GH-M1, default off)
+## GitHub-native commands (GH-M1/M2, default off)
 
 Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
 
-Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`.  
-**Not implemented:** `retry`, `escalate`, `cancel`, `diagnose`, `fix`, Check Runs.
+Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`, **`retry`**, **`escalate`**.  
+**Not implemented:** `cancel`, `diagnose`, `fix`, Check Runs.
 
-ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run the implemented verbs. Privileged verbs (deferred) require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
+ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`help`/`feedback`. `retry` / `escalate` require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
+
+`retry` copies fingerprint/seed, sets `parent_run_id`, and refuses if the source run is still `pending`/`running`. `escalate` marks in-flight runs `escalated`/`human_requested`; terminal runs get an audit/feedback note only.
+
+Terminal auto-comments (draft-ready / snippet / escalated / failed) follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`).
 
 Local tests (no GitHub token):
 
 ```bash
 cd agent
-$env:RAPHAEL_GITHUB_COMMANDS="1"   # optional; tests set this themselves
 pytest -q tests/test_github_commands.py tests/test_i0_runs.py
 ```
 
-`status` resolves `run_id` as: explicit arg → `<!-- raphael:run_id=… -->` / `raphael:run_id=…` on the Issue/PR body → latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).
+`status` / `retry` / `escalate` resolve `run_id` as: explicit arg → `<!-- raphael:run_id=… -->` / `raphael:run_id=…` on the Issue/PR body → latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).
 
 ## Interface / I0
 
@@ -175,4 +179,4 @@ Human UIs: GitHub slash commands (GH-M1 above) and Cursor/VS Code under [`../int
 
 - Agent HTTP default listen: **`127.0.0.1:8091`** (`RAPHAEL_AGENT_LISTEN`). Sandbox controller stays on **`:8090`**.
 - I0 APIs **served**: `GET/POST /v1/runs`, `POST /v1/runs/{id}/actions` — see [`../interface/prd-i0-api.md`](../interface/prd-i0-api.md).
-- Decisions: `D-20260811-01` (locks), `D-20260811-02` (I0 HTTP), `D-20260814-02` (GH-M1 commands).
+- Decisions: `D-20260811-01` (locks), `D-20260811-02` (I0 HTTP), `D-20260814-02` (GH-M1), `D-20260814-03` (GH-M2).

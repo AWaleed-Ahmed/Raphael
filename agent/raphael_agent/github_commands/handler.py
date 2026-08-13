@@ -1,7 +1,7 @@
-"""Handle GitHub ``issue_comment`` webhooks for GH-M1 commands.
+"""Handle GitHub ``issue_comment`` webhooks for GH-M1/M2 commands.
 
 Does not call the sandbox HTTP API. Does not change partner/publish gates.
-``retry`` / ``escalate`` / ``diagnose`` / ``fix`` / Check Runs are deferred.
+``cancel`` / ``diagnose`` / ``fix`` / Check Runs are deferred (GH-M3/M4).
 """
 
 from __future__ import annotations
@@ -25,15 +25,19 @@ from raphael_agent.github_commands.rate_limit import CommandRateLimiter
 from raphael_agent.github_commands.replies import (
     render_deferred,
     render_denied,
+    render_escalate_in_flight,
+    render_escalate_terminal,
     render_feedback_ack,
     render_help,
     render_parse_error,
     render_rate_limited,
+    render_retry_ack,
+    render_retry_in_flight,
     render_run_not_found,
     render_status,
 )
 from raphael_agent.graph.state import append_audit
-from raphael_agent.runs import find_latest_run_for_github_number
+from raphael_agent.runs import IN_FLIGHT, RunApiError, apply_run_action, find_latest_run_for_github_number
 from raphael_agent.store import RunStore
 from raphael_agent.timeutil import utc_now
 
@@ -110,6 +114,25 @@ def _post_comment(
         return None
 
 
+def _explicit_run_id(
+    parsed: ParsedCommand, store: RunStore
+) -> tuple[str | None, bool, tuple[str, ...]]:
+    """Return (run_id, missing, remaining_args).
+
+    First token is a run id when it exists in the store or looks like ``run-…``.
+    Remaining tokens are notes (escalate).
+    """
+    if not parsed.args:
+        return None, False, ()
+    first = parsed.args[0]
+    found = store.get_run(first)
+    if found is not None:
+        return first, False, parsed.args[1:]
+    if first.startswith("run-") or first.startswith("ghi-") or first.startswith("ghw-"):
+        return first, True, parsed.args[1:]
+    return None, False, parsed.args
+
+
 def resolve_run(
     store: RunStore,
     *,
@@ -121,12 +144,13 @@ def resolve_run(
     comment_body: str | None,
 ) -> dict[str, Any] | None:
     """Explicit arg → thread marker → store lookup by Issue/PR number."""
-    if parsed.verb == "status" and parsed.args:
-        explicit = parsed.args[0]
+    explicit, missing, _rest = _explicit_run_id(parsed, store)
+    if explicit:
         found = store.get_run(explicit)
         if found is not None:
             return found
-        return {"run_id": explicit, "_missing": True}
+        if missing:
+            return {"run_id": explicit, "_missing": True}
 
     marker = extract_run_id_markers(issue_body, comment_body)
     if marker:
@@ -388,6 +412,191 @@ def handle_issue_comment_event(
             "comment_posted": False,
             "idempotent_replay": False,
         }
+        result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+        idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+        return result
+
+    if parsed.verb == "retry":
+        if run is None or run.get("_missing"):
+            reply = _redact(render_run_not_found(prefix=prefix))
+            result = {
+                "decision": "replied",
+                "reason": "run_not_found",
+                "verb": "retry",
+                "reply": reply,
+                "run_id": (run or {}).get("run_id"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        elif str(run.get("status") or "") in IN_FLIGHT:
+            reply = _redact(
+                render_retry_in_flight(
+                    run_id=str(run.get("run_id")),
+                    status=str(run.get("status")),
+                    prefix=prefix,
+                )
+            )
+            result = {
+                "decision": "replied",
+                "reason": "retry_in_flight",
+                "verb": "retry",
+                "reply": reply,
+                "run_id": run.get("run_id"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        else:
+            parent_id = str(run["run_id"])
+            sandbox_mode = run.get("sandbox_mode") or "skipped"
+            if sandbox_mode == "live":
+                sandbox_mode = "recorded_stub"
+            if sandbox_mode not in {"skipped", "recorded_stub"}:
+                sandbox_mode = "skipped"
+            retry_body: dict[str, Any] = {
+                "verb": "retry",
+                "action_id": f"gh-cmd-{comment_id or delivery_id}-retry",
+                "sandbox_mode": sandbox_mode,
+            }
+            if actor:
+                retry_body["actor"] = actor
+            try:
+                action = apply_run_action(
+                    parent_id,
+                    retry_body,
+                    store=store,
+                )
+            except RunApiError as exc:
+                if exc.code == "conflict_state":
+                    reply = _redact(
+                        render_retry_in_flight(
+                            run_id=parent_id,
+                            status=str(run.get("status")),
+                            prefix=prefix,
+                        )
+                    )
+                    result = {
+                        "decision": "replied",
+                        "reason": "retry_in_flight",
+                        "verb": "retry",
+                        "reply": reply,
+                        "run_id": parent_id,
+                        "comment_posted": False,
+                        "idempotent_replay": False,
+                    }
+                    result["comment_posted"] = _maybe_post(
+                        owner, repo, issue, reply, poster
+                    )
+                    idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+                    return result
+                reply = _redact(f"Retry failed: {exc.message}\n")
+                result = {
+                    "decision": "invalid",
+                    "reason": exc.code,
+                    "verb": "retry",
+                    "reply": reply,
+                    "comment_posted": False,
+                    "idempotent_replay": False,
+                }
+                result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+                idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+                return result
+            child_id = str(action.get("result_run_id") or "")
+            child_status = str(action.get("status") or "")
+            _audit_command(store, run, f"retry actor={actor} child={child_id}")
+            reply = _redact(
+                render_retry_ack(
+                    child_run_id=child_id,
+                    parent_run_id=parent_id,
+                    child_status=child_status,
+                    prefix=prefix,
+                )
+            )
+            result = {
+                "decision": "replied",
+                "reason": "retry",
+                "verb": "retry",
+                "reply": reply,
+                "run_id": child_id,
+                "parent_run_id": parent_id,
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+        idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+        return result
+
+    if parsed.verb == "escalate":
+        if run is None or run.get("_missing"):
+            reply = _redact(render_run_not_found(prefix=prefix))
+            result = {
+                "decision": "replied",
+                "reason": "run_not_found",
+                "verb": "escalate",
+                "reply": reply,
+                "run_id": (run or {}).get("run_id"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        else:
+            _explicit, _missing, note_args = _explicit_run_id(parsed, store)
+            notes = " ".join(note_args).strip() or None
+            was_in_flight = str(run.get("status") or "") in IN_FLIGHT
+            prior_status = str(run.get("status") or "")
+            esc_body: dict[str, Any] = {
+                "verb": "escalate",
+                "action_id": f"gh-cmd-{comment_id or delivery_id}-escalate",
+            }
+            if actor:
+                esc_body["actor"] = actor
+            if notes:
+                esc_body["notes"] = notes
+            try:
+                apply_run_action(
+                    str(run["run_id"]),
+                    esc_body,
+                    store=store,
+                )
+            except RunApiError as exc:
+                reply = _redact(f"Escalate failed: {exc.message}\n")
+                result = {
+                    "decision": "invalid",
+                    "reason": exc.code,
+                    "verb": "escalate",
+                    "reply": reply,
+                    "comment_posted": False,
+                    "idempotent_replay": False,
+                }
+                result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+                idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+                return result
+            updated = store.get_run(str(run["run_id"])) or run
+            if was_in_flight:
+                reply = _redact(
+                    render_escalate_in_flight(
+                        run_id=str(updated.get("run_id")), prefix=prefix
+                    )
+                )
+                reason = "escalate_in_flight"
+            else:
+                reply = _redact(
+                    render_escalate_terminal(
+                        run_id=str(updated.get("run_id")),
+                        status=str(updated.get("status") or prior_status),
+                        prefix=prefix,
+                    )
+                )
+                reason = "escalate_terminal"
+            result = {
+                "decision": "replied",
+                "reason": reason,
+                "verb": "escalate",
+                "reply": reply,
+                "run_id": updated.get("run_id"),
+                "status": updated.get("status"),
+                "terminal_reason": updated.get("terminal_reason"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
         result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
         idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
         return result
