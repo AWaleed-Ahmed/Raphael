@@ -36,8 +36,35 @@ Expect `go=True`.
 - [ ] `python -m raphael_agent.scripts.demo_partner` → `success_draft_pr_ready` + `raphael_dry_run=1`
 - [ ] `pytest -q` in `agent/`
 - [ ] `python -m raphael_agent.scripts.metrics`
-- [ ] Point GitHub `workflow_run` / `check_run` webhook at `POST /v1/webhooks/github`
-- [ ] Also subscribe `pull_request` (for FR-065 feedback on close/merge)
+- [ ] Point GitHub webhook at `POST /v1/webhooks/github` for `workflow_run`, `check_run`, `pull_request`, and **`issue_comment`**
+- [ ] Leave GitHub-native knobs **off** until the smoke below: `RAPHAEL_GITHUB_COMMANDS=0`, `RAPHAEL_GITHUB_CHECK_RUNS=0` (`AUTO_COMMENTS` unset inherits commands)
+- [ ] Also subscribe `issues` if using Route B (`raphael:fix`)
+
+### Dry-run GitHub command smoke (GH-M1/M2)
+
+Keep `RAPHAEL_PARTNER_MODE=dry_run`. Enable parse only for this smoke:
+
+```powershell
+$env:RAPHAEL_GITHUB_COMMANDS="1"
+# AUTO_COMMENTS unset → follows COMMANDS (terminal comments/labels/sticky)
+# Do not set RAPHAEL_GITHUB_CHECK_RUNS=1 unless Checks write is granted and still not required for merge
+```
+
+On a fixture Issue/PR linked to a finished dry-run (or pass an explicit `run_id`):
+
+- [ ] `/raphael help` — lists implemented verbs + partner/publish mode; no secrets
+- [ ] `/raphael status` (or `/raphael status run-…`) — `run_id`, class, confidence, mode
+- [ ] `/raphael feedback rejected` — FR-065 event in `feedback.jsonl` (never merges)
+- [ ] `/raphael retry` as admin/team — new `run_id` + `parent_run_id`; **never a live PR** under `PARTNER_MODE=dry_run` even if `RAPHAEL_PUBLISH_MODE=live` is mis-set
+
+Local (no token; assert markdown on the webhook JSON):
+
+```bash
+cd agent
+pytest -q tests/test_github_commands.py tests/test_github_check_runs.py
+```
+
+`cancel` / `diagnose` / `fix` are **not implemented** — expect a deferred reply. Do not require `Raphael (advisory)` on branch protection.
 
 ---
 
@@ -109,7 +136,7 @@ Webhook `pull_request` closed/merged also appends to `feedback.jsonl` under `RAP
 
 ```bash
 cd agent
-pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mode.py tests/test_feedback.py
+pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mode.py tests/test_feedback.py tests/test_github_commands.py
 ```
 
 These encode the permission-matrix deny list in code.

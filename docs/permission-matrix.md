@@ -10,7 +10,7 @@ Human-readable + machine-oriented summary of what Raphael may and may not do in 
 
 | Surface | Allowed | Denied |
 |---------|---------|--------|
-| GitHub | Read metadata; write agent branches; open **draft** PRs (Route A); comment fix snippets on Issues (Route B); optional labels/reviewers | Merge, admin, force-push to protected defaults, delete repos, read org secrets |
+| GitHub | Read metadata; write agent branches; open **draft** PRs (Route A); comment fix snippets on Issues (Route B); optional labels/reviewers; optional **advisory** Checks | Merge, admin, force-push to protected defaults, delete repos, read org secrets, **required** Checks that gate merge |
 | Production Kubernetes | get/list/watch allowlisted workloads/events/logs (bounded) | create/update/patch/delete; read Secret **data**; exec; port-forward to prod for mutation |
 | Sandbox cluster | Via sandbox controller only (create/deploy/observe/validate/finalize/destroy) | Agent holding sandbox kubeconfig; free-form kubectl API |
 | Agent host secrets | Env vars for webhook HMAC + GitHub token (operator-managed) | Committing tokens; logging plaintext secrets |
@@ -25,11 +25,18 @@ Human-readable + machine-oriented summary of what Raphael may and may not do in 
 | `contents:read` | Required | On |
 | `contents:write` (agent branches `raphael/*`) | Live publish only | Off until allowlist |
 | `pull_requests:write` (draft=true) | Live publish only | Off until allowlist |
-| `issues:write` (comments only) | Route B live snippet | Off until live issue comments |
+| `issues:write` — Route B fix-snippet comments | Live issue comments | Off until live issue comments |
+| `issues:write` — `/raphael` **issue_comment replies** | `RAPHAEL_GITHUB_COMMANDS=1` + token | **Off** |
+| `issues:write` / `pull_requests:write` — additive labels (`raphael:draft`, `raphael:needs-human`, `raphael:escalated`) | `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits commands) | **Off** — never strips `raphael:fix` |
+| `issues:write` — sticky “Raphael actions” footer | Same auto-comment knob | **Off** — no Merge action in the footer |
+| Checks write (`Raphael (advisory)`) | Opt-in `RAPHAEL_GITHUB_CHECK_RUNS=1` | **Off** — never a required merge check |
 | Checks / commit status read | Optional | Optional |
 | Request reviewers | Optional (`RAPHAEL_GITHUB_REVIEWERS`) | Optional |
 | Merge / bypass branch protection | — | **Denied** |
-| Admin / apps / secrets | — | **Denied** |
+| Administration / apps / secrets | — | **Denied** |
+| Environments (write) / Workflows (write) | — | **Denied** (PRD §7.3) |
+
+Aligned with [`interface/github-native/prd.md`](../interface/github-native/prd.md) §7.3. **Must not request:** Administration, Secrets, Environments (write), Workflows (write).
 
 Env gates (code-enforced):
 
@@ -37,6 +44,10 @@ Env gates (code-enforced):
 - `RAPHAEL_PARTNER_MODE=allowlist` + `RAPHAEL_PUBLISH_MODE=live` + class in `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` + token → draft PR
 - Empty `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` → **no** live PRs
 - Route B (`delivery_mode=issue_snippet`): posts an issue comment with a fix snippet; **never** opens a PR. Human opens the PR.
+- `RAPHAEL_GITHUB_COMMANDS=0` (default) → do **not** parse `issue_comment` bodies
+- `RAPHAEL_GITHUB_AUTO_COMMENTS` unset → same as `COMMANDS`; explicit `0`/`1` override. Gates terminal comments, additive labels, and the sticky footer
+- `RAPHAEL_GITHUB_CHECK_RUNS=0` (default) → no Check API calls (does **not** inherit command/auto-comment flags)
+- `RAPHAEL_GITHUB_CHECK_RUNS=1` + token → advisory Check `Raphael (advisory)` on `commit_sha`; conclusion **`neutral`** unless `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1` (happy terminals only). Never `failure`. Never required for merge.
 - Issue trigger label: `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`)
 
 ---
@@ -67,6 +78,7 @@ Implement evidence adapters with a dedicated ServiceAccount that omits `secrets`
 
 ## Explicit deny list (checklist)
 
+- [ ] No required GitHub Check that satisfies merge without human review  
 - [ ] No merge / auto-merge / self-approve of Raphael PRs  
 - [ ] No production create/update/patch/delete from Raphael  
 - [ ] No Kubernetes Secret payload reads  
@@ -84,3 +96,4 @@ Implement evidence adapters with a dedicated ServiceAccount that omits `secrets`
 - Pilot week: [`pilot-week-runbook.md`](pilot-week-runbook.md)  
 - Coding rules §1 / §13: [`../CODING_RULE.md`](../CODING_RULE.md)  
 - Guardrail tests: `agent/tests/test_guardrails.py`
+- GitHub-native: [`../interface/github-native/prd.md`](../interface/github-native/prd.md) (`D-20260814-02` … `D-20260814-06`)

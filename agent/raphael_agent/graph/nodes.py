@@ -693,14 +693,34 @@ def route_after_validate(state: RunState) -> RouteAfterValidate:
     return "publish_or_escalate"
 
 
+def _maybe_terminal_comment(state: RunState, updates: dict[str, Any]) -> None:
+    """GH-M2–M4 terminal GitHub surfaces; never fail the graph or call sandbox HTTP."""
+    merged = {**state, **updates}
+    try:
+        from raphael_agent.github_commands.auto_comments import maybe_on_terminal
+
+        maybe_on_terminal(merged)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from raphael_agent.github_commands.check_runs import maybe_complete_check_run
+
+        maybe_complete_check_run(merged)
+    except Exception:  # noqa: BLE001
+        return
+
+
 def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
-        return {"current_node": None, "updated_at": utc_now()}
+        updates = {"current_node": None, "updated_at": utc_now()}
+        _maybe_terminal_comment(state, updates)
+        return updates
     halt = _budget_halt_updates(state, "publish_or_escalate")
     if halt:
         # Never publish after budget exhaust
         halt["current_node"] = None
         halt["pull_request_url"] = None
+        _maybe_terminal_comment(state, halt)
         return halt
     updates = _touch(state, "publish_or_escalate")
 
@@ -760,6 +780,7 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
         RunStore().save_run(for_run_record_validation(merged))
     except Exception:  # noqa: BLE001 — persistence must not crash the graph
         pass
+    _maybe_terminal_comment(state, updates)
     return updates
 
 

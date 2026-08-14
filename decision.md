@@ -30,6 +30,51 @@
 
 ## Decision log (newest first)
 
+### D-20260814-06 — GH-M5 closes github-native with docs only (no new verbs)
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Close GH-M5 as **documentation only**. Do **not** implement `cancel` / `diagnose` / `fix`. Finish the GitHub-native permission matrix (issue_comment replies, additive labels, sticky footer, opt-in Checks write that is never required for merge). Align `docs/pilot-install.md` webhook subscriptions (`issue_comment` plus `workflow_run` / `check_run` / `pull_request` / `issues`) and App permissions with github-native PRD §7.3 (Checks r/w optional; no Administration / Secrets / Environments write / Workflows write). Record default-off knobs `RAPHAEL_GITHUB_COMMANDS`, `RAPHAEL_GITHUB_AUTO_COMMENTS`, `RAPHAEL_GITHUB_CHECK_RUNS`. Add a dry-run command smoke to the pilot week runbook and acceptance checklist (`status` / `help` / `feedback` on a fixture Issue; `retry` under `PARTNER_MODE=dry_run` never live-publishes). Mark GH-M1–M4 **Proven (code)** and Checks **opt-in / never merge-gating**. Update `handoff.md` and root `README.md` so GitHub-native is no longer described as PRD-only.
+- **Why:** The command/Check surface is already in the agent (GH-M1–M4). Pilot partners need an accurate permission and webhook picture before flipping knobs. Shipping `cancel`/`diagnose`/`fix` in the same change would mix product verbs with an ops-doc milestone.
+- **Alternatives:** Implement the three remaining verbs in GH-M5 — rejected (explicitly out of this phase). Treat Checks as required for merge in the matrix — rejected (GH-033/034).
+- **Consequences:** Enable GitHub-native with `RAPHAEL_GITHUB_COMMANDS=1` (and separately `RAPHAEL_GITHUB_CHECK_RUNS=1` if Checks write is granted). Branch protection must not require `Raphael (advisory)`. Remaining verbs stay deferred.
+
+### D-20260814-05 — GH-M4 advisory Check Runs are a separate opt-in
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Implement GH-030–034 as in-agent GitHub Check Runs named **`Raphael (advisory)`**. **Knob:** `RAPHAEL_GITHUB_CHECK_RUNS` default **0** and does **not** inherit `RAPHAEL_GITHUB_COMMANDS` / `RAPHAEL_GITHUB_AUTO_COMMENTS` (Checks write is a distinct GitHub permission and must not surprise partners who only wanted slash commands). Start: `run_stub_graph` (ingest/graph, including `/raphael retry` children) POSTs an `in_progress` Check on `commit_sha`. Complete: on `success_draft_pr_ready` / `success_fix_proposed` / `escalated` / `failed_closed`, PATCH with diagnosis, validation matrix, draft PR or escalation reason, `run_id`, class, confidence, `result_id` when present; redacted. `check_run_id` lives in sidecar `github_check_runs.json` (same pattern as terminal comments) — never extra `run_record.json` fields. Annotations (notice only) for allowlisted patch paths; skip secret-like content and non-allowlisted files. **Conclusion:** always `neutral` unless `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1`, which may use `success` only on the two happy terminals. Never `failure`. Copy states the Check is advisory, does not replace human review, and offers no Merge action. Missing token → skip, do not fail the run. No sandbox HTTP. **Still deferred:** `cancel` / `diagnose` / `fix`, GH-M5 full pilot-doc pass.
+- **Why:** Operators want a SHA-level advisory status without turning Raphael into a required merge gate. Coupling Checks to command/auto-comment flags would write Checks for partners who never granted `checks:write`.
+- **Alternatives:** Inherit auto-comments — rejected (different permission + surprise). Default conclusion `success`/`failure` — rejected (looks required / blocking). Store `check_run_id` on `run_record` — rejected (`additionalProperties: false`).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1` plus a token. GitHub App/PAT needs Checks write only when this flag is on; branch protection must not require `Raphael (advisory)`.
+
+### D-20260814-04 — GH-M3 terminal labels + sticky footer share auto-comment gating
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Extend the GH-M2 `publish_or_escalate` terminal hook with GH-021 labels and a GH-041 sticky “Raphael actions” footer. **Labels:** `success_draft_pr_ready` → `raphael:draft`; `success_fix_proposed` → `raphael:needs-human`; `escalated` / `failed_closed` → `raphael:escalated` plus `raphael:needs-human` when a human still has a next step (snippet apply, takeover, or inspect/retry). Additive `GitHubPublisher.add_issue_labels` only — never DELETE, never strip `raphael:fix` (GH-023), do not apply `raphael:learning-demoted` (GH-022 P2). **Sticky footer:** one Issue/PR comment marked `<!-- raphael:sticky -->`; update in place if present. Lists `/raphael status`, `/raphael feedback accepted|rejected|edited`, `/raphael help` only (write-collaborator verbs). No Merge action (GH-044), no privileged verbs in the footer. Redacted; includes `run_id` like terminal comments. **Gating:** same knob as GH-M2 — `RAPHAEL_GITHUB_AUTO_COMMENTS` unset inherits `RAPHAEL_GITHUB_COMMANDS`; default off. Labels and comments stay coupled so partners who have not opted in get neither chatter nor label writes. **Still deferred:** `cancel`, `diagnose`, `fix`, Check Runs (GH-M4).
+- **Why:** Operators need triage labels and a durable command cheat-sheet on the thread without a second diagnosis/publish path. Splitting a labels-only flag would surprise partners who enabled commands for inspect-only and suddenly saw GitHub label writes.
+- **Alternatives:** Separate `RAPHAEL_GITHUB_LABELS` / sticky flags — rejected (no strong reason; more surprise modes). Strip `raphael:fix` on terminal — rejected (GH-023: that label only gates new Route B triggers). Put retry/escalate in the sticky footer — rejected (write collaborators must not be invited to privileged verbs).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_COMMANDS=1` (or `RAPHAEL_GITHUB_AUTO_COMMENTS=1`). Graph terminal handling posts/updates the sticky comment and POSTs labels when a token is present. Unit tests cover mapping, sticky create vs update, ACL, redaction, and knob-off.
+
+### D-20260814-03 — GH-M2 retry/escalate + independently gated terminal auto-comments
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Extend in-agent GitHub commands with `retry` and `escalate` (admin / `RAPHAEL_GITHUB_COMMAND_TEAM` only). Retry resolves the source run like `status`, refuses while the parent is `pending`/`running`, and otherwise enqueues a new run from the same fingerprint/seed with `parent_run_id`. Escalate in-flight → `escalated` + `terminal_reason=human_requested` (no patch invented); already-terminal → audit/feedback notes only (never rewrite success → escalated). GitHub retry never uses `sandbox_mode=live` (maps live → `recorded_stub`) so this path does not call sandbox HTTP. Partner/publish/allowlist gates are unchanged — retry still goes through existing `publish()`. Terminal auto-comments (GH-010–014) render via the GH-M1 template helper + evidence redaction. **Knob:** `RAPHAEL_GITHUB_AUTO_COMMENTS` unset inherits `RAPHAEL_GITHUB_COMMANDS`; explicit `0` disables comments while commands stay on; explicit `1` enables comments without slash-command parse. Default remains off for partners who have not opted in. **Still deferred:** `cancel`, `diagnose`, `fix`, Check Runs (GH-M3/M4).
+- **Why:** Operators need to retry/escalate from the PR/Issue without a console, and terminal runs should leave a reviewable comment. Auto-comments are independently toggleable because they fire on ingest/graph completion, not only on slash commands.
+- **Alternatives:** Always couple auto-comments to `RAPHAEL_GITHUB_COMMANDS` with no override — too coarse (cannot demo commands without bot chatter, or comments without parse). Auto-comments default on — rejected (surprise for partners). Retry while in-flight — rejected (duplicate work).
+- **Consequences:** Enable commands with `RAPHAEL_GITHUB_COMMANDS=1` (auto-comments follow unless overridden). Graph `publish_or_escalate` emits comments when the flag is on. I0 `POST /v1/runs/{id}/actions` retry now also refuses in-flight parents (`conflict_state`).
+
+### D-20260814-02 — GitHub-native GH-M1 commands hosted in the agent
+- **Status:** accepted
+- **Date:** 2026-08-14
+- **Owners:** Engineer B + coding agent
+- **Decision:** Implement GH-M1 (`status` / `help` / `feedback`) inside the existing agent HTTP webhook, gated by `RAPHAEL_GITHUB_COMMANDS` (default **0**). Parse `/raphael <verb> [args]` (prefix from `RAPHAEL_GITHUB_COMMAND_PREFIX`). ACL: write collaborators → `status`/`help`/`feedback`; other verbs need repo admin or `RAPHAEL_GITHUB_COMMAND_TEAM` membership. Rate-limit 10/hour per repo+actor (GH-053). Idempotency via GitHub `comment_id` / delivery id (GH-054). Ignore the bot’s own comments. Reply templates live under `interface/github-native/templates/`. **Not implemented:** `retry`, `escalate`, `cancel`, `diagnose`, `fix`, Check Runs (GH-M2+). Command path must not call sandbox HTTP and must not widen partner/publish gates. I0 helpers stay in `agent/raphael_agent/runs.py` (file, not a gitignored `runs/` directory).
+- **Why:** I1 needs GitHub as the operator console without a second process or a second diagnosis engine. Default-off avoids surprising partner webhooks. GH-M1 is inspect/feedback only so we can ship ACL + rate-limit + idempotency before privileged verbs.
+- **Alternatives:** Separate `interface/github-native` worker — rejected for pilot (one webhook URL). Implement retry/escalate in the same change — rejected (explicitly GH-M2). Treat `/raphael accept` as feedback — rejected (locked grammar).
+- **Consequences:** Enable with `RAPHAEL_GITHUB_COMMANDS=1`. Live reply comments need a GitHub token but unit tests assert the markdown on the webhook JSON. `raphael-agent-learn` already consumes `feedback.jsonl` (`source=github_webhook`). Partner mode / live allowlists unchanged.
+
 ### D-20260811-03 — Raphael IDE extension P0 (VS Code / Cursor VSIX)
 - **Status:** accepted
 - **Date:** 2026-08-11
@@ -380,6 +425,11 @@
 
 | ID | Topic |
 |---|---|
+| D-20260814-06 | GH-M5 permission matrix + pilot docs (no new verbs) |
+| D-20260814-05 | GH-M4 advisory Check Runs (separate opt-in) |
+| D-20260814-04 | GH-M3 labels + sticky footer |
+| D-20260814-03 | GH-M2 retry/escalate + auto-comments |
+| D-20260814-02 | GH-M1 GitHub-native commands in the agent |
 | D-20260811-03 | Raphael IDE extension P0 (VS Code/Cursor VSIX) |
 | D-20260811-02 | Implement I0 run list/create/actions HTTP APIs |
 | D-20260811-01 | Interface I0 API lock + PRD consistency |

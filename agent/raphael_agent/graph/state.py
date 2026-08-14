@@ -58,6 +58,8 @@ class RunState(TypedDict, total=False):
     issue_comment_url: str | None
     failure_class_hint: str | None
     fix_rules: dict[str, Any]
+    parent_run_id: str
+    pull_request_number: int
     # Ephemeral graph routing flag (stripped before run_record schema validation)
     validation_retryable: bool
 

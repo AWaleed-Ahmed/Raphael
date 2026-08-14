@@ -46,6 +46,9 @@ cd Raphael
 | `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | Webhook/metrics server |
 | `RAPHAEL_AGENT_DATA_DIR` | `.raphael-agent-data` | RunStore |
 | `RAPHAEL_GITHUB_WEBHOOK_SECRET` | unset locally | Set in partner env for HMAC |
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | `1` parses `/raphael` on `issue_comment` (default **off**) |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset follows `COMMANDS`; terminal comments + labels + sticky footer |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | `1` enables advisory Check `Raphael (advisory)` (does **not** inherit commands) |
 | `RAPHAEL_MAX_WALL_SECONDS` | `1800` | Run wall budget |
 | `RAPHAEL_MAX_PATCH_ATTEMPTS` | `3` | Patch budget |
 | `RAPHAEL_MAX_DIAGNOSIS_ATTEMPTS` | `2` | Diagnosis budget |
@@ -146,19 +149,38 @@ python -m raphael_agent.scripts.demo_partner
 
 ---
 
-## 7. GitHub scopes (draft PR only)
+## 7. GitHub App / PAT (draft PR + optional GitHub-native)
+
+**Webhook events** to subscribe on the App or repo webhook (`POST /v1/webhooks/github`):
+
+| Event | Why |
+|-------|-----|
+| `workflow_run` | Route A ingest (CI failure) |
+| `check_run` | Route A ingest (check failure) |
+| `pull_request` | FR-065 feedback on close/merge/edit |
+| `issues` | Route B (`raphael:fix` label) |
+| `issue_comment` | GitHub-native commands (`/raphael …`) — parsed only if `RAPHAEL_GITHUB_COMMANDS=1` |
+
+Leave `RAPHAEL_GITHUB_COMMANDS`, `RAPHAEL_GITHUB_AUTO_COMMENTS`, and `RAPHAEL_GITHUB_CHECK_RUNS` at default **off** until the partner opts in. Command parse does not run at `COMMANDS=0` even if `issue_comment` is delivered.
 
 **PAT (fine-grained or classic):**
 
 | Scope / permission | Required | Notes |
 |--------------------|----------|--------|
-| Contents: Read and write | Yes (live) | Agent branch + commit only |
-| Pull requests: Read and write | Yes (live) | **Draft** PRs |
+| Contents: Read | Yes | Metadata / optional live commit |
+| Contents: Read and write | Live draft only | Agent branch + commit only |
+| Pull requests: Read and write | Live draft / labels | **Draft** PRs; additive GH-M3 labels |
+| Issues: Read and write | Commands / Route B / sticky footer | `issue_comment` replies when commands are on |
+| Checks: Read and write | **Optional** | Only if `RAPHAEL_GITHUB_CHECK_RUNS=1`; **never** a required merge check |
 | Metadata: Read | Yes | |
 | Administration / merge queue | **No** | Denied |
-| Actions secrets | **No** | |
+| Secrets | **No** | Denied |
+| Environments (write) | **No** | Denied |
+| Workflows (write) | **No** | Denied |
 
-**GitHub App (when used):** same capabilities — create branches on agent refs, open draft PRs, no merge/admin. Optional: `RAPHAEL_GITHUB_APP_ID`, `RAPHAEL_GITHUB_INSTALLATION_ID`, `RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH` (JWT path reserved; PAT is the documented pilot path).
+**GitHub App (pilot — same App as ingest):** permissions match [`interface/github-native/prd.md`](../interface/github-native/prd.md) §7.3 — Checks r/w optional, Issues r/w, Pull requests r/w, Metadata r, Actions r, Contents r (write only for live draft). **Must not request:** Administration, Secrets, Environments (write), Workflows (write). Optional App JWT: `RAPHAEL_GITHUB_APP_ID`, `RAPHAEL_GITHUB_INSTALLATION_ID`, `RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH` (PAT remains the documented dry-run path).
+
+Live draft PR still requires **all** of: partner `allowlist`, `PUBLISH_MODE=live`, non-empty class allowlist, and a token. GitHub-native `retry` / `escalate` do **not** widen those gates.
 
 ---
 

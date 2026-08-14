@@ -23,6 +23,9 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 | 10 | Inspectable audit trail + terminal reason | **Proven** | `run_record` + RunStore + metrics |
 | 11 | Duplicate events ≠ duplicate PRs | **Proven** | Ingest dedupe + publish idempotency |
 | 12 | Canonical demo ≤10–15 min ×3 | **Proven (local)** | `recorded_stub` + dry-run smoke / `demo_partner` |
+| 13 | GitHub-native commands (GH-M1/M2) | **Proven (code)** | `/raphael status` / `help` / `feedback` / `retry` / `escalate`; default `RAPHAEL_GITHUB_COMMANDS=0`. Retry under `PARTNER_MODE=dry_run` never live-publishes |
+| 14 | Terminal comments, labels, sticky footer (GH-M2/M3) | **Proven (code)** | `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits commands). No Merge in the footer; never strips `raphael:fix` |
+| 15 | Advisory Check Runs (GH-M4) | **Proven (code), opt-in** | `RAPHAEL_GITHUB_CHECK_RUNS=1`; name `Raphael (advisory)`; conclusion `neutral`; **never** a required merge check |
 
 ---
 
@@ -40,6 +43,8 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 - [ ] `pytest -q` green in `agent/`
 - [ ] Review metrics: `python -m raphael_agent.scripts.metrics`
 - [ ] Confirm GitHub token **not** required for dry-run
+- [ ] Dry-run command smoke on a fixture Issue (`RAPHAEL_GITHUB_COMMANDS=1`, partner still `dry_run`): `/raphael help`, `/raphael status`, `/raphael feedback rejected`; `/raphael retry` must not live-publish
+- [ ] Do **not** add `Raphael (advisory)` as a required branch-protection check
 - [ ] Confirm production kubeconfig used by observer (if any) cannot patch/delete or read Secret data
 - [ ] Optional: enable **one** class live — `probe_misconfiguration` only — after security review
 - [ ] Follow day-by-day plan: [`pilot-week-runbook.md`](pilot-week-runbook.md)
@@ -56,6 +61,7 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 | Full FR-065 learning loop | Jsonl feedback recorder only |
 | Multi-tenant SaaS control plane | Out of MVP |
 | Auto-merge / production remediation | Forever out for MVP |
+| `/raphael cancel` / `diagnose` / `fix` | **Deferred** — GH-M1–M4 shipped; these verbs are not in the pilot cut |
 | GitLab / other CI hosts | Post-MVP |
 
 ---
@@ -65,5 +71,6 @@ Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = sc
 1. Install with partner secrets manager (webhook secret + optional PAT).  
 2. Map one repo + staging namespace; confirm SA deny list.  
 3. Run dry-run on ≥5 real eligible failures; triage false positives.  
-4. Optionally flip `RAPHAEL_PARTNER_MODE=allowlist` for `probe_misconfiguration` only.  
-5. Collect human accept/reject notes into feedback jsonl; decide Phase 6 scope.
+4. Smoke GitHub-native commands on a fixture Issue (`status` / `help` / `feedback`; `retry` stays dry-run).  
+5. Optionally flip `RAPHAEL_PARTNER_MODE=allowlist` for `probe_misconfiguration` only.  
+6. Collect human accept/reject notes into feedback jsonl.
