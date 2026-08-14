@@ -1,12 +1,12 @@
 # Raphael Interface — Usage (CLI)
 
 **Audience:** operators, FDEs, and engineers using Raphael **today**  
-**Status:** This is the interactive path until GitHub-native and the IDE plugin ship  
+**Status:** CLI is the full operator path. GitHub-native **GH-M1–M5** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs; GH-M5 = pilot docs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
 **Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode  
 
-GitHub slash commands and the Cursor extension are **not implemented yet**. Everything below uses the **agent CLI** and **agent HTTP API** — the same backends those UIs will call later.
+GitHub `cancel` / `diagnose` / `fix` are **not implemented**. Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
 
-For product intent of future UIs, see [`README.md`](README.md) and the PRDs. For agent env reference, see [`../agent/README.md`](../agent/README.md).
+For product intent, see [`README.md`](README.md) and the PRDs. For agent env reference, see [`../agent/README.md`](../agent/README.md).
 
 ---
 
@@ -506,7 +506,13 @@ If allowlist is empty, code **forces dry-run** even when publish says live.
 | `RAPHAEL_SANDBOX_URL` | `http://127.0.0.1:8090` | Live smoke / live graph |
 | `RAPHAEL_AGENT_LISTEN` | `127.0.0.1:8091` | `raphael-agent-serve` bind |
 | `RAPHAEL_INTERFACE_TOKEN` | unset | I0: required for non-loopback agent API |
-| `RAPHAEL_GITHUB_COMMANDS` | `0` | I1: in-agent `/raphael` comment commands |
+| `RAPHAEL_GITHUB_COMMANDS` | `0` | `1` enables in-agent `/raphael` comment commands |
+| `RAPHAEL_GITHUB_COMMAND_PREFIX` | `/raphael` | Command prefix |
+| `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged verbs (admin or these logins/slug) |
+| `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Per repo+actor per hour |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Terminal comments + GH-M3 labels/sticky footer; unset follows `COMMANDS` |
+| `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | `1` enables advisory Check Runs (does not inherit commands) |
+| `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | Opt-in `success` conclusion on happy terminals only |
 | `RAPHAEL_INGEST_RUN_GRAPH` | off | Webhook auto-runs graph |
 | `RAPHAEL_AGENT_SANDBOX_MODE` | `skipped` | Mode used when webhook autorun |
 | `RAPHAEL_K8S_WATCHER` | `0` | Enable `/v1/webhooks/k8s` |
@@ -522,15 +528,15 @@ If allowlist is empty, code **forces dry-run** even when publish says live.
 
 Use this table when the UIs land — behavior should stay equivalent.
 
-| Human intent | CLI now | GitHub-native later | IDE later |
-|--------------|---------|---------------------|-----------|
-| “Is pilot config safe?” | `raphael-agent-go-nogo` | `/raphael help` (shows mode) | Pilot / status bar |
-| “Run the happy path” | `raphael-agent-demo` | Label + webhook / `/raphael diagnose` | Start Diagnosis |
-| “Show me this run” | `smoke --json` / `GET /v1/runs/{id}` | `/raphael status` | Open Run |
-| “I accept / merged” | `--outcome accepted\|merged` | `/raphael feedback accepted` + PR webhook | Feedback Accepted |
-| “I reject this fix” | `raphael-agent-feedback --outcome rejected` | `/raphael feedback rejected` | Feedback Rejected |
+| Human intent | CLI now | GitHub-native | IDE |
+|--------------|---------|---------------|-----|
+| “Is pilot config safe?” | `raphael-agent-go-nogo` | `/raphael help` (GH-M1; shows mode) | Pilot / status bar |
+| “Run the happy path” | `raphael-agent-demo` | Label + webhook / `/raphael diagnose` (**not implemented**) | Start Diagnosis |
+| “Show me this run” | `smoke --json` / `GET /v1/runs/{id}` | `/raphael status` (GH-M1) | Open Run |
+| “I accept / merged” | `--outcome accepted\|merged` | `/raphael feedback accepted` (GH-M1) + PR webhook | Feedback Accepted |
+| “I reject this fix” | `raphael-agent-feedback --outcome rejected` | `/raphael feedback rejected` (GH-M1) | Feedback Rejected |
 | “Apply the snippet” | manual edit / copy from Issue | comment + IDE deep link | **Apply Fix from Run** |
-| “Retry” | re-run smoke / new webhook | `/raphael retry` | Manual trigger |
+| “Retry” | re-run smoke / new webhook | `/raphael retry` (GH-M2; not while in-flight) | Manual trigger |
 | “Learn from history” | `raphael-agent-learn` | (ops job; not a chat command that widens policy) | read-only badge |
 
 ---

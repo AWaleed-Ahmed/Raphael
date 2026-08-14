@@ -52,6 +52,12 @@ def build_stub_graph():
 
 
 def run_stub_graph(initial: RunState) -> RunState:
+    try:
+        from raphael_agent.github_commands.check_runs import maybe_start_check_run
+
+        maybe_start_check_run(dict(initial))
+    except Exception:  # noqa: BLE001 — Checks must never fail the graph
+        pass
     app = build_stub_graph()
     result = app.invoke(initial)
     return result  # type: ignore[return-value]
