@@ -14,7 +14,8 @@ When a deploy fails in CI or a workload goes unhealthy, Raphael’s job is to:
 Production stays **read-only** in the MVP. Durable changes only enter through your normal Git review and CI path.
 
 Full product intent: [`prd.md`](prd.md).  
-**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).
+**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).  
+**Git branches (`feature` / `main` / `prod` / `stash`):** [`docs/BRANCHING.md`](docs/BRANCHING.md).
 
 ---
 
@@ -44,7 +45,7 @@ Raphael/
 ├── contracts/
 │   ├── sandbox/              ← frozen sandbox API schemas
 │   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── docs/                     ← pilot install / permissions / acceptance / week runbook
+├── docs/                     ← branching, pilot install / permissions / week runbook
 ├── interface/                ← CLI usage, I0 API, GitHub-native PRD/templates, IDE
 ├── agent/                    ← Engineer B (Phase 0–6 dual-path + GitHub-native commands)
 │   └── README.md             ← partner dry-run + allowlist
@@ -95,4 +96,4 @@ Why we chose things: [`decision.md`](decision.md).
 
 ## Status
 
-Sandbox P0–P2 complete. Agent Phase 0–6 (dual-path CI + labeled Issues) under [`agent/`](agent/) + [`docs/`](docs/). GitHub-native GH-M1–M5 (commands + pilot docs, default off) in [`interface/github-native/prd.md`](interface/github-native/prd.md). Partner week ops checklist: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
+Sandbox P0–P2 complete. Agent Phase 0–6 (dual-path CI + labeled Issues) under [`agent/`](agent/) + [`docs/`](docs/). GitHub-native GH-M1–M5 (commands + pilot docs, default off) in [`interface/github-native/prd.md`](interface/github-native/prd.md). Partner week ops checklist: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md). Branching: [`docs/BRANCHING.md`](docs/BRANCHING.md).

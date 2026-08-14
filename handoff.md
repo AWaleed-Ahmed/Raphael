@@ -2,7 +2,7 @@
 
 **Audience:** teammate picking up the repo  
 **Repo:** https://github.com/AWaleed-Ahmed/Raphael (private)  
-**Branch:** `main` (tracking `origin/main`)  
+**Branches:** `feature/*` → `main` (PRs) → `prod` (promote). Park WIP on `stash/*`. See [`docs/BRANCHING.md`](docs/BRANCHING.md).  
 **Last agent work:** GitHub-native GH-M1–M5 (commands, auto-comments, labels/sticky footer, opt-in Checks, pilot docs)
 
 This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [`CODING_RULE.md`](CODING_RULE.md), [`decision.md`](decision.md).
@@ -47,7 +47,7 @@ Self-healing **deployment** agent for Kubernetes + GitHub:
 
 Terminals: `success_draft_pr_ready` | `success_fix_proposed` | `escalated` | `failed_closed`
 
-Decisions: `D-20260810-02` … `D-20260814-06`. GitHub-native: `D-20260814-02` … `D-20260814-06`.
+Decisions: `D-20260810-02` … `D-20260814-06` (branching `D-20260814-01`). GitHub-native: `D-20260814-02` … `D-20260814-06`.
 
 ---
 
@@ -64,6 +64,22 @@ Decisions: `D-20260810-02` … `D-20260814-06`. GitHub-native: `D-20260814-02` �
 | `RAPHAEL_GITHUB_COMMANDS` | `0` — `1` parses `/raphael` on `issue_comment` |
 | `RAPHAEL_GITHUB_AUTO_COMMENTS` | unset inherits commands (comments + labels + sticky footer) |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` — opt-in advisory Checks; never a required merge gate |
+
+---
+
+## Git (required from here on)
+
+Do **not** commit on `main` or `prod`.
+
+```bash
+git checkout main && git pull --ff-only origin main
+git checkout -b feature/short-name
+# work, then: git push -u origin HEAD  →  PR into main
+```
+
+- **`prod`:** partner/demo pin. Promote with `git checkout prod && git merge --ff-only main && git push`.
+- **`stash/<name>`:** parked commits. **`git stash`:** uncommitted local dirt only.
+- Never force-push `main` or `prod`.
 
 ---
 
