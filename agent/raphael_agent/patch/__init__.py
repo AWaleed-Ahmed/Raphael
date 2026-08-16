@@ -97,6 +97,15 @@ def propose_patch(run: dict[str, Any]) -> dict[str, Any]:
             "use_files_as_patch": True,
         }
 
+    localized = list(run.get("fault_candidates") or [])[:3]
+    localized_note = ""
+    if localized:
+        top = localized[0]
+        localized_note = (
+            f" Top localized candidate: {top.get('path')}:{top.get('line')} "
+            f"({top.get('symbol')}) score={top.get('score')}."
+        )
+
     proposal: dict[str, Any] = {
         "patch_id": f"patch-{attempt}",
         "attempt": attempt,
@@ -104,7 +113,7 @@ def propose_patch(run: dict[str, Any]) -> dict[str, Any]:
         "files": files,
         "unified_diff": None,
         "rationale": {
-            "summary": summary,
+            "summary": f"{summary}.{localized_note}" if localized_note else summary,
             "evidence_ids": evidence_ids,
             "risk_notes": "Config/manifest-only change within allowlisted paths",
             "rollback_notes": "Revert the patched file(s) to the failing commit contents",

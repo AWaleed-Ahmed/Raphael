@@ -13,6 +13,9 @@ class RunState(TypedDict, total=False):
 
     run_id: str
     tenant_id: str
+    company_id: str | None
+    client_id: str | None
+    client_name: str | None
     audit_id: str
     status: str
     current_node: str | None
@@ -28,6 +31,11 @@ class RunState(TypedDict, total=False):
     evidence: list[dict[str, Any]]
     redaction_report: dict[str, Any] | None
     failure_signature: dict[str, Any]
+    runtime_observation: dict[str, Any] | None
+    changed_diff_hunks: list[dict[str, Any]]
+    healthy_trace_comparisons: list[dict[str, Any]]
+    fault_candidates: list[dict[str, Any]]
+    localization_result: dict[str, Any] | None
     diagnosis: dict[str, Any]
     sandbox_id: str | None
     sandbox_mode: str
@@ -86,6 +94,9 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
     state = RunState(
         run_id=run_id,
         tenant_id=seed["tenant_id"],
+        company_id=seed.get("company_id"),
+        client_id=seed.get("client_id"),
+        client_name=seed.get("client_name"),
         audit_id=seed.get("audit_id", run_id),
         status="pending",
         current_node=None,
@@ -99,6 +110,11 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         workspace_path=seed.get("workspace_path"),
         manifests=seed.get("manifests"),
         failure_fingerprint=seed.get("failure_fingerprint"),
+        runtime_observation=seed.get("runtime_observation"),
+        changed_diff_hunks=list(seed.get("changed_diff_hunks") or []),
+        healthy_trace_comparisons=[],
+        fault_candidates=[],
+        localization_result=None,
         correlation=seed.get("correlation"),
         evidence=[],
         redaction_report=None,

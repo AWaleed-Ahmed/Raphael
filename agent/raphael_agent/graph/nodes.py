@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Literal
 
@@ -13,6 +14,16 @@ from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
 from raphael_agent.publish import publish
 from raphael_agent.rules import load_or_derive_fix_rules
+from raphael_agent.localization import (
+    CandidateScorer,
+    SupabaseCatalogError,
+    SupabaseHealthyCatalogStore,
+    compare_trace_to_healthy,
+    extract_kubernetes_manifest_anchors,
+    extract_route_to_handler_anchor,
+    extract_stack_trace_anchors,
+    extract_trace_divergence_anchor,
+)
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
@@ -231,6 +242,38 @@ def _ensure_fix_rules(state: RunState, updates: dict[str, Any]) -> dict[str, Any
     return updates
 
 
+def _runtime_observation_from_signature(
+    state: RunState, signature: dict[str, Any]
+) -> dict[str, Any]:
+    """Project provider-neutral sandbox fields into localization input.
+
+    Sandbox signatures intentionally stay small and contract-stable. Any richer
+    stack/span/source fields emitted by an adapter live under normalized.attributes;
+    this projection lets the localization node consume them without depending on
+    a specific APM provider or sandbox implementation.
+    """
+    observation = dict(state.get("runtime_observation") or {})
+    normalized = signature.get("normalized") if isinstance(signature.get("normalized"), dict) else {}
+    attributes = normalized.get("attributes") if isinstance(normalized.get("attributes"), dict) else {}
+    for key in (
+        "stack_trace", "exception.stacktrace", "span_sequence", "spans",
+        "stack_fingerprint", "source_file", "source_line", "source_symbol",
+        "route", "http_route", "service_name", "environment", "operation",
+        "changed_diff_hunks",
+    ):
+        if key in attributes and key not in observation:
+            observation[key] = attributes[key]
+    if signature.get("class") and "failure_class" not in observation:
+        observation["failure_class"] = signature["class"]
+    if signature.get("key") and "normalized_stack_trace" not in observation:
+        observation["normalized_stack_trace"] = signature["key"]
+    if normalized:
+        for key in ("reason", "message", "resource_kind", "resource_name", "container"):
+            if key in normalized and key not in observation:
+                observation[key] = normalized[key]
+    return observation
+
+
 def node_reproduce(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -247,6 +290,9 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         observe = recorded["observe_broken"]
         updates["sandbox_id"] = create["sandbox_id"]
         updates["failure_signature"] = observe["signature"]
+        updates["runtime_observation"] = _runtime_observation_from_signature(
+            state, observe["signature"]
+        )
         updates["reproduction_result"] = {
             "reproduced": observe["signature"]["reproduced"],
             "matched_expected": observe.get("matched_expected"),
@@ -319,6 +365,9 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         )
         observed = client.observe_failure(sandbox_id, {})
         updates["failure_signature"] = observed["signature"]
+        updates["runtime_observation"] = _runtime_observation_from_signature(
+            state, observed["signature"]
+        )
         updates["reproduction_result"] = {
             "reproduced": bool(observed["signature"].get("reproduced")),
             "matched_expected": observed.get("matched_expected"),
@@ -345,6 +394,226 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         ]
         updates["audit_events"] = append_audit(
             {**state, **updates}, "reproduce", "error", str(exc)
+        )
+    return updates
+
+
+def _localization_observation(state: RunState) -> dict[str, Any]:
+    # Keep caller/APM fields, then fill missing provider-neutral fields from the
+    # sandbox signature. This matters when a caller supplied a partial runtime
+    # observation: signature and trace comparisons should still be complete.
+    observation = dict(state.get("runtime_observation") or {})
+    signature = state.get("failure_signature") or {}
+    normalized = signature.get("normalized") if isinstance(signature.get("normalized"), dict) else {}
+    if signature.get("stack_trace"):
+        observation.setdefault("stack_trace", signature["stack_trace"])
+    if signature.get("span_sequence"):
+        observation.setdefault("span_sequence", signature["span_sequence"])
+    if signature.get("stack_fingerprint"):
+        observation.setdefault("stack_fingerprint", signature["stack_fingerprint"])
+    if normalized:
+        for key, value in normalized.items():
+            observation.setdefault(key, value)
+    if signature.get("key"):
+        observation.setdefault("normalized_stack_trace", signature["key"])
+    return observation
+
+
+def node_localize(state: RunState) -> dict[str, Any]:
+    """Resolve healthy baselines and rank runtime/source candidates before patching.
+
+    The node is deliberately fail-open for legacy runs: if Supabase scope or
+    credentials are absent, it records a skipped localization result and leaves
+    the existing diagnosis/template path intact.
+    """
+    if state.get("status") in {"failed_closed", "escalated"}:
+        return {"updated_at": utc_now()}
+    halt = _budget_halt_updates(state, "localize")
+    if halt:
+        return halt
+    updates = _touch(state, "localize")
+    updates["healthy_trace_comparisons"] = []
+    updates["fault_candidates"] = []
+
+    try:
+        store = SupabaseHealthyCatalogStore()
+    except SupabaseCatalogError as exc:
+        updates["localization_result"] = {
+            "status": "skipped",
+            "reason": "supabase_catalog_unavailable",
+            "message": str(exc),
+        }
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "localize", "skipped", "supabase_catalog_unavailable"
+        )
+        return updates
+
+    client_id = str(state.get("client_id") or os.environ.get("RAPHAEL_CLIENT_ID") or "").strip()
+    company_id = str(state.get("company_id") or os.environ.get("RAPHAEL_COMPANY_ID") or "").strip()
+    client_name = state.get("client_name")
+    if not client_id:
+        updates["localization_result"] = {
+            "status": "skipped",
+            "reason": "client_scope_missing",
+        }
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "localize", "skipped", "client_scope_missing"
+        )
+        return updates
+
+    try:
+        client = store.get_client(client_id)
+        if not client:
+            raise SupabaseCatalogError(f"client not found: {client_id}")
+        resolved_company_id = str(client["company_id"])
+        if company_id and company_id != resolved_company_id:
+            raise SupabaseCatalogError("company_id does not match the client registry")
+        company_id = resolved_company_id
+        client_name = client.get("client_name") or client_name
+
+        observation = _localization_observation(state)
+        correlation = state.get("correlation") or {}
+        service_name = str(
+            observation.get("service_name")
+            or correlation.get("workload")
+            or (state.get("repository") or {}).get("name")
+            or "unknown"
+        )
+        environment = str(
+            observation.get("environment")
+            or state.get("target_environment")
+            or os.environ.get("RAPHAEL_DEFAULT_ENVIRONMENT")
+            or "unknown"
+        )
+        operation = str(
+            observation.get("operation")
+            or correlation.get("operation")
+            or correlation.get("check_name")
+            or "unknown"
+        )
+        query_operation = None if operation == "unknown" else operation
+        baselines = store.list_healthy_traces(
+            company_id=company_id,
+            client_id=client_id,
+            service_name=service_name,
+            environment=environment,
+            operation=query_operation,
+        )
+
+        unhealthy = dict(observation)
+        unhealthy.setdefault("operation", operation)
+        if state.get("failure_signature", {}).get("key"):
+            unhealthy.setdefault(
+                "normalized_stack_trace", state["failure_signature"]["key"]
+            )
+        # Promote the deepest application frame into the comparison payload so
+        # healthy baselines can confirm whether the failing source anchor is
+        # the same one (even when the telemetry adapter only supplied a raw
+        # stack string).
+        stack_trace = observation.get("stack_trace") or observation.get("exception.stacktrace")
+        stack_anchors = (
+            extract_stack_trace_anchors(stack_trace, "ev-localize-stack")
+            if isinstance(stack_trace, str)
+            else []
+        )
+        if stack_anchors:
+            top_stack = stack_anchors[0]
+            unhealthy.setdefault("source_file", top_stack.file_path)
+            unhealthy.setdefault("source_line", top_stack.line_number)
+            unhealthy.setdefault("source_symbol", top_stack.symbol_name)
+        comparisons = []
+        for baseline in baselines:
+            scoped_unhealthy = {
+                **unhealthy,
+                "company_id": company_id,
+                "client_id": client_id,
+                "service_name": service_name,
+                "environment": environment,
+                "operation": operation,
+            }
+            # Compare against the already scoped baseline rows. Calling the
+            # adapter query helper inside this loop would re-fetch every
+            # baseline once per baseline and duplicate comparison records.
+            comparisons.append(compare_trace_to_healthy(scoped_unhealthy, baseline).to_dict())
+        updates["company_id"] = company_id
+        updates["client_id"] = client_id
+        if client_name:
+            updates["client_name"] = str(client_name)
+        updates["healthy_trace_comparisons"] = comparisons
+
+        anchors = list(stack_anchors)
+        spans = observation.get("span_sequence") or observation.get("spans") or []
+        if isinstance(spans, list) and spans and baselines:
+            golden = baselines[0].get("span_sequence") or []
+            trace_anchor = extract_trace_divergence_anchor(
+                spans, [str(item) for item in golden], "ev-localize-trace"
+            )
+            if trace_anchor:
+                anchors.append(trace_anchor)
+        route = observation.get("route") or observation.get("http_route")
+        if isinstance(route, str) and baselines:
+            route_map = baselines[0].get("route_handler_map") or baselines[0].get("route_handler_maps") or {}
+            if isinstance(route_map, dict):
+                route_anchor = extract_route_to_handler_anchor(route, route_map, "ev-localize-route")
+                if route_anchor:
+                    anchors.append(route_anchor)
+        normalized = (state.get("failure_signature") or {}).get("normalized") or {}
+        if isinstance(normalized, dict) and normalized.get("reason"):
+            anchors.extend(
+                extract_kubernetes_manifest_anchors(
+                    {
+                        "reason": normalized.get("reason"),
+                        "manifest_path": (state.get("manifests") or {}).get("path"),
+                    },
+                    "ev-localize-k8s",
+                )
+            )
+
+        repository = state.get("repository") or {}
+        changed_hunks = list(state.get("changed_diff_hunks") or observation.get("changed_diff_hunks") or [])
+        failure_class = str(
+            ((state.get("diagnosis") or {}).get("classification") or {}).get("failure_class")
+            or (state.get("failure_signature") or {}).get("class")
+            or state.get("failure_class_hint")
+            or "generic_failure"
+        )
+        candidates = []
+        if anchors or changed_hunks:
+            candidates = CandidateScorer().generate_and_rank_candidates(
+                repository=f"{repository.get('owner', 'unknown')}/{repository.get('name', 'unknown')}",
+                git_sha=str(state.get("commit_sha") or "unknown"),
+                anchors=anchors,
+                changed_diff_hunks=changed_hunks,
+                failure_class=failure_class,
+                first_divergent_anchor=anchors[0] if anchors else None,
+                workspace_path=state.get("workspace_path"),
+            )
+        updates["fault_candidates"] = [candidate.to_dict() for candidate in candidates]
+        updates["localization_result"] = {
+            "status": "completed",
+            "company_id": company_id,
+            "client_id": client_id,
+            "service_name": service_name,
+            "environment": environment,
+            "operation": operation,
+            "baseline_count": len(baselines),
+            "comparison_count": len(comparisons),
+            "candidate_count": len(candidates),
+        }
+        updates["audit_events"] = append_audit(
+            {**state, **updates},
+            "localize",
+            "completed",
+            f"baselines={len(baselines)} comparisons={len(comparisons)} candidates={len(candidates)}",
+        )
+    except Exception as exc:  # noqa: BLE001 — localization must not bypass existing safety gates
+        updates["localization_result"] = {
+            "status": "error",
+            "reason": "localization_failed",
+            "message": str(exc),
+        }
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "localize", "error", str(exc)
         )
     return updates
 
@@ -534,6 +803,32 @@ def node_validate(state: RunState) -> dict[str, Any]:
         (p for p in (state.get("candidate_patches") or []) if p.get("patch_id") == active),
         None,
     )
+
+    # Make the localization-to-sandbox handoff explicit and inspectable. The
+    # sandbox remains contract-compatible (it accepts only patch files), while
+    # this audit event tells operators whether the selected patch actually
+    # touches one of the ranked runtime candidates.
+    localized_candidates = list(state.get("fault_candidates") or [])
+    if localized_candidates:
+        patch_paths = {
+            str(item.get("path") or "").replace("\\", "/").lstrip("./")
+            for item in (patch or {}).get("files") or []
+        }
+        candidate_paths = {
+            str(item.get("path") or "").replace("\\", "/").lstrip("./")
+            for item in localized_candidates
+            if item.get("path")
+        }
+        matched_paths = sorted(patch_paths & candidate_paths)
+        top = localized_candidates[0]
+        event = "localized_candidate_patch_match" if matched_paths else "localized_candidate_patch_mismatch"
+        detail = (
+            f"top={top.get('path')}:{top.get('line')} patch_paths={len(patch_paths)} "
+            f"matched={','.join(matched_paths) if matched_paths else 'none'}"
+        )
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "validate", event, detail
+        )
 
     if mode == "recorded_stub":
         recorded = _load_recorded()
@@ -789,6 +1084,7 @@ __all__ = [
     "node_evidence",
     "node_diagnose",
     "node_reproduce",
+    "node_localize",
     "node_patch",
     "node_validate",
     "node_publish_or_escalate",

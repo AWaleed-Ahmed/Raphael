@@ -76,6 +76,16 @@ def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
             "notes": diagnosis.get("notes"),
         },
         "evidence": evidence_summaries,
+        "localized_candidates": [
+            {
+                "path": c.get("path"),
+                "line": c.get("line"),
+                "symbol": c.get("symbol"),
+                "score": c.get("score"),
+                "mapping_methods": c.get("mapping_methods") or [],
+            }
+            for c in (run.get("fault_candidates") or [])[:5]
+        ],
         "global_allowlist": list(allowlist_prefixes()),
     }
     body = {

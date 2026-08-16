@@ -379,6 +379,144 @@ async def k8s_webhook(request: Request) -> JSONResponse:
     return JSONResponse(body_out, status_code=202)
 
 
+async def alertmanager_webhook(request: Request) -> JSONResponse:
+    from raphael_agent.ingest.apm_webhook import normalize_alertmanager_webhook
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400)
+    if not isinstance(payload, dict):
+        return JSONResponse({"error": "payload_must_be_object"}, status_code=400)
+
+    seed = normalize_alertmanager_webhook(payload)
+    store = _store()
+    sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
+
+    if should_auto_run_graph():
+        decision, run = accept_and_run_graph(
+            seed,
+            store=store,
+            policy=IngestPolicyConfig.from_env(),
+            raw_payload=payload,
+            sandbox_mode=sandbox_mode,
+        )
+        if run is not None:
+            return JSONResponse(
+                {
+                    "ingest": decision,
+                    "run_id": run.get("run_id"),
+                    "status": run.get("status"),
+                }
+            )
+        return JSONResponse({"ingest": decision}, status_code=202)
+
+    decision, run = accept_normalized_event(
+        seed,
+        store=store,
+        policy=IngestPolicyConfig.from_env(),
+        raw_payload=payload,
+        sandbox_mode=sandbox_mode,
+    )
+    body_out: dict[str, Any] = {"ingest": decision}
+    if run is not None:
+        body_out["run_id"] = run["run_id"]
+        body_out["status"] = run["status"]
+    return JSONResponse(body_out, status_code=202)
+
+
+async def datadog_webhook(request: Request) -> JSONResponse:
+    from raphael_agent.ingest.apm_webhook import normalize_datadog_webhook
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400)
+    if not isinstance(payload, dict):
+        return JSONResponse({"error": "payload_must_be_object"}, status_code=400)
+
+    seed = normalize_datadog_webhook(payload)
+    store = _store()
+    sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
+
+    if should_auto_run_graph():
+        decision, run = accept_and_run_graph(
+            seed,
+            store=store,
+            policy=IngestPolicyConfig.from_env(),
+            raw_payload=payload,
+            sandbox_mode=sandbox_mode,
+        )
+        if run is not None:
+            return JSONResponse(
+                {
+                    "ingest": decision,
+                    "run_id": run.get("run_id"),
+                    "status": run.get("status"),
+                }
+            )
+        return JSONResponse({"ingest": decision}, status_code=202)
+
+    decision, run = accept_normalized_event(
+        seed,
+        store=store,
+        policy=IngestPolicyConfig.from_env(),
+        raw_payload=payload,
+        sandbox_mode=sandbox_mode,
+    )
+    body_out: dict[str, Any] = {"ingest": decision}
+    if run is not None:
+        body_out["run_id"] = run["run_id"]
+        body_out["status"] = run["status"]
+    return JSONResponse(body_out, status_code=202)
+
+
+async def cloudwatch_webhook(request: Request) -> JSONResponse:
+    from raphael_agent.ingest.apm_webhook import normalize_cloudwatch_webhook
+
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "invalid_json"}, status_code=400)
+    if not isinstance(payload, dict):
+        return JSONResponse({"error": "payload_must_be_object"}, status_code=400)
+
+    seed = normalize_cloudwatch_webhook(payload)
+    store = _store()
+    sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
+
+    if should_auto_run_graph():
+        decision, run = accept_and_run_graph(
+            seed,
+            store=store,
+            policy=IngestPolicyConfig.from_env(),
+            raw_payload=payload,
+            sandbox_mode=sandbox_mode,
+        )
+        if run is not None:
+            return JSONResponse(
+                {
+                    "ingest": decision,
+                    "run_id": run.get("run_id"),
+                    "status": run.get("status"),
+                }
+            )
+        return JSONResponse({"ingest": decision}, status_code=202)
+
+    decision, run = accept_normalized_event(
+        seed,
+        store=store,
+        policy=IngestPolicyConfig.from_env(),
+        raw_payload=payload,
+        sandbox_mode=sandbox_mode,
+    )
+    body_out: dict[str, Any] = {"ingest": decision}
+    if run is not None:
+        body_out["run_id"] = run["run_id"]
+        body_out["status"] = run["status"]
+    return JSONResponse(body_out, status_code=202)
+
+
 async def get_run(request: Request) -> JSONResponse:
     denied = check_interface_auth(request)
     if denied is not None:
@@ -399,12 +537,17 @@ def create_app() -> Starlette:
             Route("/v1/feedback", post_feedback, methods=["POST"]),
             Route("/v1/webhooks/github", github_webhook, methods=["POST"]),
             Route("/v1/webhooks/k8s", k8s_webhook, methods=["POST"]),
+            Route("/v1/webhooks/alertmanager", alertmanager_webhook, methods=["POST"]),
+            Route("/v1/webhooks/datadog", datadog_webhook, methods=["POST"]),
+            Route("/v1/webhooks/cloudwatch", cloudwatch_webhook, methods=["POST"]),
             Route("/v1/runs", list_runs_http, methods=["GET"]),
             Route("/v1/runs", create_run_http, methods=["POST"]),
             Route("/v1/runs/{run_id}/actions", run_action_http, methods=["POST"]),
             Route("/v1/runs/{run_id}", get_run, methods=["GET"]),
         ]
     )
+
+
 
 
 app = create_app()

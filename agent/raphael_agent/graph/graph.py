@@ -8,6 +8,7 @@ from raphael_agent.graph.nodes import (
     node_diagnose,
     node_evidence,
     node_ingest,
+    node_localize,
     node_patch,
     node_publish_or_escalate,
     node_reproduce,
@@ -28,6 +29,7 @@ def build_stub_graph():
     graph.add_node("evidence", node_evidence)
     graph.add_node("diagnose", node_diagnose)
     graph.add_node("reproduce", node_reproduce)
+    graph.add_node("localize", node_localize)
     graph.add_node("patch", node_patch)
     graph.add_node("validate", node_validate)
     graph.add_node("publish_or_escalate", node_publish_or_escalate)
@@ -36,7 +38,8 @@ def build_stub_graph():
     graph.add_edge("ingest", "evidence")
     graph.add_edge("evidence", "diagnose")
     graph.add_edge("diagnose", "reproduce")
-    graph.add_edge("reproduce", "patch")
+    graph.add_edge("reproduce", "localize")
+    graph.add_edge("localize", "patch")
     graph.add_edge("patch", "validate")
     graph.add_conditional_edges(
         "validate",

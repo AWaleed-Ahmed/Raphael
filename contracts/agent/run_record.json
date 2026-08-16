@@ -25,6 +25,9 @@
   "properties": {
     "run_id": { "type": "string", "minLength": 1, "maxLength": 64 },
     "tenant_id": { "type": "string", "minLength": 1 },
+    "company_id": { "type": "string", "minLength": 1 },
+    "client_id": { "type": "string", "minLength": 1 },
+    "client_name": { "type": "string", "minLength": 1 },
     "audit_id": {
       "type": "string",
       "description": "Immutable audit id for the run (may equal run_id in Phase 0)"
@@ -53,6 +56,7 @@
         "evidence",
         "diagnose",
         "reproduce",
+        "localize",
         "patch",
         "validate",
         "publish_or_escalate",
@@ -74,6 +78,10 @@
             "github_deployment_status",
             "github_issue",
             "k8s_workload",
+            "apm_alert",
+            "alertmanager",
+            "datadog",
+            "cloudwatch",
             "fixture",
             "manual",
             "manual_ui",
@@ -124,7 +132,7 @@
     },
     "failure_fingerprint": {
       "type": "string",
-      "description": "FR-003 dedupe key (tenant|repo|commit|environment|provisional_failure_key)"
+      "description": "FR-003 Layer 2 canonical incident fingerprint"
     },
     "correlation": {
       "type": "object",
@@ -208,6 +216,27 @@
     "failure_signature": {
       "description": "Observed or expected signature (sandbox shape)",
       "$ref": "../sandbox/failure_signature.json"
+    },
+    "runtime_observation": {
+      "type": ["object", "null"],
+      "description": "Normalized trace/stack/span observation used by localization",
+      "additionalProperties": true
+    },
+    "changed_diff_hunks": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "healthy_trace_comparisons": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "fault_candidates": {
+      "type": "array",
+      "items": { "$ref": "fault_candidate.json" }
+    },
+    "localization_result": {
+      "type": ["object", "null"],
+      "additionalProperties": true
     },
     "diagnosis": { "$ref": "diagnosis_result.json" },
     "sandbox_id": { "type": ["string", "null"] },

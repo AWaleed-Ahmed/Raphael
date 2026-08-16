@@ -24,6 +24,19 @@
         "helm_kustomize_render_error",
         "deployment_regression",
         "policy_blocked",
+        "crash_stack",
+        "unhandled_exception",
+        "http_error",
+        "latency_regression",
+        "k8s_state",
+        "resource_exhaustion",
+        "dependency_timeout",
+        "trace_divergence",
+        "business_invariant",
+        "db_error",
+        "queue_backlog",
+        "network_error",
+        "auth_denied",
         "unknown",
         "healthy"
       ]
@@ -72,7 +85,10 @@
               "container_log",
               "manifest",
               "command",
-              "artifact"
+              "artifact",
+              "apm_metric",
+              "trace_span",
+              "other"
             ]
           },
           "id": { "type": "string" },

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/fault_candidate.json",
+  "title": "FaultCandidate",
+  "description": "Structured candidate record identified by the Fault Localization Engine (FLE).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repository",
+    "git_sha",
+    "path",
+    "line",
+    "symbol",
+    "candidate_type",
+    "score",
+    "mapping_methods",
+    "evidence_refs"
+  ],
+  "properties": {
+    "repository": {
+      "type": "string",
+      "description": "Owner/repo format e.g. acme/checkout"
+    },
+    "git_sha": {
+      "type": "string",
+      "minLength": 7,
+      "description": "Exact failing Git commit SHA"
+    },
+    "path": {
+      "type": "string",
+      "description": "Relative file path within repository"
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Line number in source or manifest"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Function name, class, config key, or resource identifier"
+    },
+    "candidate_type": {
+      "type": "string",
+      "enum": [
+        "source_code",
+        "helm_template",
+        "helm_value",
+        "kustomize_patch",
+        "kubernetes_manifest",
+        "ci_workflow",
+        "dockerfile",
+        "dependency_lockfile"
+      ]
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Deterministic ranking score (0.0 to 1.0)"
+    },
+    "mapping_methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "stack_trace",
+          "trace_divergence",
+          "deployment_diff",
+          "log_template",
+          "route_to_handler",
+          "manifest_provenance",
+          "invariant_violation",
+          "historical_similarity"
+        ]
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "diff_hunk": {
+      "type": ["string", "null"],
+      "description": "Associated unified diff hunk if modified in failing release"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["suspected", "localized", "causal", "confirmed_fix"],
+      "default": "suspected"
+    }
+  }
+}

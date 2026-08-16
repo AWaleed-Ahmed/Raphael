@@ -171,6 +171,14 @@ def test_validate_retry_routes_to_patch(monkeypatch):
         "reproduced": True,
         "signature_key": "probe_port_mismatch:payments-api:8080!=9090",
     }
+    state["fault_candidates"] = [
+        {
+            "path": "deploy/manifests/broken.yaml",
+            "line": 12,
+            "symbol": "readinessProbe.httpGet.port",
+            "score": 0.95,
+        }
+    ]
 
     class FakeClient:
         def deploy_revision(self, *a, **k):
@@ -216,3 +224,7 @@ def test_validate_retry_routes_to_patch(monkeypatch):
         updates = node_validate(state)
     assert updates.get("validation_retryable") is True
     assert updates.get("status") != "escalated"
+    assert any(
+        event.get("event") == "localized_candidate_patch_match"
+        for event in updates.get("audit_events") or []
+    )

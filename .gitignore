@@ -33,3 +33,11 @@ sandbox/controller/target/
 .DS_Store
 *.swp
 *~
+
+# --- Local secrets (NEVER commit) ---
+.env
+.env.*
+!.env.example
+
+# --- Node tooling ---
+node_modules/

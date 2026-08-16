@@ -66,6 +66,11 @@ def validate_sandbox(name: str, instance: Any) -> None:
 def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
     """Drop optional None fields so run_record schema validation succeeds."""
     skip_if_none = {
+        "company_id",
+        "client_id",
+        "client_name",
+        "runtime_observation",
+        "localization_result",
         "failure_signature",
         "diagnosis",
         "reproduction_result",
