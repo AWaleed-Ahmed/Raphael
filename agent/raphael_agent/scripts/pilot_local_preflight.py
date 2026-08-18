@@ -30,8 +30,8 @@ def main() -> int:
             print(f"preflight FAILED at: {' '.join(cmd)}", flush=True)
             return code
     print(
-        "preflight OK — local Day 0–1 proofs passed. "
-        "Real partner week (secrets, ≥5 failures, approval) still required for PRD Phase 5 exit.",
+        "preflight OK - local Day 0-1 proofs passed. "
+        "Real partner week (secrets, >=5 failures, approval) still required for PRD Phase 5 exit.",
         flush=True,
     )
     return 0
