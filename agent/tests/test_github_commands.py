@@ -149,7 +149,7 @@ def test_parse_verbs_and_feedback_grammar():
 
     cancel = parse_command("/raphael cancel")
     assert cancel is not None
-    assert cancel.implemented is False
+    assert cancel.implemented is True
 
     assert parse_command("not a command") is None
     empty = parse_command("/raphael")
@@ -356,16 +356,26 @@ def test_help_lists_verbs_and_mode_no_secrets(client):
     assert "RAPHAEL_GITHUB_TOKEN" not in reply
 
 
-def test_deferred_cancel_diagnose_fix(client, tmp_path):
+def test_cancel_run_and_deferred_diagnose_fix(client, tmp_path):
     store = RunStore(tmp_path)
-    store.save_run(_run_record())
+    store.save_run(_run_record(status="running"))
     resp = _post_comment(
         client,
         _payload(body="/raphael cancel", association="OWNER", comment_id=40),
         delivery="def-1",
     )
-    assert resp.json()["decision"] == "deferred"
-    assert "not implemented" in resp.json()["reply"].lower()
+    assert resp.json()["decision"] == "replied"
+    assert resp.json()["reason"] == "cancel"
+    assert "cancelled" in resp.json()["reply"].lower()
+    assert store.get_run("run-abc123")["status"] == "cancelled"
+
+    diagnose = _post_comment(
+        client,
+        _payload(body="/raphael diagnose", association="OWNER", comment_id=41),
+        delivery="def-2",
+    )
+    assert diagnose.json()["decision"] == "deferred"
+    assert "not implemented" in diagnose.json()["reply"].lower()
     assert len(store.list_runs()) == 1
 
 

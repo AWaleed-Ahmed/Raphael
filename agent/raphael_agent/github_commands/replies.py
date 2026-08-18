@@ -31,9 +31,10 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 **Implemented (GH-M2)** — admin or `RAPHAEL_GITHUB_COMMAND_TEAM`:
 - `{prefix} retry [run_id]` — new run from the same fingerprint; sets `parent_run_id`
 - `{prefix} escalate [run_id] [notes]` — in-flight → `escalated`/`human_requested`; terminal → notes only
+- `{prefix} cancel [run_id]` — cancel an in-flight run; no patch or publish continues
 
 **Deferred (not implemented)** — admin or team:
-- `{prefix} cancel` / `{prefix} diagnose` / `{prefix} fix`
+- `{prefix} diagnose` / `{prefix} fix`
 
 **Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
 - Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.
@@ -279,6 +280,23 @@ def render_escalate_terminal(*, run_id: str, status: str, prefix: str) -> str:
         f"(status remains `{status}`). Did not rewrite a completed success to escalated.\n\n"
         f"<!-- raphael:run_id={run_id} -->\n"
         f"**Mode:** partner={partner} publish={publish}\n"
+    )
+
+
+def render_cancel_ack(*, run_id: str, prefix: str) -> str:
+    partner, publish = current_modes()
+    return (
+        f"Run `{run_id}` was cancelled. No patch or publish will continue.\n\n"
+        f"<!-- raphael:run_id={run_id} -->\n"
+        f"**Mode:** partner={partner} publish={publish}\n\n"
+        f"Commands: `{prefix} status` · `{prefix} retry` · `{prefix} help`\n"
+    )
+
+
+def render_cancel_failed(*, run_id: str, status: str, prefix: str) -> str:
+    return (
+        f"Run `{run_id}` cannot be cancelled because it is already `{status}`.\n"
+        f"Use `{prefix} status {run_id}` for details.\n"
     )
 
 

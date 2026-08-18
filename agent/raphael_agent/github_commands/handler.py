@@ -1,7 +1,7 @@
 """Handle GitHub ``issue_comment`` webhooks for GH-M1/M2 commands.
 
 Does not call the sandbox HTTP API. Does not change partner/publish gates.
-``cancel`` / ``diagnose`` / ``fix`` are deferred.
+``diagnose`` / ``fix`` remain deferred; ``cancel`` only changes the run state.
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ from raphael_agent.github_commands.parse import DEFERRED_VERBS, ParsedCommand, p
 from raphael_agent.github_commands.rate_limit import CommandRateLimiter
 from raphael_agent.github_commands.replies import (
     render_deferred,
+    render_cancel_ack,
+    render_cancel_failed,
     render_denied,
     render_escalate_in_flight,
     render_escalate_terminal,
@@ -594,6 +596,69 @@ def handle_issue_comment_event(
                 "run_id": updated.get("run_id"),
                 "status": updated.get("status"),
                 "terminal_reason": updated.get("terminal_reason"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+        idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+        return result
+
+    if parsed.verb == "cancel":
+        if run is None or run.get("_missing"):
+            reply = _redact(render_run_not_found(prefix=prefix))
+            result = {
+                "decision": "replied",
+                "reason": "run_not_found",
+                "verb": "cancel",
+                "reply": reply,
+                "run_id": (run or {}).get("run_id"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        else:
+            action_id = f"gh-cmd-{comment_id or delivery_id}-cancel"
+            try:
+                updated_result = apply_run_action(
+                    str(run["run_id"]),
+                    {
+                        "verb": "cancel",
+                        "action_id": action_id,
+                        "actor": actor or None,
+                    },
+                    store=store,
+                )
+            except RunApiError as exc:
+                reply = _redact(
+                    render_cancel_failed(
+                        run_id=str(run["run_id"]),
+                        status=str(run.get("status") or "unknown"),
+                        prefix=prefix,
+                    )
+                )
+                result = {
+                    "decision": "invalid",
+                    "reason": exc.code,
+                    "verb": "cancel",
+                    "reply": reply,
+                    "run_id": run.get("run_id"),
+                    "comment_posted": False,
+                    "idempotent_replay": False,
+                }
+                result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+                idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+                return result
+            updated = store.get_run(str(run["run_id"])) or run
+            _audit_command(store, updated, f"cancel actor={actor}")
+            reply = _redact(render_cancel_ack(run_id=str(updated["run_id"]), prefix=prefix))
+            result = {
+                "decision": "replied",
+                "reason": "cancel",
+                "verb": "cancel",
+                "reply": reply,
+                "run_id": updated.get("run_id"),
+                "status": updated.get("status"),
+                "terminal_reason": updated.get("terminal_reason"),
+                "action_id": updated_result.get("action_id"),
                 "comment_posted": False,
                 "idempotent_replay": False,
             }
