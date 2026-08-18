@@ -34,7 +34,7 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} cancel [run_id]` — cancel an in-flight run; no patch or publish continues
 
 **Deferred (not implemented)** — admin or team:
-- `{prefix} diagnose` / `{prefix} fix`
+- `{prefix} fix`
 
 **Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
 - Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.
@@ -297,6 +297,17 @@ def render_cancel_failed(*, run_id: str, status: str, prefix: str) -> str:
     return (
         f"Run `{run_id}` cannot be cancelled because it is already `{status}`.\n"
         f"Use `{prefix} status {run_id}` for details.\n"
+    )
+
+
+def render_diagnose_ack(*, run_id: str, status: str, prefix: str) -> str:
+    partner, publish = current_modes()
+    return (
+        f"Diagnosis run `{run_id}` completed with status `{status}`. "
+        "No patch or publish was attempted.\n\n"
+        f"<!-- raphael:run_id={run_id} -->\n"
+        f"**Mode:** partner={partner} publish={publish}\n\n"
+        f"Commands: `{prefix} status {run_id}` · `{prefix} feedback accepted|rejected|edited` · `{prefix} help`\n"
     )
 
 

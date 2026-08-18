@@ -218,6 +218,20 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
             why_no_fix="Automatic fix not proposed after diagnosis gate",
             attempts=[{"kind": "other", "status": "blocked", "detail": "low_confidence"}],
         )
+    if state.get("diagnosis_only"):
+        updates["status"] = "escalated"
+        updates["terminal_reason"] = "diagnosis_only"
+        updates["escalation_report"] = _escalation(
+            {**state, **updates},
+            reason_code="diagnosis_only",
+            summary="Manual diagnosis completed",
+            what_happened=diagnosis.get("notes") or "Evidence was collected and diagnosis completed",
+            why_no_fix="Diagnosis-only command does not generate patches or publish changes",
+            attempts=[{"kind": "other", "status": "completed", "detail": "diagnosis_only"}],
+        )
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "diagnose", "diagnosis_only", "stopped before reproduction/patch"
+        )
     return updates
 
 

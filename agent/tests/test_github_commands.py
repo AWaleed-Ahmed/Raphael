@@ -356,7 +356,7 @@ def test_help_lists_verbs_and_mode_no_secrets(client):
     assert "RAPHAEL_GITHUB_TOKEN" not in reply
 
 
-def test_cancel_run_and_deferred_diagnose_fix(client, tmp_path):
+def test_cancel_and_diagnose_commands(client, tmp_path):
     store = RunStore(tmp_path)
     store.save_run(_run_record(status="running"))
     resp = _post_comment(
@@ -374,9 +374,23 @@ def test_cancel_run_and_deferred_diagnose_fix(client, tmp_path):
         _payload(body="/raphael diagnose", association="OWNER", comment_id=41),
         delivery="def-2",
     )
-    assert diagnose.json()["decision"] == "deferred"
-    assert "not implemented" in diagnose.json()["reply"].lower()
-    assert len(store.list_runs()) == 1
+    assert diagnose.json()["decision"] == "replied"
+    assert diagnose.json()["reason"] == "diagnose"
+    diagnosis_run = store.get_run(diagnose.json()["run_id"])
+    assert diagnosis_run is not None
+    assert diagnosis_run["diagnosis_only"] is True
+    assert diagnosis_run["status"] == "escalated"
+    assert diagnosis_run["terminal_reason"] == "diagnosis_only"
+    assert not diagnosis_run.get("candidate_patches")
+
+    fix = _post_comment(
+        client,
+        _payload(body="/raphael fix", association="OWNER", comment_id=42),
+        delivery="def-3",
+    )
+    assert fix.json()["decision"] == "deferred"
+    assert "not implemented" in fix.json()["reply"].lower()
+    assert len(store.list_runs()) == 2
 
 
 def test_no_sandbox_imports_in_command_package():

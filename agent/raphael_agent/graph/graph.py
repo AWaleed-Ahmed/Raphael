@@ -37,7 +37,11 @@ def build_stub_graph():
     graph.add_edge(START, "ingest")
     graph.add_edge("ingest", "evidence")
     graph.add_edge("evidence", "diagnose")
-    graph.add_edge("diagnose", "reproduce")
+    graph.add_conditional_edges(
+        "diagnose",
+        lambda state: "publish_or_escalate" if state.get("diagnosis_only") else "reproduce",
+        {"reproduce": "reproduce", "publish_or_escalate": "publish_or_escalate"},
+    )
     graph.add_edge("reproduce", "localize")
     graph.add_edge("localize", "patch")
     graph.add_edge("patch", "validate")

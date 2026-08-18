@@ -306,6 +306,12 @@ def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
         "pull_request_number",
         "notes",
         "actor",
+        "delivery_mode",
+        "issue_labels",
+        "issue_title",
+        "issue_body",
+        "failure_class_hint",
+        "diagnosis_only",
     ):
         if body.get(key) is not None:
             event[key] = body[key]

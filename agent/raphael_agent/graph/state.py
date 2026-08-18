@@ -59,6 +59,7 @@ class RunState(TypedDict, total=False):
     failure_fingerprint: str
     correlation: dict[str, Any]
     delivery_mode: str
+    diagnosis_only: bool
     issue_number: int
     issue_labels: list[str]
     issue_title: str | None
@@ -134,6 +135,7 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         errors=[],
         audit_events=[],
         delivery_mode=delivery,
+        diagnosis_only=bool(seed.get("diagnosis_only", False)),
     )
     if seed.get("issue_number") is not None:
         state["issue_number"] = seed["issue_number"]

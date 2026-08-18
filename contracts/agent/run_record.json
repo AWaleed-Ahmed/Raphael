@@ -103,6 +103,10 @@
       "enum": ["draft_pr", "issue_snippet"],
       "description": "Route A draft_pr vs Route B issue_snippet (human opens PR)"
     },
+    "diagnosis_only": {
+      "type": "boolean",
+      "description": "Manual diagnosis run stops after diagnosis and never patches or publishes"
+    },
     "issue_number": {
       "type": ["integer", "null"],
       "minimum": 1,

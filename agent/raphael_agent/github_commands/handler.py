@@ -26,6 +26,7 @@ from raphael_agent.github_commands.replies import (
     render_deferred,
     render_cancel_ack,
     render_cancel_failed,
+    render_diagnose_ack,
     render_denied,
     render_escalate_in_flight,
     render_escalate_terminal,
@@ -39,7 +40,7 @@ from raphael_agent.github_commands.replies import (
     render_status,
 )
 from raphael_agent.graph.state import append_audit
-from raphael_agent.runs import IN_FLIGHT, RunApiError, apply_run_action, find_latest_run_for_github_number
+from raphael_agent.runs import IN_FLIGHT, RunApiError, apply_run_action, create_run, find_latest_run_for_github_number
 from raphael_agent.store import RunStore
 from raphael_agent.timeutil import utc_now
 
@@ -659,6 +660,73 @@ def handle_issue_comment_event(
                 "status": updated.get("status"),
                 "terminal_reason": updated.get("terminal_reason"),
                 "action_id": updated_result.get("action_id"),
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+        idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+        return result
+
+    if parsed.verb == "diagnose":
+        source = run if run is not None and not run.get("_missing") else None
+        commit_sha = str((source or {}).get("commit_sha") or "")
+        if len(commit_sha) < 7:
+            reply = _redact(render_run_not_found(prefix=prefix))
+            result = {
+                "decision": "replied",
+                "reason": "diagnose_requires_linked_run",
+                "verb": "diagnose",
+                "reply": reply,
+                "comment_posted": False,
+                "idempotent_replay": False,
+            }
+        else:
+            action_id = f"gh-cmd-{comment_id or delivery_id}-diagnose"
+            request: dict[str, Any] = {
+                "trigger_kind": "manual_github",
+                "action_id": action_id,
+                "repository": {"owner": owner, "name": repo},
+                "commit_sha": commit_sha,
+                "sandbox_mode": "recorded_stub",
+                "diagnosis_only": True,
+                "issue_number": issue_n,
+                "pull_request_number": issue_n if is_pr else None,
+                "issue_title": issue.get("title"),
+                "issue_body": str(issue.get("body") or "")[:2000],
+                "actor": actor or None,
+                "notes": "github issue_comment /raphael diagnose",
+            }
+            try:
+                created = create_run(request, store=store)
+            except RunApiError as exc:
+                reply = _redact(f"Diagnose failed: {exc.message}\n")
+                result = {
+                    "decision": "invalid",
+                    "reason": exc.code,
+                    "verb": "diagnose",
+                    "reply": reply,
+                    "comment_posted": False,
+                    "idempotent_replay": False,
+                }
+                result["comment_posted"] = _maybe_post(owner, repo, issue, reply, poster)
+                idemp.put(result, comment_id=comment_id, delivery_id=delivery_id)
+                return result
+            diagnosed = store.get_run(str(created["run_id"])) or {}
+            _audit_command(store, diagnosed, f"diagnose actor={actor}")
+            reply = _redact(
+                render_diagnose_ack(
+                    run_id=str(created["run_id"]),
+                    status=str(created.get("status") or diagnosed.get("status") or "pending"),
+                    prefix=prefix,
+                )
+            )
+            result = {
+                "decision": "replied",
+                "reason": "diagnose",
+                "verb": "diagnose",
+                "reply": reply,
+                "run_id": created.get("run_id"),
+                "status": created.get("status"),
                 "comment_posted": False,
                 "idempotent_replay": False,
             }
