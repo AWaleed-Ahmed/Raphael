@@ -13,7 +13,7 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} diagnose [run_id]` — collect evidence and diagnose without patching or publishing
 
 **Deferred (not implemented)** — admin or team:
-- `{prefix} fix`
+- `{prefix} fix [run_id]` — propose a Route B issue snippet when `raphael:fix` is present
 
 **Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
 - Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.

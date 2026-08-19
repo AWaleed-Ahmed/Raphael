@@ -34,7 +34,7 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 - `{prefix} cancel [run_id]` — cancel an in-flight run; no patch or publish continues
 
 **Deferred (not implemented)** — admin or team:
-- `{prefix} fix`
+- `{prefix} fix [run_id]` — propose a Route B issue snippet when `raphael:fix` is present
 
 **Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
 - Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.
@@ -311,6 +311,17 @@ def render_diagnose_ack(*, run_id: str, status: str, prefix: str) -> str:
     )
 
 
+def render_fix_ack(*, run_id: str, status: str, prefix: str) -> str:
+    partner, publish = current_modes()
+    return (
+        f"Fix run `{run_id}` completed with status `{status}`. "
+        "Any delivery is an issue snippet only; Raphael will not open a PR.\n\n"
+        f"<!-- raphael:run_id={run_id} -->\n"
+        f"**Mode:** partner={partner} publish={publish}\n\n"
+        f"Commands: `{prefix} status {run_id}` · `{prefix} feedback accepted|rejected|edited` · `{prefix} help`\n"
+    )
+
+
 def render_denied(*, verb: str, prefix: str) -> str:
     return (
         f"`{prefix} {verb}` is not allowed for this actor. "
@@ -323,7 +334,7 @@ def render_deferred(*, verb: str, prefix: str) -> str:
     return (
         f"`{prefix} {verb}` is **not implemented** yet. "
         "GH-M1–M4 support `status`/`help`/`feedback`/`retry`/`escalate` plus optional Check Runs. "
-        "Cancel, diagnose, and fix remain deferred.\n"
+        "The requested command remains deferred.\n"
     )
 
 

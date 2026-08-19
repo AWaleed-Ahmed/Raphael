@@ -388,9 +388,23 @@ def test_cancel_and_diagnose_commands(client, tmp_path):
         _payload(body="/raphael fix", association="OWNER", comment_id=42),
         delivery="def-3",
     )
-    assert fix.json()["decision"] == "deferred"
-    assert "not implemented" in fix.json()["reply"].lower()
+    assert fix.json()["decision"] == "invalid"
+    assert fix.json()["reason"] == "missing_trigger_label"
     assert len(store.list_runs()) == 2
+
+
+def test_fix_requires_label_and_creates_issue_snippet_run(client, tmp_path):
+    store = RunStore(tmp_path)
+    store.save_run(_run_record(status="success_draft_pr_ready"))
+    payload = _payload(body="/raphael fix", association="OWNER", comment_id=43)
+    payload["issue"]["labels"] = [{"name": "raphael:fix"}]
+    response = _post_comment(client, payload, delivery="fix-1")
+    assert response.json()["decision"] == "replied"
+    created = store.get_run(response.json()["run_id"])
+    assert created is not None
+    assert created["delivery_mode"] == "issue_snippet"
+    assert created["status"] in {"success_fix_proposed", "escalated", "failed_closed"}
+    assert "will not open a PR" in response.json()["reply"]
 
 
 def test_no_sandbox_imports_in_command_package():
