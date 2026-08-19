@@ -41,7 +41,14 @@
     },
     "issue_number": { "type": ["integer", "null"], "minimum": 1 },
     "pull_request_number": { "type": ["integer", "null"], "minimum": 1 },
+    "issue_title": { "type": ["string", "null"] },
+    "issue_body": { "type": ["string", "null"], "maxLength": 2000 },
+    "delivery_mode": { "type": "string", "enum": ["draft_pr", "issue_snippet"] },
+    "issue_labels": { "type": "array", "items": { "type": "string" } },
+    "failure_class_hint": { "type": ["string", "null"] },
+    "pull_request_number": { "type": ["integer", "null"], "minimum": 1 },
     "notes": { "type": ["string", "null"], "maxLength": 2000 },
     "actor": { "type": ["string", "null"] }
+    ,"diagnosis_only": { "type": "boolean", "description": "Run evidence and diagnosis, then stop without patching or publishing" }
   }
 }

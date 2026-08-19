@@ -9,9 +9,11 @@ Prefix: `{prefix}`  ·  **Mode:** partner={partner_mode} publish={publish_mode}
 **Implemented (GH-M2)** — admin or `RAPHAEL_GITHUB_COMMAND_TEAM`:
 - `{prefix} retry [run_id]` — new run from the same fingerprint; sets `parent_run_id`
 - `{prefix} escalate [run_id] [notes]` — in-flight → `escalated`/`human_requested`; terminal → notes only
+- `{prefix} cancel [run_id]` — cancel an in-flight run; no patch or publish continues
+- `{prefix} diagnose [run_id]` — collect evidence and diagnose without patching or publishing
 
 **Deferred (not implemented)** — admin or team:
-- `{prefix} cancel` / `{prefix} diagnose` / `{prefix} fix`
+- `{prefix} fix [run_id]` — propose a Route B issue snippet when `raphael:fix` is present
 
 **Check Runs (GH-M4)** — opt-in, default off (does not inherit commands):
 - Enable with `RAPHAEL_GITHUB_CHECK_RUNS=1`. Name: `Raphael (advisory)`. Conclusion defaults to `neutral`.

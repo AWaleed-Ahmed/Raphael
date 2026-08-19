@@ -87,6 +87,8 @@ def normalize_fixture_event(event: dict[str, Any]) -> dict[str, Any]:
     }
     if event.get("delivery_mode"):
         seed["delivery_mode"] = event["delivery_mode"]
+    if event.get("diagnosis_only"):
+        seed["diagnosis_only"] = True
     if event.get("issue_number") is not None:
         seed["issue_number"] = event["issue_number"]
     if event.get("issue_labels") is not None:

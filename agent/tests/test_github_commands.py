@@ -149,7 +149,7 @@ def test_parse_verbs_and_feedback_grammar():
 
     cancel = parse_command("/raphael cancel")
     assert cancel is not None
-    assert cancel.implemented is False
+    assert cancel.implemented is True
 
     assert parse_command("not a command") is None
     empty = parse_command("/raphael")
@@ -356,17 +356,55 @@ def test_help_lists_verbs_and_mode_no_secrets(client):
     assert "RAPHAEL_GITHUB_TOKEN" not in reply
 
 
-def test_deferred_cancel_diagnose_fix(client, tmp_path):
+def test_cancel_and_diagnose_commands(client, tmp_path):
     store = RunStore(tmp_path)
-    store.save_run(_run_record())
+    store.save_run(_run_record(status="running"))
     resp = _post_comment(
         client,
         _payload(body="/raphael cancel", association="OWNER", comment_id=40),
         delivery="def-1",
     )
-    assert resp.json()["decision"] == "deferred"
-    assert "not implemented" in resp.json()["reply"].lower()
-    assert len(store.list_runs()) == 1
+    assert resp.json()["decision"] == "replied"
+    assert resp.json()["reason"] == "cancel"
+    assert "cancelled" in resp.json()["reply"].lower()
+    assert store.get_run("run-abc123")["status"] == "cancelled"
+
+    diagnose = _post_comment(
+        client,
+        _payload(body="/raphael diagnose", association="OWNER", comment_id=41),
+        delivery="def-2",
+    )
+    assert diagnose.json()["decision"] == "replied"
+    assert diagnose.json()["reason"] == "diagnose"
+    diagnosis_run = store.get_run(diagnose.json()["run_id"])
+    assert diagnosis_run is not None
+    assert diagnosis_run["diagnosis_only"] is True
+    assert diagnosis_run["status"] == "escalated"
+    assert diagnosis_run["terminal_reason"] == "diagnosis_only"
+    assert not diagnosis_run.get("candidate_patches")
+
+    fix = _post_comment(
+        client,
+        _payload(body="/raphael fix", association="OWNER", comment_id=42),
+        delivery="def-3",
+    )
+    assert fix.json()["decision"] == "invalid"
+    assert fix.json()["reason"] == "missing_trigger_label"
+    assert len(store.list_runs()) == 2
+
+
+def test_fix_requires_label_and_creates_issue_snippet_run(client, tmp_path):
+    store = RunStore(tmp_path)
+    store.save_run(_run_record(status="success_draft_pr_ready"))
+    payload = _payload(body="/raphael fix", association="OWNER", comment_id=43)
+    payload["issue"]["labels"] = [{"name": "raphael:fix"}]
+    response = _post_comment(client, payload, delivery="fix-1")
+    assert response.json()["decision"] == "replied"
+    created = store.get_run(response.json()["run_id"])
+    assert created is not None
+    assert created["delivery_mode"] == "issue_snippet"
+    assert created["status"] in {"success_fix_proposed", "escalated", "failed_closed"}
+    assert "will not open a PR" in response.json()["reply"]
 
 
 def test_no_sandbox_imports_in_command_package():
