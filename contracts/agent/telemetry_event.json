@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/contracts/agent/telemetry_event.json",
+  "title": "TelemetryEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "recorded_at", "run_id", "client_name", "project_name"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "enum": ["model_call", "run_outcome"]},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "run_id": {"type": "string", "minLength": 1},
+    "client_name": {"type": "string", "minLength": 1},
+    "project_name": {"type": "string", "minLength": 1},
+    "repository": {"type": ["object", "null"]},
+    "model_name": {"type": ["string", "null"]},
+    "model_version": {"type": ["string", "null"]},
+    "status": {"type": ["string", "null"]},
+    "success": {"type": ["boolean", "null"]},
+    "input_excerpt": {"type": ["string", "null"], "maxLength": 2000},
+    "output_excerpt": {"type": ["string", "null"], "maxLength": 2000},
+    "input_sha256": {"type": ["string", "null"]},
+    "output_sha256": {"type": ["string", "null"]},
+    "token_usage": {"type": ["object", "null"]},
+    "error_type": {"type": ["string", "null"]}
+  }
+}
