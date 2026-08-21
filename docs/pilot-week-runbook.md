@@ -37,6 +37,8 @@ Expect `go=True`.
 - [ ] `pytest -q` in `agent/`
 - [ ] `python -m raphael_agent.scripts.metrics`
 - [ ] Point GitHub webhook at `POST /v1/webhooks/github` for `workflow_run`, `check_run`, `pull_request`, and **`issue_comment`**
+- [ ] For each pilot repository, record repository owner/name, default branch, webhook delivery IDs, and the GitHub App/PAT permission profile before enabling commands
+
 - [ ] Leave GitHub-native knobs **off** until the smoke below: `RAPHAEL_GITHUB_COMMANDS=0`, `RAPHAEL_GITHUB_CHECK_RUNS=0` (`AUTO_COMMENTS` unset inherits commands)
 - [ ] Also subscribe `issues` if using Route B (`raphael:fix`)
 
@@ -64,11 +66,25 @@ cd agent
 pytest -q tests/test_github_commands.py tests/test_github_check_runs.py
 ```
 
-`cancel` / `diagnose` / `fix` are **not implemented** — expect a deferred reply. Do not require `Raphael (advisory)` on branch protection.
+`cancel` / `diagnose` / `fix` are implemented with permission checks and safety gates. Keep `RAPHAEL_GITHUB_CHECK_RUNS=0` unless advisory Checks are explicitly approved; never require Raphael for merging.
+
+### Fake telemetry verification before partner data
+
+Run the credential-gated smoke test with backend-only Supabase credentials. It creates or reuses a fake client, uploads one redacted terminal outcome, and queries it back by company, client, project, and run ID while asserting the repository identity:
+
+```powershell
+$env:RAPHAEL_CLIENT_ID="fake-telemetry-client"
+$env:RAPHAEL_FAKE_RUN_ID="fake-telemetry-run-001"
+python -m raphael_agent.scripts.test_supabase_telemetry
+```
+
+The output must contain exactly the expected `company_id`, `client_id`, `project_name`, repository owner/name, run ID, and at least one matching row. Do not print or paste Supabase service-role credentials into tickets, logs, or pull requests.
 
 ---
 
-## Day 2–3 — Dry-run ≥5 real failures
+## Day 2–3 — Dry-run ≥5 real GitHub failures
+
+Use at least five failures from real partner repositories, but keep every run in `RAPHAEL_PARTNER_MODE=dry_run`. Start with ordinary CI/workflow failures and do not include production clusters or repositories containing secrets in captured evidence. For each failure, preserve the webhook delivery ID, repository, commit SHA, failure class, diagnosis, candidate fix, sandbox result, terminal status, and human judgment. Never post a PR or issue fix during this phase.
 
 - [ ] Keep `RAPHAEL_PARTNER_MODE=dry_run` (forces dry-run even if someone sets `PUBLISH_MODE=live`)
 - [ ] Capture ≥5 eligible failures into RunStore / triage sheet:
