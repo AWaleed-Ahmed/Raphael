@@ -186,3 +186,63 @@ def test_delivery_patch_helper():
         "publish": {},
     }
     assert "diff --git" in (delivery_patch_from_run(run) or "")
+
+
+
+def test_manual_terminal_actions_record_outcomes(client, monkeypatch):
+    monkeypatch.setenv("RAPHAEL_MANUAL_RUN_GRAPH", "0")
+    recorded = []
+    monkeypatch.setattr(
+        "raphael_agent.runs.record_run_outcome",
+        lambda run: recorded.append(dict(run)) or True,
+    )
+
+    escalated = client.post(
+        "/v1/runs",
+        json={**_create_body("act-telemetry-escalate"), "sandbox_mode": "skipped"},
+    )
+    assert escalated.status_code == 201
+    escalated_id = escalated.json()["run_id"]
+    response = client.post(
+        f"/v1/runs/{escalated_id}/actions",
+        json={"verb": "escalate", "action_id": "act-telemetry-escalate-action"},
+    )
+    assert response.status_code == 200
+    assert recorded[-1]["run_id"] == escalated_id
+    assert recorded[-1]["status"] == "escalated"
+
+    cancelled = client.post(
+        "/v1/runs",
+        json={**_create_body("act-telemetry-cancel"), "sandbox_mode": "skipped"},
+    )
+    assert cancelled.status_code == 201
+    cancelled_id = cancelled.json()["run_id"]
+    response = client.post(
+        f"/v1/runs/{cancelled_id}/actions",
+        json={"verb": "cancel", "action_id": "act-telemetry-cancel-action"},
+    )
+    assert response.status_code == 200
+    assert recorded[-1]["run_id"] == cancelled_id
+    assert recorded[-1]["status"] == "cancelled"
+
+
+def test_graph_terminal_records_outcome(monkeypatch):
+    from raphael_agent.graph.nodes import node_publish_or_escalate
+
+    recorded = []
+    monkeypatch.setattr(
+        "raphael_agent.graph.nodes.record_run_outcome",
+        lambda run: recorded.append(dict(run)) or True,
+    )
+    updates = node_publish_or_escalate(
+        {
+            "run_id": "graph-terminal-1",
+            "status": "failed_closed",
+            "terminal_reason": "already_failed",
+            "repository": {"owner": "raphael", "name": "demo"},
+        }
+    )
+
+    assert updates["current_node"] is None
+    assert recorded[0]["run_id"] == "graph-terminal-1"
+    assert recorded[0]["status"] == "failed_closed"

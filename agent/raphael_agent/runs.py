@@ -23,6 +23,7 @@ from raphael_agent.ingest.policy import IngestPolicyConfig
 from raphael_agent.ingest.service import accept_normalized_event
 from raphael_agent.schema_util import for_run_record_validation, validate_agent
 from raphael_agent.store import RunStore
+from raphael_agent.telemetry_supabase import record_run_outcome
 from raphael_agent.timeutil import utc_now
 
 IN_FLIGHT = frozenset({"pending", "running"})
@@ -465,9 +466,12 @@ def apply_run_action(
             feedback_event_id = recorded["event_id"]
         run["updated_at"] = utc_now()
         store.save_run(run)
+        if status in IN_FLIGHT:
+            record_run_outcome(run)
         result_run = run
         if status in IN_FLIGHT:
             try:
+
                 from raphael_agent.github_commands.check_runs import maybe_complete_check_run
 
                 maybe_complete_check_run(run, store=store)
@@ -487,6 +491,7 @@ def apply_run_action(
         run["audit_events"] = append_audit(run, "interface", "cancel", notes)
         run["updated_at"] = utc_now()
         store.save_run(run)
+        record_run_outcome(run)
         result_run = run
         message = "run cancelled"
 

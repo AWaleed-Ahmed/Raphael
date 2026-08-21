@@ -42,9 +42,12 @@ Self-healing **deployment** agent for Kubernetes + GitHub:
 | Phase 6 dual-path Issues + optional model | Done |
 | Option B (K8s webhook, App JWT, CODEOWNERS, SQLite RunStore) | Done (code) |
 | GitHub-native GH-M1–M4 (agent, default off) | **Done** — `status`/`help`/`feedback`/`retry`/`escalate` + comments/labels/sticky + opt-in Checks |
-| GitHub-native GH-M5 (permission matrix + pilot docs) | **Done** (docs only; no `cancel`/`diagnose`/`fix`) |
+| GitHub-native GH-M5 (permission matrix + pilot docs) | **Done** (permission checks, audit events, cancellation safeguards, diagnosis-only mode, and label-gated fixes) |
+
 | Telemetry fingerprints + APM evidence adapters | **Done** (Prometheus/Alertmanager and provider-neutral evidence paths) |
 | Supabase healthy-trace catalog + normalized multi-company identity | **Done** (migrations applied to linked project) |
+| Supabase redacted telemetry sink + terminal run outcomes | **In progress** — migration and live fake upload validated; lifecycle integration and PR pending |
+
 | Runtime failure → source localization + candidate ranking | **Done** (stack/trace/route/Kubernetes anchors; deterministic scoring) |
 | Candidate → sandbox validation handoff | **Done** (patch-file handoff and audit-visible candidate match) |
 | ML model research and hosting plan | **In progress** — see below |
@@ -157,7 +160,8 @@ Real partner week: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
 
 1. **Real partner week** — secrets, ≥5 dry-run failures, permission approval  
 2. **Accumulate feedback → rebuild learning snapshots** in partner envs (`RAPHAEL_LEARNING=1`)  
-3. **Interface layer** — CLI + I0 HTTP ([`interface/Usage.md`](interface/Usage.md), [`interface/prd-i0-api.md`](interface/prd-i0-api.md)); **IDE P0**: [`interface/IDE/README.md`](interface/IDE/README.md); **GitHub-native GH-M1–M5** in the agent ([`interface/github-native/prd.md`](interface/github-native/prd.md), default off). `cancel` / `diagnose` / `fix` remain unimplemented.  
+3. **Interface layer** — CLI + I0 HTTP ([`interface/Usage.md`](interface/Usage.md), [`interface/prd-i0-api.md`](interface/prd-i0-api.md)); **IDE P0**: [`interface/IDE/README.md`](interface/IDE/README.md); **GitHub-native GH-M1–M5** in the agent ([`interface/github-native/prd.md`](interface/github-native/prd.md), default off). The merged command set includes `cancel`, `diagnose`, and `fix`; keep this handoff aligned with the agent implementation.  
+  
 4. Broader Post-MVP adapters (GitLab, ChatOps, …) from prd §25
 
 Do **not** invent auto-merge or production remediation.
