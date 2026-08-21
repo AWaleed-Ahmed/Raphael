@@ -11,6 +11,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from raphael_agent.evidence.redaction import redact_text
+from raphael_agent.evidence.github_actions import collect_github_actions_evidence
 from raphael_agent.http_api import create_app
 from raphael_agent.ingest import (
     WebhookAuthError,
@@ -57,6 +58,30 @@ def test_normalize_github_check_run():
     seed = normalize_failed_run_event(payload)
     assert seed["trigger"]["kind"] == "github_check_run"
     assert seed["correlation"]["check_name"] == "deploy / helm-upgrade"
+
+
+def test_github_pipeline_evidence_is_scoped_to_triggering_repository():
+    base = json.loads(GH_WORKFLOW.read_text(encoding="utf-8"))
+    first = dict(base)
+    first["repository"] = {"owner": {"login": "acme"}, "name": "payments"}
+    first["workflow_run"] = dict(base["workflow_run"])
+    first["workflow_run"]["head_sha"] = "1111111111111111111111111111111111111111"
+    second = dict(base)
+    second["repository"] = {"owner": {"login": "globex"}, "name": "orders"}
+    second["workflow_run"] = dict(base["workflow_run"])
+    second["workflow_run"]["head_sha"] = "2222222222222222222222222222222222222222"
+
+    first_run = normalize_failed_run_event(first)
+    second_run = normalize_failed_run_event(second)
+    first_evidence = collect_github_actions_evidence(first_run)
+    second_evidence = collect_github_actions_evidence(second_run)
+
+    assert first_run["repository"] != second_run["repository"]
+    assert first_run["commit_sha"] != second_run["commit_sha"]
+    assert "acme/payments" in first_evidence[0]["content_excerpt"]
+    assert "globex/orders" in second_evidence[0]["content_excerpt"]
+    assert "globex/orders" not in first_evidence[0]["content_excerpt"]
+    assert "acme/payments" not in second_evidence[0]["content_excerpt"]
 
 
 def test_accept_persists_run(store: RunStore):

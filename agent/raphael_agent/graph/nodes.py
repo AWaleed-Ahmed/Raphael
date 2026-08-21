@@ -27,6 +27,7 @@ from raphael_agent.localization import (
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
+from raphael_agent.telemetry_supabase import record_run_outcome
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
@@ -1023,14 +1024,19 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         updates = {"current_node": None, "updated_at": utc_now()}
         _maybe_terminal_comment(state, updates)
+        record_run_outcome({**state, **updates})
         return updates
+
     halt = _budget_halt_updates(state, "publish_or_escalate")
     if halt:
         # Never publish after budget exhaust
         halt["current_node"] = None
         halt["pull_request_url"] = None
+
         _maybe_terminal_comment(state, halt)
+        record_run_outcome({**state, **halt})
         return halt
+
     updates = _touch(state, "publish_or_escalate")
 
     published = publish(state)
@@ -1089,6 +1095,7 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
         RunStore().save_run(for_run_record_validation(merged))
     except Exception:  # noqa: BLE001 — persistence must not crash the graph
         pass
+    record_run_outcome(merged)
     _maybe_terminal_comment(state, updates)
     return updates
 

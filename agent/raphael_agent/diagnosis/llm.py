@@ -15,6 +15,7 @@ from raphael_agent.diagnosis.config import (
     llm_model,
 )
 from raphael_agent.schema_util import validate_agent
+from raphael_agent.telemetry import record_model_call
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def try_llm_diagnosis(
                 json=body,
             )
             response.raise_for_status()
-            data = response.json()
+        data = response.json()
         content = data["choices"][0]["message"]["content"]
         parsed = json.loads(content)
         # Merge required analyzer metadata if model omitted it.
@@ -98,6 +99,14 @@ def try_llm_diagnosis(
                 if e.get("evidence_id")
             ]
         validate_agent("diagnosis_result.json", parsed)
+        record_model_call(
+            run,
+            model_name=llm_model(),
+            model_version="0.1.0",
+            input_payload=user_payload,
+            output_payload=parsed,
+            success=True,
+        )
         # Policy in code: never let LLM flip blocked → supported without analyzer block.
         det_class = (deterministic.get("classification") or {}).get("category")
         llm_class = (parsed.get("classification") or {}).get("category")
@@ -111,5 +120,13 @@ def try_llm_diagnosis(
         }
         return parsed
     except Exception as exc:  # noqa: BLE001 — fail closed
+        record_model_call(
+            run,
+            model_name=llm_model(),
+            model_version="0.1.0",
+            input_payload=user_payload,
+            success=False,
+            error_type=type(exc).__name__,
+        )
         logger.warning("LLM diagnosis failed closed: %s", exc)
         return None

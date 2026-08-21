@@ -4,6 +4,7 @@ The migration creates exactly two application tables:
 
 - `public.raphael_clients`: one row per customer/company.
 - `public.raphael_healthy_traces`: verified healthy stack traces, source mappings, release identity, span baselines, and invariants.
+- `public.raphael_telemetry_events`: redacted model-call and run-outcome events scoped by company, client, and project.
 
 ## Create and link a project
 
@@ -37,6 +38,8 @@ supabase db reset
 ```
 
 Never put the service-role key in a browser, repository, migration, or frontend environment. Raphael's backend should use it through `SUPABASE_SERVICE_ROLE_KEY`.
+
+For telemetry scope, set `RAPHAEL_CLIENT_ID`. Raphael first uses `RAPHAEL_COMPANY_ID` when provided; if it is absent, the backend resolves `company_id` from `public.raphael_clients` by querying the configured client ID. If neither scope value can be resolved, telemetry skips the upload rather than interrupting the run. `RAPHAEL_COMPANY_ID` is safe to include in local `.env` files, but never commit service-role credentials.
 
 ## Run the fake healthy-trace smoke test
 
