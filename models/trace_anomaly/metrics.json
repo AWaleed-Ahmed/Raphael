@@ -1,0 +1,69 @@
+{
+  "anomaly_threshold": {
+    "f1": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "threshold": 0.2
+  },
+  "rows": {
+    "test": 300,
+    "train": 1400,
+    "validation": 300
+  },
+  "selected_C": 1.0,
+  "selection_trials": [
+    {
+      "C": 0.25,
+      "validation_macro_f1": 0.996667
+    },
+    {
+      "C": 0.5,
+      "validation_macro_f1": 0.996667
+    },
+    {
+      "C": 1.0,
+      "validation_macro_f1": 1.0
+    },
+    {
+      "C": 2.0,
+      "validation_macro_f1": 1.0
+    },
+    {
+      "C": 4.0,
+      "validation_macro_f1": 1.0
+    }
+  ],
+  "test": {
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "confusion_matrix": [
+      [
+        150,
+        0
+      ],
+      [
+        0,
+        150
+      ]
+    ],
+    "labels": [
+      "0",
+      "1"
+    ],
+    "macro_f1": 1.0,
+    "per_class": {
+      "0": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "1": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    "roc_auc": 1.0,
+    "weighted_f1": 1.0
+  }
+}

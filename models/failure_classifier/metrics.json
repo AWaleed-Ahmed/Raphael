@@ -1,0 +1,539 @@
+{
+  "abstention": {
+    "accepted_accuracy": 0.988839,
+    "coverage": 0.995556,
+    "threshold": 0.5
+  },
+  "rows": {
+    "test": 450,
+    "train": 2100,
+    "validation": 450
+  },
+  "selected_C": 4.0,
+  "selection_trials": [
+    {
+      "C": 0.25,
+      "validation_macro_f1": 0.942202
+    },
+    {
+      "C": 0.5,
+      "validation_macro_f1": 0.969063
+    },
+    {
+      "C": 1.0,
+      "validation_macro_f1": 0.979986
+    },
+    {
+      "C": 2.0,
+      "validation_macro_f1": 0.986656
+    },
+    {
+      "C": 4.0,
+      "validation_macro_f1": 0.988849
+    }
+  ],
+  "test": {
+    "accuracy": 0.993333,
+    "balanced_accuracy": 0.993362,
+    "confusion_matrix": [
+      [
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        37,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        36,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        37,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38
+      ]
+    ],
+    "labels": [
+      "auth_denied",
+      "bad_image_reference",
+      "crash_stack",
+      "db_error",
+      "dependency_timeout",
+      "invalid_missing_config",
+      "latency_regression",
+      "network_error",
+      "probe_misconfiguration",
+      "resource_exhaustion",
+      "service_port_mismatch",
+      "trace_divergence"
+    ],
+    "macro_f1": 0.993302,
+    "per_class": {
+      "auth_denied": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "bad_image_reference": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "crash_stack": {
+        "f1-score": 0.986301,
+        "precision": 1.0,
+        "recall": 0.972973
+      },
+      "db_error": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "dependency_timeout": {
+        "f1-score": 0.986667,
+        "precision": 0.973684,
+        "recall": 1.0
+      },
+      "invalid_missing_config": {
+        "f1-score": 0.973684,
+        "precision": 0.948718,
+        "recall": 1.0
+      },
+      "latency_regression": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "network_error": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "probe_misconfiguration": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "resource_exhaustion": {
+        "f1-score": 0.972973,
+        "precision": 1.0,
+        "recall": 0.947368
+      },
+      "service_port_mismatch": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "trace_divergence": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    "weighted_f1": 0.993331
+  },
+  "validation": {
+    "accuracy": 0.988889,
+    "balanced_accuracy": 0.988798,
+    "confusion_matrix": [
+      [
+        37,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        37,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        37,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        33,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        37
+      ]
+    ],
+    "labels": [
+      "auth_denied",
+      "bad_image_reference",
+      "crash_stack",
+      "db_error",
+      "dependency_timeout",
+      "invalid_missing_config",
+      "latency_regression",
+      "network_error",
+      "probe_misconfiguration",
+      "resource_exhaustion",
+      "service_port_mismatch",
+      "trace_divergence"
+    ],
+    "macro_f1": 0.988849,
+    "per_class": {
+      "auth_denied": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "bad_image_reference": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "crash_stack": {
+        "f1-score": 0.986667,
+        "precision": 1.0,
+        "recall": 0.973684
+      },
+      "db_error": {
+        "f1-score": 0.986667,
+        "precision": 0.973684,
+        "recall": 1.0
+      },
+      "dependency_timeout": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "invalid_missing_config": {
+        "f1-score": 0.95,
+        "precision": 0.904762,
+        "recall": 1.0
+      },
+      "latency_regression": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "network_error": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "probe_misconfiguration": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "resource_exhaustion": {
+        "f1-score": 0.942857,
+        "precision": 1.0,
+        "recall": 0.891892
+      },
+      "service_port_mismatch": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "trace_divergence": {
+        "f1-score": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    "weighted_f1": 0.988857
+  }
+}

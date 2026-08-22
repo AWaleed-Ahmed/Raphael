@@ -1,0 +1,46 @@
+{
+  "artifact_bytes": {
+    "candidate_ranker": 37018,
+    "failure_classifier": 120859,
+    "incident_similarity": 4456283,
+    "patch_selector": 269845,
+    "trace_anomaly": 3324
+  },
+  "quality_gates": {
+    "candidate_ranker.test_recall_at_1": {
+      "actual": 1.0,
+      "minimum": 0.85,
+      "passed": true
+    },
+    "failure_classifier.test_macro_f1": {
+      "actual": 0.993302,
+      "minimum": 0.9,
+      "passed": true
+    },
+    "incident_similarity.class_recall_at_1": {
+      "actual": 1.0,
+      "minimum": 0.8,
+      "passed": true
+    },
+    "patch_selector.policy_test_macro_f1": {
+      "actual": 1.0,
+      "minimum": 0.9,
+      "passed": true
+    },
+    "patch_selector.safe_template_top_3_recall": {
+      "actual": 1.0,
+      "minimum": 0.85,
+      "passed": true
+    },
+    "trace_anomaly.test_macro_f1": {
+      "actual": 1.0,
+      "minimum": 0.9,
+      "passed": true
+    }
+  },
+  "seed": 42,
+  "status": "passed",
+  "total_artifact_bytes": 4887329,
+  "training_seconds": 9.087,
+  "warning": "Synthetic holdout accuracy is not evidence of customer-data accuracy."
+}

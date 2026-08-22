@@ -1,0 +1,28 @@
+{
+  "artifact": "model.joblib",
+  "artifact_bytes": 269845,
+  "artifact_sha256": "ed7a9ed3f9713b64bf102e54e734b445b3b6be3e12df8fede4101f6f15741c49",
+  "created_at_unix": 1786902173,
+  "dataset_files": [
+    {
+      "bytes": 364033,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/patch_templates/template_examples.jsonl",
+      "sha256": "5b8f7b6dcadd1f2bd1dbd7a17aecff76c6f71677b70f0693496d9494a6230ae4"
+    }
+  ],
+  "intended_use": "Block unsafe remediation classes, then select an allowlisted fix template.",
+  "libraries": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.18.0"
+  },
+  "limitations": [
+    "Hard policy rules remain authoritative over model output.",
+    "Never execute a predicted template without sandbox validation.",
+    "Unseen templates and low-confidence requests must be escalated."
+  ],
+  "model_name": "patch_selector",
+  "python_version": "3.12.3",
+  "training_seconds": 1.669
+}

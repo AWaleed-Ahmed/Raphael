@@ -41,7 +41,15 @@ sandbox/controller/target/
 
 # --- Node tooling ---
 node_modules/
+**/node_modules/
 frontend/dist/
+dist/
+**/dist/
+.vite/
+**/.vite/
+coverage/
+*.log
 
 # --- Local generated training data (never commit) ---
 /raphael/
+
