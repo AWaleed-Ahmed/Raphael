@@ -1,0 +1,38 @@
+{
+  "artifact": "model.joblib",
+  "artifact_bytes": 120859,
+  "artifact_sha256": "c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80",
+  "created_at_unix": 1786902166,
+  "dataset_files": [
+    {
+      "bytes": 1349497,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/failure_classification/train.jsonl",
+      "sha256": "c16d625177ddfc220993ae82c2b3877a852cd1dcbc7065e91f29fa96b81a5e5f"
+    },
+    {
+      "bytes": 288537,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/failure_classification/validation.jsonl",
+      "sha256": "f33c84e7f1b158abd34325388315b50898d8e4a9638d98fa77dba88e2b976de6"
+    },
+    {
+      "bytes": 289025,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/failure_classification/test.jsonl",
+      "sha256": "1e8b7ef779e255197b1653a87a950bbe9abb5540b12036fa61660b230ea133b4"
+    }
+  ],
+  "intended_use": "Classify normalized deployment evidence into Raphael's failure taxonomy.",
+  "libraries": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.18.0"
+  },
+  "limitations": [
+    "Synthetic training data cannot guarantee production accuracy.",
+    "Abstain below minimum_confidence and fall back to deterministic rules.",
+    "Do not treat the prediction as causal proof."
+  ],
+  "model_name": "failure_classifier",
+  "python_version": "3.12.3",
+  "training_seconds": 1.217
+}

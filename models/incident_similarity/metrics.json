@@ -1,0 +1,13 @@
+{
+  "evaluation": {
+    "class_mrr": 1.0,
+    "class_recall_at_1": 1.0,
+    "class_recall_at_3": 1.0,
+    "queries": 408,
+    "template_match_at_1": 0.205882
+  },
+  "final_features": 9820,
+  "final_index_rows": 2000,
+  "index_rows": 1592,
+  "query_rows": 408
+}

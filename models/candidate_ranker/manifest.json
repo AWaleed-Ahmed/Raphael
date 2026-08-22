@@ -1,0 +1,38 @@
+{
+  "artifact": "model.joblib",
+  "artifact_bytes": 37018,
+  "artifact_sha256": "036eca89dc9bb450d665dab516096f8012fb31775f6e187af6a05db2e1cd6b47",
+  "created_at_unix": 1786902169,
+  "dataset_files": [
+    {
+      "bytes": 4667492,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/candidate_ranking/train.jsonl",
+      "sha256": "93c0982c2a0bcba084f172f31ef0a83ca3b988c3b0e393c7517fc651dc7bf67b"
+    },
+    {
+      "bytes": 999984,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/candidate_ranking/validation.jsonl",
+      "sha256": "c28b39121377a5fd2b2fff08a77711f3e4c568c4048ac6099d13d731d15e5eef"
+    },
+    {
+      "bytes": 1000310,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/candidate_ranking/test.jsonl",
+      "sha256": "8462d3fd134eb4171259b43c4872f4869f8b1c1c6abb73f5b6b8bd37ceace163"
+    }
+  ],
+  "intended_use": "Rank source/config candidates within one reproduced incident.",
+  "libraries": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.18.0"
+  },
+  "limitations": [
+    "Candidates must be generated deterministically before scoring.",
+    "Do not compare probability values across unrelated incidents.",
+    "Synthetic rank quality must be re-evaluated on customer incidents."
+  ],
+  "model_name": "candidate_ranker",
+  "python_version": "3.12.3",
+  "training_seconds": 3.509
+}

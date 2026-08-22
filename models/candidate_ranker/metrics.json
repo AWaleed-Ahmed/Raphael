@@ -1,0 +1,64 @@
+{
+  "deterministic_baseline_test": {
+    "incidents": 300,
+    "mrr": 1.0,
+    "ndcg_at_6": 1.0,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0
+  },
+  "rows": {
+    "test": 1800,
+    "train": 8400,
+    "validation": 1800
+  },
+  "selected_C": 0.25,
+  "selection_trials": [
+    {
+      "C": 0.25,
+      "incidents": 300,
+      "mrr": 1.0,
+      "ndcg_at_6": 1.0,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0
+    },
+    {
+      "C": 0.5,
+      "incidents": 300,
+      "mrr": 1.0,
+      "ndcg_at_6": 1.0,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0
+    },
+    {
+      "C": 1.0,
+      "incidents": 300,
+      "mrr": 1.0,
+      "ndcg_at_6": 1.0,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0
+    },
+    {
+      "C": 2.0,
+      "incidents": 300,
+      "mrr": 1.0,
+      "ndcg_at_6": 1.0,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0
+    },
+    {
+      "C": 4.0,
+      "incidents": 300,
+      "mrr": 1.0,
+      "ndcg_at_6": 1.0,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0
+    }
+  ],
+  "test": {
+    "incidents": 300,
+    "mrr": 1.0,
+    "ndcg_at_6": 1.0,
+    "recall_at_1": 1.0,
+    "recall_at_3": 1.0
+  }
+}

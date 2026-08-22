@@ -1,0 +1,28 @@
+{
+  "artifact": "model.joblib",
+  "artifact_bytes": 3324,
+  "artifact_sha256": "b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020",
+  "created_at_unix": 1786902174,
+  "dataset_files": [
+    {
+      "bytes": 493165,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/trace_anomalies/traces.jsonl",
+      "sha256": "51fdb3b5e00fb89b74bf68513e4c84d6b818a638139b826720eb57edccd09a62"
+    }
+  ],
+  "intended_use": "Flag trace sequences/status/latency observations that differ from healthy behavior.",
+  "libraries": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.18.0"
+  },
+  "limitations": [
+    "Global latency is not comparable across services; combine this model with each customer's healthy baseline.",
+    "Service and operation names are deliberately excluded to improve transfer.",
+    "An anomaly is evidence, not a source-code diagnosis."
+  ],
+  "model_name": "trace_anomaly",
+  "python_version": "3.12.3",
+  "training_seconds": 0.284
+}

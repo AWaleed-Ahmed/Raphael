@@ -1,0 +1,28 @@
+{
+  "artifact": "model.joblib",
+  "artifact_bytes": 4456283,
+  "artifact_sha256": "38115467e972fd9498637e33b5a9cfab3f6e08029af8d09f34bb5b707bc45a41",
+  "created_at_unix": 1786902172,
+  "dataset_files": [
+    {
+      "bytes": 921463,
+      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/incident_similarity/incidents.jsonl",
+      "sha256": "faa4b9b1bb62ce1f58922c1655815732600d082a21085f5ad49c4447ec4ece89"
+    }
+  ],
+  "intended_use": "Retrieve similar validated historical incidents and fix templates.",
+  "libraries": {
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0",
+    "scipy": "1.18.0"
+  },
+  "limitations": [
+    "Retrieval similarity is supporting evidence, not a causal decision.",
+    "The synthetic corpus must be replaced or augmented with validated customer incidents.",
+    "Do not return a fix below minimum_similarity."
+  ],
+  "model_name": "incident_similarity",
+  "python_version": "3.12.3",
+  "training_seconds": 2.361
+}
