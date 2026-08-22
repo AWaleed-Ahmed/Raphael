@@ -30,6 +30,15 @@ from raphael_agent.localization.supabase_catalog import (
     compare_trace_to_healthy,
 )
 
+from raphael_agent.localization.code_evidence import (
+    build_dependency_graph,
+    coverage_relevance,
+    dependency_relevance,
+    load_coverage,
+)
+
+from raphael_agent.localization.source_resolver import required_oci_labels, resolve_anchor
+
 from raphael_agent.localization.interventions import (
     InterventionResult,
     SandboxInterventionController,
@@ -53,4 +62,10 @@ __all__ = [
     "SupabaseCatalogError",
     "SupabaseHealthyCatalogStore",
     "compare_trace_to_healthy",
+    "load_coverage",
+    "coverage_relevance",
+    "build_dependency_graph",
+    "dependency_relevance",
+    "required_oci_labels",
+    "resolve_anchor",
 ]

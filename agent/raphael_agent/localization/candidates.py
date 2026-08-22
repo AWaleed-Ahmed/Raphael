@@ -43,12 +43,17 @@ class FaultCandidate:
 class CandidateScorer:
     """Calculates deterministic scores and ranks candidates."""
 
-    WEIGHT_RUNTIME_ANCHOR = 0.30
-    WEIGHT_DIFF = 0.25
-    WEIGHT_TRACE_DIVERGENCE = 0.20
-    WEIGHT_GRAPH_PROXIMITY = 0.10
-    WEIGHT_CLASS_COMPATIBILITY = 0.10
-    WEIGHT_HISTORICAL_SIMILARITY = 0.05
+    # Public deterministic ranking equation (PRD):
+    # stack proximity + changed deployment + first trace divergence + logs + dependency path.
+    WEIGHT_STACK_PROXIMITY = 0.30
+    WEIGHT_CHANGED_DEPLOYMENT = 0.25
+    WEIGHT_FIRST_TRACE_DIVERGENCE = 0.20
+    WEIGHT_LOG_CORRELATION = 0.15
+    WEIGHT_DEPENDENCY_PATH = 0.10
+    # Backward-compatible aliases for callers that imported the old names.
+    WEIGHT_RUNTIME_ANCHOR = WEIGHT_STACK_PROXIMITY
+    WEIGHT_DIFF = WEIGHT_CHANGED_DEPLOYMENT
+    WEIGHT_TRACE_DIVERGENCE = WEIGHT_FIRST_TRACE_DIVERGENCE
 
     def __init__(self, catalog_store: HealthyCatalogStore | None = None) -> None:
         self.catalog_store = catalog_store or HealthyCatalogStore()
@@ -120,17 +125,24 @@ class CandidateScorer:
                 mapping_methods.append("deployment_diff")
 
 
-            # Check failure class compatibility
-            class_score = self._compute_class_compatibility(failure_class, clean_path, anchor.symbol_name)
+            # Deterministic evidence dimensions. Logs and dependency relevance
+            # are explicit inputs when adapters provide them; exact changed-line
+            # or trace anchors are strong dependency-path evidence by default.
+            log_score = 1.0 if anchor.signal_type == "log" or anchor.raw_details.get("log_match") else 0.0
+            dependency_score = float(anchor.raw_details.get("dependency_relevance") or 0.0)
+            if dependency_score <= 0.0 and (diff_score >= 1.0 or trace_score >= 1.0):
+                dependency_score = 1.0
+            dependency_score = min(1.0, max(0.0, dependency_score))
 
-            # Compute final deterministic score
+            # Exact PRD equation: no learned or class prior is allowed into this
+            # deterministic score. The model ranker may blend with this later.
+            stack_proximity = min(1.0, anchor.confidence + (0.10 * float(anchor.raw_details.get("coverage_relevance") or 0.0)))
             total_score = (
-                (self.WEIGHT_RUNTIME_ANCHOR * anchor.confidence)
-                + (self.WEIGHT_DIFF * diff_score)
-                + (self.WEIGHT_TRACE_DIVERGENCE * trace_score)
-                + (self.WEIGHT_GRAPH_PROXIMITY * 0.80)  # Proximity default
-                + (self.WEIGHT_CLASS_COMPATIBILITY * class_score)
-                + (self.WEIGHT_HISTORICAL_SIMILARITY * 0.50)  # Baseline memory
+                (self.WEIGHT_STACK_PROXIMITY * stack_proximity)
+                + (self.WEIGHT_CHANGED_DEPLOYMENT * diff_score)
+                + (self.WEIGHT_FIRST_TRACE_DIVERGENCE * trace_score)
+                + (self.WEIGHT_LOG_CORRELATION * log_score)
+                + (self.WEIGHT_DEPENDENCY_PATH * dependency_score)
             )
 
             # Cap between 0.0 and 1.0
@@ -148,7 +160,10 @@ class CandidateScorer:
                     candidate_type=c_type,
                     score=final_score,
                     mapping_methods=list(set(mapping_methods)),
-                    evidence_refs=[anchor.evidence_ref],
+                    evidence_refs=[
+                        anchor.evidence_ref,
+                        *([f"coverage:{clean_path}:{anchor.line_number}"] if anchor.raw_details.get("coverage_relevance") else []),
+                    ],
                     diff_hunk=matched_hunk_text,
                     state=state,
                 )
@@ -159,8 +174,8 @@ class CandidateScorer:
             if not any(c.path == path for c in raw_candidates):
                 h = hunks[0]
                 c_type = self._infer_candidate_type(path)
-                class_score = self._compute_class_compatibility(failure_class, path, "")
-                score = (self.WEIGHT_DIFF * 0.7) + (self.WEIGHT_CLASS_COMPATIBILITY * class_score)
+                # A diff-only candidate has no stack/trace/log evidence yet.
+                score = self.WEIGHT_CHANGED_DEPLOYMENT * 0.7
                 raw_candidates.append(
                     FaultCandidate(
                         repository=repository,

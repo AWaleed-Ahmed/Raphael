@@ -22,6 +22,9 @@ class InterventionResult:
     post_intervention_reproduced: bool
     is_causal: bool
     runs_passed: int = 0
+    reintroduced_failure: bool | None = None
+    regression_passed: bool | None = None
+    security_passed: bool | None = None
     final_state: str = "suspected"  # suspected | localized | causal | confirmed_fix
     notes: list[str] = field(default_factory=list)
 
@@ -38,6 +41,9 @@ class SandboxInterventionController:
         *,
         sandbox_deploy_fn: Callable[[dict[str, Any]], bool],  # returns True if failure reproduced
         candidate_patch_hunk: str | None = None,
+        reintroduce_fn: Callable[[dict[str, Any]], bool] | None = None,
+        regression_fn: Callable[[], bool] | None = None,
+        security_fn: Callable[[], bool] | None = None,
     ) -> InterventionResult:
         """Run counterfactual verification loop on a candidate."""
         # 1. Negative Control: Verify failure reproduces on unpatched SHA
@@ -77,7 +83,30 @@ class SandboxInterventionController:
                 passed_runs += 1
 
         all_passed = (passed_runs == self.repeat_count)
-        final_state = "confirmed_fix" if all_passed else "causal"
+        reintroduced_failure: bool | None = None
+        regression_passed: bool | None = None
+        security_passed: bool | None = None
+        notes = [
+            f"Counterfactual intervention eliminated failure (passed {passed_runs}/{self.repeat_count} validation runs)"
+        ]
+        if reintroduce_fn is not None and all_passed:
+            # Optional positive reintroduction control: restore the candidate
+            # and require the original failure to return.
+            reintroduced_failure = bool(
+                reintroduce_fn({
+                    "revision": candidate.git_sha,
+                    "patch": f"reintroduce:{candidate.path}:{candidate.line}",
+                })
+            )
+            notes.append(f"Reintroduction control: {'failed again' if reintroduced_failure else 'did not fail'}")
+        if regression_fn is not None:
+            regression_passed = bool(regression_fn())
+            notes.append(f"Regression checks: {'passed' if regression_passed else 'failed'}")
+        if security_fn is not None:
+            security_passed = bool(security_fn())
+            notes.append(f"Security checks: {'passed' if security_passed else 'failed'}")
+        confirmed = all_passed and (reintroduced_failure is not False) and (regression_passed is not False) and (security_passed is not False)
+        final_state = "confirmed_fix" if confirmed else "causal"
         candidate.state = final_state
 
         return InterventionResult(
@@ -86,10 +115,11 @@ class SandboxInterventionController:
             post_intervention_reproduced=False,
             is_causal=True,
             runs_passed=passed_runs,
+            reintroduced_failure=reintroduced_failure,
+            regression_passed=regression_passed,
+            security_passed=security_passed,
             final_state=final_state,
-            notes=[
-                f"Counterfactual intervention eliminated failure (passed {passed_runs}/{self.repeat_count} validation runs)"
-            ],
+            notes=notes,
         )
 
     def delta_debug_minimize_hunks(

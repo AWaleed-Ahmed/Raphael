@@ -226,6 +226,11 @@
       "description": "Normalized trace/stack/span observation used by localization",
       "additionalProperties": true
     },
+    "model_results": {
+      "type": "object",
+      "description": "Optional outputs and availability metadata from local model adapters.",
+      "additionalProperties": true
+    },
     "changed_diff_hunks": {
       "type": "array",
       "items": { "type": "object", "additionalProperties": true }

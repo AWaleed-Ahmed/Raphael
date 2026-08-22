@@ -25,6 +25,7 @@ _POD_SUFFIX_RE = re.compile(r"-(?=[a-z0-9]*\d)[a-z0-9]{7,10}-(?=[a-z0-9]*\d)[a-z
 _MEM_ADDR_RE = re.compile(r"\b0x[0-9a-fA-F]{6,16}\b")
 _UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
 _REQ_ID_RE = re.compile(r"\b(?:req|request|trace|span|corr|session)[-_][a-zA-Z0-9_-]{8,36}\b", re.I)
+_HEX_RE = re.compile(r"\b[0-9a-f]{12,64}\b", re.I)
 
 
 def _clean_component(value: Any, default: str) -> str:
@@ -95,6 +96,74 @@ def normalize_stack_trace_frames(frames_or_text: list[str] | str, max_frames: in
     for f in frames_or_text[:max_frames]:
         clean_frames.append(sanitize_fingerprint_text(str(f)))
     return "|".join(clean_frames) if clean_frames else "no_stack"
+
+
+def normalize_exception_type(value: Any) -> str:
+    """Normalize framework-qualified exception names to a stable leaf type."""
+    text = sanitize_fingerprint_text(str(value or "Exception"))
+    return text.rsplit(".", 1)[-1].lower() or "exception"
+
+
+def normalize_http_body_pattern(value: Any) -> str:
+    """Keep an HTTP body shape while removing IDs, URLs, timestamps, and values."""
+    text = sanitize_fingerprint_text(str(value or ""))
+    if not text:
+        return "no_body"
+    text = _HEX_RE.sub("<HEX>", text)
+    text = re.sub(r"\b\d+(?:\.\d+)?\b", "<N>", text)
+    text = re.sub(r"https?://\S+", "<URL>", text, flags=re.I)
+    text = re.sub(r"(:\s*)([\"'])(?:[^\"']{1,80})(\2)", r"\1<VALUE>", text)
+    text = re.sub(r"(=\s*)([^,}\s]+)", r"\1<VALUE>", text)
+    return text[:240].lower()
+
+
+def normalize_log_window(value: Any, *, max_lines: int = 6) -> str:
+    """Normalize the bounded log window around the first error."""
+    lines = str(value or "").splitlines()
+    cleaned = [sanitize_fingerprint_text(line) for line in lines if line.strip()]
+    return "|".join(cleaned[:max_lines])[:600].lower() or "no_logs"
+
+
+def runtime_fingerprint_components(seed: dict[str, Any]) -> dict[str, str]:
+    """Extract stable runtime dimensions used by incident/causal fingerprints."""
+    observation = dict(seed.get("runtime_observation") or {})
+    signature = seed.get("failure_signature") or {}
+    normalized = signature.get("normalized") if isinstance(signature, dict) else {}
+    if isinstance(normalized, dict):
+        observation = {**normalized, **observation}
+        attrs = normalized.get("attributes")
+        if isinstance(attrs, dict):
+            observation = {**attrs, **observation}
+    stack = observation.get("stack_trace") or observation.get("exception.stacktrace") or observation.get("normalized_stack_trace")
+    spans = observation.get("span_sequence") or observation.get("spans") or []
+    first_span = observation.get("first_unhealthy_span") or observation.get("first_divergent_span")
+    if not first_span and isinstance(spans, list):
+        for span in spans:
+            attrs = span.get("attributes") or span if isinstance(span, dict) else span
+            attrs = attrs if isinstance(attrs, dict) else {}
+            if attrs.get("error") or attrs.get("error.type") or str(attrs.get("status_code") or "").startswith("5"):
+                first_span = attrs.get("name") or attrs.get("operation_name") or attrs.get("resource")
+                break
+    status = observation.get("status_code") or observation.get("http.status_code") or observation.get("http_status")
+    body = observation.get("http_body") or observation.get("response_body") or observation.get("body_pattern")
+    return {
+        "exit": str(observation.get("exit_code") or observation.get("container_exit_code") or "none").lower(),
+        "signal": str(observation.get("signal") or observation.get("termination_signal") or "none").lower(),
+        "exception": normalize_exception_type(observation.get("exception_type") or observation.get("error.type") or "Exception"),
+        "stack": normalize_stack_trace_frames(stack or "", max_frames=5),
+        "probe": _clean_component(observation.get("probe_reason") or observation.get("k8s_event_reason") or observation.get("reason"), "none"),
+        "span": _clean_component(first_span, "none"),
+        "http": f"{str(status or 'none').lower()}:{normalize_http_body_pattern(body)}",
+        "logs": normalize_log_window(observation.get("log_window") or observation.get("logs") or observation.get("log_excerpt")),
+        "invariant": _clean_component(observation.get("invariant") or observation.get("invariant_name") or observation.get("slo") or observation.get("synthetic_check"), "none"),
+    }
+
+
+def build_runtime_fingerprint(seed: dict[str, Any]) -> str:
+    """Build a stable runtime fingerprint for deduplication and causality."""
+    parts = runtime_fingerprint_components(seed)
+    raw = "v2|" + "|".join(f"{key}={parts[key]}" for key in sorted(parts))
+    return f"{raw}|sha256={hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]}"
 
 
 @dataclass
@@ -289,6 +358,15 @@ def build_fingerprint(seed: dict[str, Any]) -> str:
     operation = str(correlation.get("deployment_config_path") or correlation.get("namespace") or "deploy")
     error_class = str(correlation.get("provisional_failure_key") or "error")
 
+    runtime = runtime_fingerprint_components(seed)
+    runtime_anchor = "|".join(
+        f"{key}={runtime[key]}"
+        for key in ("exception", "stack", "probe", "span", "http", "invariant")
+        if runtime[key] not in {"none", "no_stack", "none:no_body"}
+    )
+    cause_anchor = f"{owner}/{name}"
+    if runtime_anchor:
+        cause_anchor = f"{cause_anchor}|{runtime_anchor}"
     inc = build_canonical_incident_fingerprint(
         tenant=tenant,
         service=service,
@@ -297,6 +375,6 @@ def build_fingerprint(seed: dict[str, Any]) -> str:
         symptom_class=symptom,
         operation=operation,
         error_class=error_class,
-        cause_anchor=f"{owner}/{name}",
+        cause_anchor=cause_anchor,
     )
     return inc.canonical_string

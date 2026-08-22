@@ -23,11 +23,18 @@ from raphael_agent.localization import (
     extract_route_to_handler_anchor,
     extract_stack_trace_anchors,
     extract_trace_divergence_anchor,
+    build_dependency_graph,
+    coverage_relevance,
+    dependency_relevance,
+    load_coverage,
+    resolve_anchor,
 )
+from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
 from raphael_agent.telemetry_supabase import record_run_outcome
+from raphael_agent.validation import evaluate_validation_signals
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
@@ -153,8 +160,25 @@ def node_evidence(state: RunState) -> dict[str, Any]:
         "items_redacted": sum(1 for e in evidence if e.get("redacted")),
         "notes": ["collect_evidence applies redaction adapters"],
     }
+    # The trace adapter consumes normalized runtime observations after evidence
+    # collection. It never bypasses deterministic fingerprints or safety gates.
+    gateway = ModelGateway()
+    trace_prediction = gateway.trace_anomaly({**state, **updates})
+    if trace_prediction is not None:
+        model_results = dict(state.get("model_results") or {})
+        model_results["trace_anomaly"] = trace_prediction
+        updates["model_results"] = model_results
+        trace_detail = (
+            f"anomaly={trace_prediction.get('is_anomaly')} "
+            f"abstained={trace_prediction.get('abstained', False)}"
+        )
+    else:
+        trace_detail = f"model_unavailable={model_error(gateway) or 'unknown'}"
     updates["audit_events"] = append_audit(
         {**state, **updates}, "evidence", "collected", f"n={len(evidence)}"
+    )
+    updates["audit_events"] = append_audit(
+        {**state, **updates}, "evidence", "trace_model", trace_detail
     )
     return updates
 
@@ -167,6 +191,18 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
         return halt
     updates = _touch(state, "diagnose")
     diagnosis = diagnose(state)
+    gateway = ModelGateway()
+    model_prediction = gateway.classify_failure(state)
+    diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
+    model_results = dict(state.get("model_results") or {})
+    if model_prediction is not None:
+        model_results["failure_classifier"] = model_prediction
+    elif model_error(gateway):
+        model_results["failure_classifier"] = {
+            "available": False,
+            "reason": model_error(gateway),
+        }
+    updates["model_results"] = model_results
     attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
     attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
     updates["diagnosis"] = diagnosis
@@ -450,6 +486,21 @@ def node_localize(state: RunState) -> dict[str, Any]:
     updates["healthy_trace_comparisons"] = []
     updates["fault_candidates"] = []
 
+    # Historical similarity is useful even when the customer healthy catalog
+    # is temporarily unavailable; keep its result separate from the canonical
+    # healthy-trace comparison contract.
+    gateway = ModelGateway()
+    model_results = dict(state.get("model_results") or {})
+    similarity = gateway.similar_incidents(state)
+    if similarity is not None:
+        model_results["incident_similarity"] = similarity
+    elif model_error(gateway):
+        model_results["incident_similarity"] = {
+            "available": False,
+            "reason": model_error(gateway),
+        }
+    updates["model_results"] = model_results
+
     try:
         store = SupabaseHealthyCatalogStore()
     except SupabaseCatalogError as exc:
@@ -586,6 +637,24 @@ def node_localize(state: RunState) -> dict[str, Any]:
 
         repository = state.get("repository") or {}
         changed_hunks = list(state.get("changed_diff_hunks") or observation.get("changed_diff_hunks") or [])
+        # Enrich anchors with optional real coverage/import/log evidence. These
+        # signals are advisory and never replace stack/diff/trace evidence.
+        coverage = load_coverage(state.get("workspace_path"))
+        dependency_graph = build_dependency_graph(state.get("workspace_path"))
+        anchors = [resolve_anchor(anchor, state.get("workspace_path")) for anchor in anchors]
+        anchor_path = stack_anchors[0].file_path if stack_anchors else ""
+        log_blob = " ".join(
+            str(item.get("summary") or item.get("content_excerpt") or "")
+            for item in state.get("evidence") or [] if isinstance(item, dict)
+        ).lower()
+        for anchor in anchors:
+            anchor.raw_details["coverage_relevance"] = coverage_relevance(coverage, anchor.file_path, anchor.line_number)
+            anchor.raw_details["dependency_relevance"] = dependency_relevance(
+                dependency_graph, anchor.file_path, anchor_path
+            ) if anchor_path else 0.0
+            anchor.raw_details["log_match"] = bool(
+                anchor.signal_type == "log" or (anchor.symbol_name and anchor.symbol_name.lower() in log_blob)
+            )
         failure_class = str(
             ((state.get("diagnosis") or {}).get("classification") or {}).get("failure_class")
             or (state.get("failure_signature") or {}).get("class")
@@ -603,7 +672,16 @@ def node_localize(state: RunState) -> dict[str, Any]:
                 first_divergent_anchor=anchors[0] if anchors else None,
                 workspace_path=state.get("workspace_path"),
             )
-        updates["fault_candidates"] = [candidate.to_dict() for candidate in candidates]
+        canonical_candidates = [candidate.to_dict() for candidate in candidates]
+        ranked = gateway.rank_candidates(
+            {**state, **updates}, canonical_candidates, comparisons
+        )
+        if ranked is not None:
+            canonical_candidates = ranked["candidates"]
+            model_results = dict(updates.get("model_results") or {})
+            model_results["candidate_ranker"] = ranked.get("model") or {}
+            updates["model_results"] = model_results
+        updates["fault_candidates"] = canonical_candidates
         updates["localization_result"] = {
             "status": "completed",
             "company_id": company_id,
@@ -693,6 +771,28 @@ def node_patch(state: RunState) -> dict[str, Any]:
             {**state, **updates}, "patch", "escalated", "budget_exhausted"
         )
         return updates
+
+    gateway = ModelGateway()
+    model_selection = gateway.select_patch(merged_for_patch)
+    model_results = dict(state.get("model_results") or {})
+    if model_selection is not None:
+        model_results["patch_selector"] = model_selection
+        updates["model_results"] = model_results
+        safe_template = model_selection.get("safe_template")
+        if model_selection.get("policy_allowed") and safe_template:
+            # Private handoff key is consumed by patch/templates.py and is not
+            # persisted into the public run_record contract.
+            merged_for_patch = {
+                **state,
+                **updates,
+                "_model_safe_template": safe_template,
+            }
+    elif model_error(gateway):
+        model_results["patch_selector"] = {
+            "available": False,
+            "reason": model_error(gateway),
+        }
+        updates["model_results"] = model_results
 
     proposal = propose_patch(merged_for_patch)
     if proposal.get("policy_status") == "rejected":
@@ -906,9 +1006,70 @@ def node_validate(state: RunState) -> dict[str, Any]:
                 }
             },
         )
-        updates["validation_results"] = list(state.get("validation_results") or []) + [
-            validation
-        ]
+        validation_results = list(state.get("validation_results") or []) + [validation]
+        # Evaluate optional silent-failure correctness signals against the
+        # post-patch observation before repeatability checks.
+        runtime_observation = dict(state.get("runtime_observation") or {})
+        signal_specs = list(runtime_observation.get("validation_signals") or state.get("validation_signals") or [])
+        if signal_specs:
+            current_observation = {
+                **runtime_observation,
+                "failure_signature": after.get("signature") if isinstance(after, dict) else None,
+            }
+            signal_checks = evaluate_validation_signals(
+                signal_specs,
+                baseline=runtime_observation.get("healthy_baseline") or {},
+                current=current_observation,
+            )
+            validation.setdefault("checks", []).extend(signal_checks)
+            mandatory_failed = any(
+                check.get("mandatory", True) and check.get("status") != "passed"
+                for check in signal_checks
+            )
+            if mandatory_failed:
+                validation["passed"] = False
+            validation["full_validation"] = bool(validation.get("passed")) and bool(validation.get("full_validation"))
+            updates["audit_events"] = append_audit(
+                {**state, **updates}, "validate", "correctness_signals", f"checks={len(signal_checks)} mandatory_failed={mandatory_failed}"
+            )
+        # A successful single run is not enough for causal confidence. Repeat
+        # the exact patch/deploy/observe/health sequence up to three times.
+        try:
+            repeat_count = max(1, min(3, int(os.environ.get("RAPHAEL_VALIDATION_REPEATS", "3"))))
+        except ValueError:
+            repeat_count = 3
+        repeat_failures = 0
+        if validation.get("passed") and not validation.get("fail_closed"):
+            for repeat_index in range(2, repeat_count + 1):
+                client.deploy_revision(sandbox_id, _deploy_body_for_patch(state, patch))
+                repeated_after = client.observe_failure(sandbox_id, {})
+                repeated_validation = client.run_validation(
+                    sandbox_id,
+                    {
+                        "plan": {
+                            "commands": [],
+                            "health_checks": [
+                                {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True},
+                                {"type": "signature_absent", "mandatory": True},
+                            ],
+                            "compare_to_signature_key": before_key,
+                        }
+                    },
+                )
+                validation_results.append({
+                    **repeated_validation,
+                    "repeat_index": repeat_index,
+                    "observed_signature_key": (repeated_after.get("signature") or {}).get("key"),
+                })
+                if not repeated_validation.get("passed") or repeated_validation.get("fail_closed"):
+                    repeat_failures += 1
+                    validation = repeated_validation
+                    break
+            if repeat_failures == 0 and repeat_count > 1:
+                updates["audit_events"] = append_audit(
+                    {**state, **updates}, "validate", "repeatability_passed", f"runs={repeat_count}"
+                )
+        updates["validation_results"] = validation_results
         if not validation.get("passed") or validation.get("fail_closed"):
             patch_attempts = int((state.get("attempt_count") or {}).get("patch", 0))
             if patch_attempts < max_patch_attempts() and not validation.get("fail_closed"):

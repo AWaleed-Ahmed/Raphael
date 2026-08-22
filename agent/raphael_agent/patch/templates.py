@@ -166,6 +166,20 @@ def generate_files_for_diagnosis(run: dict[str, Any]) -> tuple[list[dict[str, An
             f"Learning demoted template for {failure_class} (weight={weight})",
         )
 
+    # The patch-selector model chooses only from bounded template families.
+    # Map its names to concrete generators; unknown families fall back to the
+    # existing deterministic dispatcher and still require sandbox validation.
+    model_template = str(run.get("_model_safe_template") or "")
+    if model_template in {"fix_probe_port_mismatch", "adjust_readiness_probe_path", "tune_probe_timeout_seconds"}:
+        files = fix_probe_port_mismatch(run)
+        return files, "Apply model-selected readiness probe fix"
+    if model_template in {"restore_known_good_image", "revert_image_digest"}:
+        files = fix_bad_image(run)
+        return files, "Apply model-selected known-good image fix"
+    if model_template == "restore_configmap_key":
+        files = fix_missing_configmap_key(run)
+        return files, "Apply model-selected ConfigMap key fix"
+
     if failure_class == "probe_misconfiguration":
         files = fix_probe_port_mismatch(run)
         return files, "Align readiness probe port with containerPort"

@@ -32,6 +32,7 @@ class RunState(TypedDict, total=False):
     redaction_report: dict[str, Any] | None
     failure_signature: dict[str, Any]
     runtime_observation: dict[str, Any] | None
+    model_results: dict[str, Any]
     changed_diff_hunks: list[dict[str, Any]]
     healthy_trace_comparisons: list[dict[str, Any]]
     fault_candidates: list[dict[str, Any]]
@@ -112,6 +113,7 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         manifests=seed.get("manifests"),
         failure_fingerprint=seed.get("failure_fingerprint"),
         runtime_observation=seed.get("runtime_observation"),
+        model_results=dict(seed.get("model_results") or {}),
         changed_diff_hunks=list(seed.get("changed_diff_hunks") or []),
         healthy_trace_comparisons=[],
         fault_candidates=[],
