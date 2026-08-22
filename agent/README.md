@@ -82,6 +82,26 @@ python -m raphael_agent.scripts.demo_partner
 
 Priors nudge diagnosis confidence / escalate sooner on chronically rejected classes, and can demote weak templates. Still draft-PR / human merge only.
 
+### Local ML model adapters
+
+The lightweight local classifiers are connected to the graph through
+`raphael_agent.model_gateway.ModelGateway`. The gateway adapts provider-neutral
+APM/Kubernetes state into the five model inputs and converts predictions back
+into `RunState`, diagnosis, fault-candidate, and patch-template contracts.
+Deterministic analyzers, patch policy, and sandbox validation remain
+authoritative; unavailable artifacts or dependencies automatically fall back to
+the deterministic path.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RAPHAEL_MODEL_ENABLED` | `1` | Set to `0` to disable local ML inference |
+| `RAPHAEL_MODEL_ROOT` | repository `models/` | Directory containing model subdirectories and `model.joblib` files |
+
+Install the agent with `pip install -e .` after pulling the repository so the
+`joblib`, `numpy`, `scipy`, and `scikit-learn` runtime dependencies are present.
+Model outputs are recorded under the run's `model_results` field for audit and
+are never sufficient to publish without sandbox validation.
+
 ### Optional model (OpenAI-compatible, including local)
 
 | Variable | Default | Meaning |

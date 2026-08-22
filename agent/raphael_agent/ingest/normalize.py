@@ -83,6 +83,7 @@ def normalize_fixture_event(event: dict[str, Any]) -> dict[str, Any]:
         "affected_resources": resources,
         "workspace_path": event.get("workspace_path"),
         "manifests": manifests,
+        "runtime_observation": dict(event.get("runtime_observation") or {}),
         "correlation": correlation,
     }
     if event.get("delivery_mode"):

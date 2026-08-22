@@ -10,6 +10,7 @@ from typing import Any
 from raphael_agent.ingest.fingerprint import (
     build_canonical_incident_fingerprint,
     build_event_fingerprint,
+    build_fingerprint,
     normalize_symptom_class,
 )
 from raphael_agent.timeutil import utc_now
@@ -97,7 +98,14 @@ def normalize_alertmanager_webhook(payload: dict[str, Any]) -> dict[str, Any]:
             "provisional_failure_key": inc_fp.canonical_string,
         },
         "notes": summary,
+        "runtime_observation": {
+            "reason": summary,
+            "slo": alertname,
+            "http_status": labels.get("status_code") or labels.get("http.status_code"),
+            "log_window": annotations.get("log_window") or annotations.get("logs"),
+        },
     }
+    seed["failure_fingerprint"] = build_fingerprint(seed)
     return seed
 
 
@@ -144,7 +152,7 @@ def normalize_datadog_webhook(payload: dict[str, Any]) -> dict[str, Any]:
 
     resources = [{"kind": "Deployment", "name": workload, "namespace": namespace}]
 
-    return {
+    seed: dict[str, Any] = {
         "run_id": run_id,
         "tenant_id": _tenant_id(),
         "trigger": {
@@ -166,7 +174,10 @@ def normalize_datadog_webhook(payload: dict[str, Any]) -> dict[str, Any]:
             "provisional_failure_key": inc_fp.canonical_string,
         },
         "notes": f"{title}\n{body}",
+        "runtime_observation": {"reason": f"{title} {body}", "log_window": body},
     }
+    seed["failure_fingerprint"] = build_fingerprint(seed)
+    return seed
 
 
 def normalize_cloudwatch_webhook(payload: dict[str, Any]) -> dict[str, Any]:
@@ -229,7 +240,7 @@ def normalize_cloudwatch_webhook(payload: dict[str, Any]) -> dict[str, Any]:
         cause_anchor=f"{repo_owner}/{repo_name}",
     )
 
-    return {
+    seed: dict[str, Any] = {
         "run_id": run_id,
         "tenant_id": _tenant_id(),
         "trigger": {
@@ -251,4 +262,7 @@ def normalize_cloudwatch_webhook(payload: dict[str, Any]) -> dict[str, Any]:
             "provisional_failure_key": inc_fp.canonical_string,
         },
         "notes": f"{alarm_name}: {reason}",
+        "runtime_observation": {"reason": reason or alarm_name, "slo": metric_name},
     }
+    seed["failure_fingerprint"] = build_fingerprint(seed)
+    return seed

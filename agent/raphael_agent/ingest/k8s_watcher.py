@@ -131,6 +131,15 @@ def normalize_k8s_workload(
         ],
         "workspace_path": event.get("workspace_path"),
         "manifests": event.get("manifests"),
+        "runtime_observation": {
+            "reason": reason or phase or "failed",
+            "k8s_event_reason": reason or phase or "failed",
+            **{key: event[key] for key in (
+                "exit_code", "signal", "exception_type", "stack_trace",
+                "span_sequence", "status_code", "http_body", "log_window",
+                "invariant", "slo",
+            ) if key in event},
+        },
         "correlation": correlation,
         "delivery_mode": "draft_pr",
     }

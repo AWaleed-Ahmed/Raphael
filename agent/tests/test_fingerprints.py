@@ -20,6 +20,9 @@ from raphael_agent.ingest.fingerprint import (
     build_causal_fingerprint,
     build_event_fingerprint,
     normalize_stack_trace_frames,
+    normalize_http_body_pattern,
+    build_runtime_fingerprint,
+    runtime_fingerprint_components,
     sanitize_fingerprint_text,
 )
 from raphael_agent.schema_util import validate_sandbox
@@ -210,3 +213,26 @@ def test_sandbox_failure_signature_schema_validation():
     # Validate against JSON schema in contracts/sandbox/failure_signature.json
     validate_sandbox("failure_signature.json", instance)
 
+
+
+def test_runtime_fingerprint_captures_stable_failure_dimensions():
+    seed = {
+        "runtime_observation": {
+            "exit_code": 137, "signal": "SIGKILL",
+            "exception_type": "builtins.TimeoutError",
+            "stack_trace": 'File "/app/payments.py", line 42, in charge',
+            "probe_reason": "ReadinessProbeFailed",
+            "span_sequence": [{"name": "db.query", "error": True}],
+            "status_code": 500, "http_body": '{"request_id":"abc", "error":"timeout"}',
+            "log_window": "2026-08-15T00:00:00Z ERROR req_abcdef123456 timeout",
+            "invariant": "payment_total_matches_ledger",
+        }
+    }
+    parts = runtime_fingerprint_components(seed)
+    assert parts["exit"] == "137"
+    assert parts["signal"] == "sigkill"
+    assert parts["exception"] == "timeouterror"
+    assert parts["span"] == "db.query"
+    assert "<time>" in parts["logs"]
+    assert "request_id" in normalize_http_body_pattern('{"request_id":"abc"}')
+    assert build_runtime_fingerprint(seed).startswith("v2|")
