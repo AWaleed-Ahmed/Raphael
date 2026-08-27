@@ -380,9 +380,10 @@ class Orchestrator:
             return [self._issue_action(state, "observe_failure", {"timeout_seconds": self._capped_timeout(90)})]
 
         if stage in {"deploy_patch", "run_validation"}:
-            attempts = dict(state.get("attempt_count") or {})
-            attempts["patch"] = int(attempts.get("patch") or 0) + 1
-            state["attempt_count"] = attempts
+            # node_patch owns the increment for each generated patch proposal.
+            # A connector failure must only compare that count; incrementing
+            # here would charge one logical patch attempt twice.
+            attempts = state.get("attempt_count") or {}
             if attempts["patch"] >= max_patch_attempts_budget():
                 state["status"] = "escalated"
                 state["terminal_reason"] = "budget_exhausted"

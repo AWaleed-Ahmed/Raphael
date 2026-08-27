@@ -210,9 +210,54 @@ def test_patch_attempt_budget_escalates_without_looping(tmp_path: Path, monkeypa
     assert len(messages) == 1
     assert messages[0]["kind"] == "terminal"
     assert messages[0]["payload"]["final_status"] == "escalated"
-    assert orchestrator.jobs[job["payload"]["job_id"]]["attempt_count"]["patch"] == 2
+    assert orchestrator.jobs[job["payload"]["job_id"]]["attempt_count"]["patch"] == 1
     assert max_patch_attempts_budget() == 1
 
+
+def test_two_failed_patch_attempts_do_not_exhaust_three_attempt_budget(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("RAPHAEL_MAX_PATCH_ATTEMPTS", "3")
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=create_result(job["payload"]["job_id"]))) ["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=deploy_result()))["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=observe_result()))["messages"][0]
+
+    action = orchestrator.receive_result(
+        result_for(action, status="failed", error={"code": "internal_error", "message": "first deploy rejected"})
+    )["messages"][0]
+    assert action["kind"] == "action"
+    assert action["payload"]["verb"] == "deploy_revision"
+
+    action = orchestrator.receive_result(
+        result_for(action, status="failed", error={"code": "internal_error", "message": "second deploy rejected"})
+    )["messages"][0]
+    assert action["kind"] == "action"
+    assert action["payload"]["verb"] == "deploy_revision"
+    assert orchestrator.jobs[job["payload"]["job_id"]]["attempt_count"]["patch"] == 3
+    assert max_patch_attempts_budget() == 3
+
+
+def test_diagnosis_failures_count_once_and_exhaust_existing_budget(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("RAPHAEL_MAX_DIAGNOSIS_ATTEMPTS", "2")
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=create_result(job["payload"]["job_id"]))) ["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=deploy_result()))["messages"][0]
+
+    action = orchestrator.receive_result(
+        result_for(action, status="failed", error={"code": "timeout", "message": "observation timed out"})
+    )["messages"][0]
+    assert action["kind"] == "action"
+    assert action["payload"]["verb"] == "observe_failure"
+
+    terminal = orchestrator.receive_result(
+        result_for(action, status="failed", error={"code": "timeout", "message": "observation timed out again"})
+    )["messages"][0]
+    assert terminal["kind"] == "terminal"
+    assert terminal["payload"]["final_status"] == "escalated"
+    assert orchestrator.jobs[job["payload"]["job_id"]]["attempt_count"]["diagnosis"] == 2
 
 def test_existing_http_timeout_env_caps_actions(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("RAPHAEL_SANDBOX_HTTP_TIMEOUT", "7")
