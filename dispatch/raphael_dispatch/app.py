@@ -9,6 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from .orchestrator import OrchestrationError, Orchestrator
 from .protocol import ProtocolValidationError, get_schemas
 
 
@@ -39,28 +40,68 @@ async def validate(request: Request) -> JSONResponse:
     try:
         envelope = await _json_body(request)
         get_schemas().validate_envelope(envelope)
-    except (ProtocolValidationError, JSONDecodeError) as exc:
+    except ProtocolValidationError as exc:
         return JSONResponse({"valid": False, "error": str(exc)}, status_code=422)
     return JSONResponse({"valid": True, "kind": envelope["kind"]})
 
 
-async def choose_next_action(request: Request) -> JSONResponse:
+def _error(exc: Exception) -> JSONResponse:
+    return JSONResponse({"valid": False, "error": str(exc)}, status_code=422)
+
+
+async def intake_job(request: Request) -> JSONResponse:
     try:
-        job_envelope = await _json_body(request)
-        action = get_schemas().choose_next_action(job_envelope)
-    except (ProtocolValidationError, JSONDecodeError) as exc:
-        return JSONResponse({"valid": False, "error": str(exc)}, status_code=422)
-    return JSONResponse(action)
+        result = request.app.state.orchestrator.intake(await _json_body(request))
+    except (ProtocolValidationError, OrchestrationError) as exc:
+        return _error(exc)
+    return JSONResponse(result)
 
 
-app = Starlette(
-    debug=False,
-    routes=[
-        Route("/health", health, methods=["GET"]),
-        Route("/v1/validate", validate, methods=["POST"]),
-        Route("/v1/choose-next-action", choose_next_action, methods=["POST"]),
-    ],
-)
+async def receive_result(request: Request) -> JSONResponse:
+    try:
+        result = request.app.state.orchestrator.receive_result(await _json_body(request))
+    except (ProtocolValidationError, OrchestrationError) as exc:
+        return _error(exc)
+    return JSONResponse(result)
+
+
+async def reap_leases(request: Request) -> JSONResponse:
+    try:
+        terminals = request.app.state.orchestrator.reap_expired()
+    except (ProtocolValidationError, OrchestrationError) as exc:
+        return _error(exc)
+    return JSONResponse({"terminals": terminals})
+
+
+async def choose_next_action(request: Request) -> JSONResponse:
+    """Compatibility endpoint backed by the real intake state machine."""
+    try:
+        result = request.app.state.orchestrator.intake(await _json_body(request))
+    except (ProtocolValidationError, OrchestrationError) as exc:
+        return _error(exc)
+    messages = result.get("messages") or []
+    if not messages:
+        return JSONResponse({"valid": True, "messages": [], "idempotent_replay": True})
+    return JSONResponse(messages[0])
+
+
+def create_app(orchestrator: Orchestrator | None = None) -> Starlette:
+    application = Starlette(
+        debug=False,
+        routes=[
+            Route("/health", health, methods=["GET"]),
+            Route("/v1/validate", validate, methods=["POST"]),
+            Route("/v1/jobs", intake_job, methods=["POST"]),
+            Route("/v1/results", receive_result, methods=["POST"]),
+            Route("/v1/leases/reap", reap_leases, methods=["POST"]),
+            Route("/v1/choose-next-action", choose_next_action, methods=["POST"]),
+        ],
+    )
+    application.state.orchestrator = orchestrator or Orchestrator()
+    return application
+
+
+app = create_app()
 
 
 def main() -> None:
