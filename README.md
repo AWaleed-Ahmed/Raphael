@@ -4,7 +4,7 @@ Raphael is a self-healing deployment agent for Kubernetes teams. It detects depl
 
 ## Repository boundary
 
-This repository contains the private-core agent, orchestration contracts, telemetry integration, and the validation-only `dispatch/` service. The sandbox executor is maintained separately in [Ignis](https://github.com/AWaleed-Ahmed/Ignis).
+This repository contains the private-core agent, orchestration contracts, telemetry integration, and the `dispatch/` orchestration service. The sandbox executor is maintained separately in [Ignis](https://github.com/AWaleed-Ahmed/Ignis).
 
 The core repository vendors only the public sandbox contract snapshot under `contracts/sandbox/`. Its exact source is recorded in `CONTRACTS_VERSION` and must be refreshed only with `tools/sync-sandbox-contracts.ps1`. Run the script with `-Check` to fail if the committed snapshot drifts from the pinned Ignis tag.
 
@@ -14,7 +14,7 @@ The agent communicates with a sandbox through the typed HTTP client in `agent/ra
 
 ```text
 agent/       Private Python/LangGraph agent and its tests
-dispatch/    Private Starlette protocol-validation scaffold
+dispatch/    Private Starlette connector orchestration service
 contracts/   Versioned JSON Schema snapshots and agent contracts
 tools/       Contract synchronization and verification tools
 docs/        Private operating, permission, and pilot documentation
@@ -39,7 +39,7 @@ cd agent
 python -m uvicorn raphael_agent.http_api.app:app --host 127.0.0.1 --port 8091
 ```
 
-The dispatch scaffold listens on port `8092` when started through its package entry point. It validates connector-v1 envelopes and exposes a fixed placeholder action only; it is intentionally not a reasoning, retry, budget, or terminal-selection loop.
+The dispatch service listens on port `8092` when started through its package entry point. It validates connector-v1 envelopes, coordinates agent-owned diagnosis and patch nodes, enforces existing budgets and leases, handles idempotent results, and emits typed actions or terminal messages. The connector runtime remains in Ignis.
 
 ## Safety principles
 

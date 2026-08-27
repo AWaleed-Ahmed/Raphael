@@ -156,10 +156,10 @@ On `destroy_sandbox`:
 
 ---
 
-## 9. Dispatch validation standards
+## 9. Dispatch orchestration standards
 
 1. Python 3.12+.
-2. Dispatch is for **protocol validation and contract tests** only; executor scenarios live in Ignis.
+2. Dispatch owns **protocol validation, orchestration state, budgets, leases, and contract tests**; executor scenarios live in Ignis, while diagnosis and patch logic remain in agent/.
 3. Talk to the controller via HTTP (e.g. httpx). Do not import Rust internals.
 4. Do not bypass the five verbs for â€œrealâ€ flows (no direct kubectl in tests that claim to validate the API â€” bootstrap scripts may use kubectl).
 5. Scenarios are deterministic, versioned, and checked into `harness/scenarios/`.

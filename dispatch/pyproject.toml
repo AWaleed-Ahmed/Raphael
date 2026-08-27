@@ -1,7 +1,7 @@
 [project]
 name = "raphael-dispatch"
 version = "0.1.0"
-description = "Validation-only connector protocol dispatch scaffold"
+description = "Connector protocol dispatch orchestration service"
 requires-python = ">=3.12"
 dependencies = [
   "httpx>=0.27",
