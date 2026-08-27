@@ -1,6 +1,6 @@
 # Raphael Agent (Engineer B)
 
-Phase 6 dual-path: **Route A** CI templates → draft PR; **Route B** labeled Issues → optional custom model → fix snippet (developer opens the PR).
+Phase 6 dual-path: **Route A** CI templates â†’ draft PR; **Route B** labeled Issues â†’ optional custom model â†’ fix snippet (developer opens the PR).
 
 **Still non-goals:** auto-merge, production cluster writes. K8s watcher is opt-in (`RAPHAEL_K8S_WATCHER=1`). LLM **off** by default.
 
@@ -9,7 +9,7 @@ Pilot docs:
 - [`docs/pilot-install.md`](../docs/pilot-install.md)
 - [`docs/permission-matrix.md`](../docs/permission-matrix.md)
 - [`docs/pilot-acceptance.md`](../docs/pilot-acceptance.md)
-- [`docs/pilot-week-runbook.md`](../docs/pilot-week-runbook.md) ← **5-day plan**
+- [`docs/pilot-week-runbook.md`](../docs/pilot-week-runbook.md) â† **5-day plan**
 
 ---
 
@@ -17,8 +17,8 @@ Pilot docs:
 
 | Route | Trigger | Patch source | Delivery |
 |-------|---------|--------------|----------|
-| **A — CI** | `workflow_run` / `check_run` / deployment-status | Deterministic templates | Draft PR (partner dry-run / allowlist) |
-| **B — Issues** | `issues` with `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`) | Optional model (`RAPHAEL_LLM_PATCH`) or template if `raphael-failure-class:` set | Issue comment with fix snippet; **human opens PR** |
+| **A â€” CI** | `workflow_run` / `check_run` / deployment-status | Deterministic templates | Draft PR (partner dry-run / allowlist) |
+| **B â€” Issues** | `issues` with `RAPHAEL_ISSUE_TRIGGER_LABEL` (default `raphael:fix`) | Optional model (`RAPHAEL_LLM_PATCH`) or template if `raphael-failure-class:` set | Issue comment with fix snippet; **human opens PR** |
 
 Issue body helpers:
 
@@ -46,7 +46,7 @@ pip install -e .
 |----------|---------|---------|
 | `RAPHAEL_PARTNER_MODE` | `dry_run` | `dry_run` \| `allowlist` \| `diagnosis_only` |
 | `RAPHAEL_PUBLISH_MODE` | `dry_run` | Raw preference; gated by partner mode |
-| `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | _(empty)_ | Empty ⇒ **no** live PRs; e.g. `probe_misconfiguration` |
+| `RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES` | _(empty)_ | Empty â‡’ **no** live PRs; e.g. `probe_misconfiguration` |
 | `RAPHAEL_GITHUB_TOKEN` | unset | Required for live draft / live issue comments |
 | `RAPHAEL_GITHUB_REVIEWERS` | unset | Optional reviewer logins |
 | `RAPHAEL_ISSUE_TRIGGER_LABEL` | `raphael:fix` | Route B label |
@@ -61,8 +61,8 @@ pip install -e .
 | `RAPHAEL_GITHUB_COMMAND_TEAM` | unset | Privileged verb allowlist (slug and/or comma-separated logins) |
 | `RAPHAEL_GITHUB_COMMAND_TEAM_MEMBERS` | unset | Extra privileged logins (tests / no Teams API) |
 | `RAPHAEL_GITHUB_COMMAND_RATE_LIMIT` | `10` | Max commands per hour per repo+actor |
-| `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this account’s comments |
-| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset → same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on. Also gates GH-M3 labels + sticky footer |
+| `RAPHAEL_GITHUB_BOT_LOGIN` | `raphael-agent` | Ignore this accountâ€™s comments |
+| `RAPHAEL_GITHUB_AUTO_COMMENTS` | inherit commands | Unset â†’ same as `RAPHAEL_GITHUB_COMMANDS`; `0` off; `1` on. Also gates GH-M3 labels + sticky footer |
 | `RAPHAEL_GITHUB_CHECK_RUNS` | `0` | `1` enables advisory Check Runs (`Raphael (advisory)`). Does **not** inherit commands/auto-comments |
 | `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS` | `0` | `1` may use Check conclusion `success` on draft-ready / snippet terminals only; default remains `neutral` |
 
@@ -126,7 +126,7 @@ Live draft PR only when: `PARTNER_MODE=allowlist` **and** `PUBLISH_MODE=live` **
 
 ---
 
-## Partner dry-run demo (≤15 min)
+## Partner dry-run demo (â‰¤15 min)
 
 ```bash
 cd agent
@@ -146,7 +146,7 @@ Expect `status=success_draft_pr_ready`, `result_id`, `pull_request_url` with `ra
 python -m raphael_agent.scripts.record_feedback --outcome accepted --run-id ... --notes "lgtm"
 python -m raphael_agent.scripts.record_feedback --outcome merged --pr-number 12 --owner raphael --repo demo
 # HTTP: POST /v1/feedback
-# Webhook: X-GitHub-Event: pull_request (closed/merged/edited) → feedback.jsonl
+# Webhook: X-GitHub-Event: pull_request (closed/merged/edited) â†’ feedback.jsonl
 ```
 
 ---
@@ -172,18 +172,18 @@ python -m raphael_agent.scripts.pilot_go_nogo
 
 ---
 
-## GitHub-native commands (GH-M1–M5, default off)
+## GitHub-native commands (GH-M1â€“M5, default off)
 
 Hosted in this agent (`POST /v1/webhooks/github`, `X-GitHub-Event: issue_comment`). Parsing **does not run** unless `RAPHAEL_GITHUB_COMMANDS=1`. The command path never calls the sandbox HTTP API and never widens partner/publish gates.
 
-Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`, **`retry`**, **`escalate`**.  
+Implemented: `status` `[run_id]`, `help`, `feedback accepted|rejected|edited`, **`retry`**, **`escalate`**.
 **Not implemented:** `cancel`, `diagnose`, `fix` (deferred; GH-M5 was docs only).
 
 ACL: GitHub `author_association` OWNER/MEMBER/COLLABORATOR may run `status`/`help`/`feedback`. `retry` / `escalate` require OWNER/admin or membership in `RAPHAEL_GITHUB_COMMAND_TEAM`.
 
 `retry` copies fingerprint/seed, sets `parent_run_id`, and refuses if the source run is still `pending`/`running`. `escalate` marks in-flight runs `escalated`/`human_requested`; terminal runs get an audit/feedback note only.
 
-Terminal auto-comments (draft-ready / snippet / escalated / failed) plus GH-M3 labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`) and a sticky “Raphael actions” footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`). The footer lists write-collaborator verbs only (no Merge, no retry/escalate). Labels are additive and never strip `raphael:fix`.
+Terminal auto-comments (draft-ready / snippet / escalated / failed) plus GH-M3 labels (`raphael:draft` / `raphael:needs-human` / `raphael:escalated`) and a sticky â€œRaphael actionsâ€ footer follow `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits `RAPHAEL_GITHUB_COMMANDS`). The footer lists write-collaborator verbs only (no Merge, no retry/escalate). Labels are additive and never strip `raphael:fix`.
 
 **Check Runs (GH-M4):** `RAPHAEL_GITHUB_CHECK_RUNS=1` (default `0`, does not inherit commands) creates/updates a Check named `Raphael (advisory)` on `commit_sha`. Conclusion defaults to `neutral`. Optional `RAPHAEL_GITHUB_CHECK_ADVISORY_SUCCESS=1` may use `success` on draft-ready / snippet only. Never `failure`, never a required merge check, never a Merge action. `check_run_id` is stored in `github_check_runs.json`, not on `run_record.json`. Annotations are notice-level on allowlisted patch paths only.
 
@@ -194,12 +194,12 @@ cd agent
 pytest -q tests/test_github_commands.py tests/test_github_check_runs.py tests/test_i0_runs.py
 ```
 
-`status` / `retry` / `escalate` resolve `run_id` as: explicit arg → `<!-- raphael:run_id=… -->` / `raphael:run_id=…` on the Issue/PR body → latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).
+`status` / `retry` / `escalate` resolve `run_id` as: explicit arg â†’ `<!-- raphael:run_id=â€¦ -->` / `raphael:run_id=â€¦` on the Issue/PR body â†’ latest store run for that Issue/PR number. Webhook JSON includes the markdown `reply`; posting that comment to GitHub needs `RAPHAEL_GITHUB_TOKEN` (or App installation token).
 
 ## Interface / I0
 
-Human UIs: GitHub slash commands (GH-M1 above) and Cursor/VS Code under [`../interface/`](../interface/README.md). CLI remains fully supported — [`../interface/Usage.md`](../interface/Usage.md).
+Human UIs: GitHub slash commands (GH-M1 above) and Cursor/VS Code under [`../interface/`](../interface/README.md). CLI remains fully supported â€” [`../interface/Usage.md`](../interface/Usage.md).
 
 - Agent HTTP default listen: **`127.0.0.1:8091`** (`RAPHAEL_AGENT_LISTEN`). Sandbox controller stays on **`:8090`**.
-- I0 APIs **served**: `GET/POST /v1/runs`, `POST /v1/runs/{id}/actions` — see [`../interface/prd-i0-api.md`](../interface/prd-i0-api.md).
+- I0 APIs **served**: `GET/POST /v1/runs`, `POST /v1/runs/{id}/actions` â€” see [`../interface/prd-i0-api.md`](../interface/prd-i0-api.md).
 - Decisions: `D-20260811-01` (locks), `D-20260811-02` (I0 HTTP), `D-20260814-02` (GH-M1), `D-20260814-03` (GH-M2).

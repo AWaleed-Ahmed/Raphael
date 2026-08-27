@@ -1,4 +1,4 @@
-"""Detection → sandbox wiring tests.
+"""Detection â†’ sandbox wiring tests.
 
 Answers: is the agent connected to the sandbox, and does a deployment failure
 auto-start a run?
@@ -25,7 +25,7 @@ from raphael_agent.store import RunStore
 
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = AGENT_ROOT.parent
-WORKSPACE = REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+WORKSPACE = REPO_ROOT / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 GH_WORKFLOW = AGENT_ROOT / "fixtures" / "github_workflow_run_failure.json"
 
 
@@ -56,7 +56,7 @@ def test_webhook_does_not_auto_run_graph_by_default(monkeypatch, tmp_path):
     payload = response.json()
     assert payload["ingest"]["decision"] == "accepted"
     assert payload["status"] == "pending"
-    # Graph never ran — no terminal success/escalate from this request alone.
+    # Graph never ran â€” no terminal success/escalate from this request alone.
     assert payload["status"] not in {
         "success_draft_pr_ready",
         "escalated",
@@ -89,7 +89,7 @@ def test_webhook_autorun_sets_terminal_status(monkeypatch, tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["ingest"]["decision"] == "accepted"
-    # Without workspace/manifests the graph typically escalates or fails closed —
+    # Without workspace/manifests the graph typically escalates or fails closed â€”
     # the important FR property is that detection triggered a graph run.
     assert payload["status"] in {
         "success_draft_pr_ready",
@@ -101,7 +101,7 @@ def test_webhook_autorun_sets_terminal_status(monkeypatch, tmp_path):
 
 
 def test_ci_failure_event_through_graph_to_sandbox_stub(monkeypatch, tmp_path):
-    """End-to-end: failed-run event → graph → sandbox recorded_stub → dry-run PR."""
+    """End-to-end: failed-run event â†’ graph â†’ sandbox recorded_stub â†’ dry-run PR."""
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("RAPHAEL_PARTNER_MODE", "dry_run")
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "dry_run")
@@ -142,7 +142,7 @@ def test_ci_failure_through_live_sandbox_kind(monkeypatch, tmp_path):
     client = SandboxClient(validate=False)
     if not client.is_reachable():
         pytest.skip(
-            "sandbox controller not reachable — start kind + controller on :8090"
+            "sandbox controller not reachable â€” start kind + controller on :8090"
         )
 
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))

@@ -15,7 +15,7 @@ from raphael_agent.schema_util import for_run_record_validation, validate_agent
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = AGENT_ROOT.parent
 FIXTURE = AGENT_ROOT / "fixtures" / "failed_run_event.json"
-WORKSPACE = REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+WORKSPACE = REPO_ROOT / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 
 def _seed(**overrides: Any) -> dict:

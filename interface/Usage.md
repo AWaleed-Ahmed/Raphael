@@ -1,8 +1,8 @@
 # Raphael Interface — Usage (CLI)
 
-**Audience:** operators, FDEs, and engineers using Raphael **today**  
-**Status:** CLI is the full operator path. GitHub-native **GH-M1–M5** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs; GH-M5 = pilot docs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).  
-**Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode  
+**Audience:** operators, FDEs, and engineers using Raphael **today**
+**Status:** CLI is the full operator path. GitHub-native **GH-M1–M5** (`status` / `help` / `feedback` / `retry` / `escalate` + labels/sticky footer + opt-in Check Runs; GH-M5 = pilot docs) is in the agent behind default-off knobs. IDE P0 is a VSIX — [`IDE/README.md`](IDE/README.md).
+**Requires:** Python 3.12+, repo checkout, optional kind + sandbox controller for live mode
 
 GitHub `cancel` / `diagnose` / `fix` are **not implemented**. Everything below uses the **agent CLI** and **agent HTTP API** — the same backends GitHub commands and the IDE call.
 
@@ -12,20 +12,20 @@ For product intent, see [`README.md`](README.md) and the PRDs. For agent env ref
 
 ## Table of contents
 
-1. [Mental model](#1-mental-model)  
-2. [One-time setup](#2-one-time-setup)  
-3. [Command map](#3-command-map)  
-4. [Safe pilot loop (recommended)](#4-safe-pilot-loop-recommended)  
-5. [Smoke & partner demo](#5-smoke--partner-demo)  
-6. [Live sandbox (kind)](#6-live-sandbox-kind)  
-7. [Serve the agent HTTP API](#7-serve-the-agent-http-api) (includes [I0 action API](#i0-action-api-served))  
-8. [Feedback (accept / reject / merge)](#8-feedback-accept--reject--merge)  
-9. [Learning loop](#9-learning-loop)  
-10. [Metrics & go/no-go](#10-metrics--gono-go)  
-11. [Dual-path reminders (CI vs Issues)](#11-dual-path-reminders-ci-vs-issues)  
-12. [Environment cheat sheet](#12-environment-cheat-sheet)  
-13. [Mapping CLI → future GitHub / IDE](#13-mapping-cli--future-github--ide)  
-14. [Troubleshooting](#14-troubleshooting)  
+1. [Mental model](#1-mental-model)
+2. [One-time setup](#2-one-time-setup)
+3. [Command map](#3-command-map)
+4. [Safe pilot loop (recommended)](#4-safe-pilot-loop-recommended)
+5. [Smoke & partner demo](#5-smoke--partner-demo)
+6. [Live sandbox (kind)](#6-live-sandbox-kind)
+7. [Serve the agent HTTP API](#7-serve-the-agent-http-api) (includes [I0 action API](#i0-action-api-served))
+8. [Feedback (accept / reject / merge)](#8-feedback-accept--reject--merge)
+9. [Learning loop](#9-learning-loop)
+10. [Metrics & go/no-go](#10-metrics--gono-go)
+11. [Dual-path reminders (CI vs Issues)](#11-dual-path-reminders-ci-vs-issues)
+12. [Environment cheat sheet](#12-environment-cheat-sheet)
+13. [Mapping CLI → future GitHub / IDE](#13-mapping-cli--future-github--ide)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -204,11 +204,11 @@ Only needed when you want real reproduce/validate against a cluster.
 
 ```bash
 # kind cluster should already exist (name raphael-sandbox)
-export RAPHAEL_CLUSTER_BACKEND=kind
-export RAPHAEL_KUBE_CONTEXT=kind-raphael-sandbox
-export RAPHAEL_LISTEN=127.0.0.1:8090
+export RAPHAEL_SANDBOX_URL=https://<authorized-ignis-endpoint>
+export # Kubernetes context is owned by the external Ignis deployment
+export # Ignis endpoint is configured through RAPHAEL_SANDBOX_URL
 
-cargo run --manifest-path sandbox/controller/Cargo.toml
+cargo run --manifest-path the separately deployed Ignis executor (https://github.com/AWaleed-Ahmed/Ignis)
 # wait for: sandbox controller listening … backend=kind
 ```
 
@@ -289,7 +289,7 @@ curl -sS -X POST "http://127.0.0.1:8091/v1/runs" \
     "action_id": "demo-create-1",
     "repository": {"owner": "raphael", "name": "demo"},
     "commit_sha": "abcdef1234567",
-    "workspace_path": "'"$PWD"'/../sandbox/harness/scenarios/probe_port_mismatch",
+    "workspace_path": "'"$PWD"'/../agent/fixtures/scenarios/probe_port_mismatch",
     "manifests": {"type": "yaml", "path": "deploy/manifests", "fixed_path": "deploy/manifests_fixed"},
     "sandbox_mode": "recorded_stub"
   }'
@@ -317,15 +317,15 @@ curl -sS -X POST "http://127.0.0.1:8091/v1/webhooks/github" \
   --data-binary @fixtures/github_workflow_run_failure.json
 ```
 
-Without `RAPHAEL_INGEST_RUN_GRAPH=1`, expect `status=pending` (ingest only).  
+Without `RAPHAEL_INGEST_RUN_GRAPH=1`, expect `status=pending` (ingest only).
 With it set, expect a terminal status from the graph (`success_*` / `escalated` / `failed_closed`).
 
 ### Auto-detect reality check
 
 A deployment failure is **not** detected by magic:
 
-1. Something must **POST** a webhook (or you run CLI fixtures), **and**  
-2. Optional: `RAPHAEL_INGEST_RUN_GRAPH=1` to run the graph immediately, **and**  
+1. Something must **POST** a webhook (or you run CLI fixtures), **and**
+2. Optional: `RAPHAEL_INGEST_RUN_GRAPH=1` to run the graph immediately, **and**
 3. For live sandbox: `RAPHAEL_AGENT_SANDBOX_MODE=live` + controller up.
 
 ---

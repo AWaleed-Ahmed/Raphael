@@ -1,6 +1,6 @@
 # Pilot install guide (Phase 5)
 
-**Audience:** design-partner platform/SRE engineer installing Raphael for a dry-run pilot.  
+**Audience:** design-partner platform/SRE engineer installing Raphael for a dry-run pilot.
 **Invariant:** production Kubernetes stays **read-only**; durable fixes are **draft GitHub PRs only** (no auto-merge).
 
 Canonical demo target: ≤15 minutes to `success_draft_pr_ready` with dry-run publish.
@@ -95,16 +95,16 @@ pip install -e .
 
 ```bash
 # from repo root
-RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
-  cargo run --manifest-path sandbox/controller/Cargo.toml
+RAPHAEL_CLUSTER_BACKEND=mock # Ignis endpoint is configured through RAPHAEL_SANDBOX_URL \
+  cargo run --manifest-path the separately deployed Ignis executor (https://github.com/AWaleed-Ahmed/Ignis)
 ```
 
 ### Kind (optional fidelity)
 
 ```bash
-./sandbox/kind/bootstrap.sh
-RAPHAEL_CLUSTER_BACKEND=kind RAPHAEL_LISTEN=127.0.0.1:8090 \
-  cargo run --manifest-path sandbox/controller/Cargo.toml
+the authorized Ignis deployment procedure
+RAPHAEL_SANDBOX_URL=https://<authorized-ignis-endpoint> # Ignis endpoint is configured through RAPHAEL_SANDBOX_URL \
+  cargo run --manifest-path the separately deployed Ignis executor (https://github.com/AWaleed-Ahmed/Ignis)
 ```
 
 Force-cleanup of sandboxes is **controller-side**: `POST /v1/admin/force-cleanup` (agent does not mutate clusters).

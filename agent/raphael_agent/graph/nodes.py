@@ -1,4 +1,4 @@
-"""LangGraph nodes: ingest → evidence → diagnose → reproduce → patch → validate → publish."""
+"""LangGraph nodes: ingest â†’ evidence â†’ diagnose â†’ reproduce â†’ patch â†’ validate â†’ publish."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from raphael_agent.validation import evaluate_validation_signals
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_SCENARIO = REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+DEFAULT_SCENARIO = REPO_ROOT / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 RouteAfterValidate = Literal["publish_or_escalate", "patch", "end_escalated"]
 
@@ -111,7 +111,7 @@ def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
             reason_code=reason,
             summary=f"Budget exhausted ({halt['kind']})",
             what_happened=halt["message"],
-            why_no_fix="Attempt/time/cost budget exhausted — refuse speculative publish",
+            why_no_fix="Attempt/time/cost budget exhausted â€” refuse speculative publish",
             attempts=[{"kind": "other", "status": "failed", "detail": halt["kind"]}],
             next_checks=[
                 "Raise RAPHAEL_MAX_WALL_SECONDS / patch / diagnosis caps only if safe",
@@ -217,7 +217,7 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
             reason_code=post["reason_code"],
             summary=f"Budget exhausted ({post['kind']})",
             what_happened=post["message"],
-            why_no_fix="Diagnosis attempt budget exhausted — refuse speculative publish",
+            why_no_fix="Diagnosis attempt budget exhausted â€” refuse speculative publish",
             attempts=[{"kind": "other", "status": "failed", "detail": post["kind"]}],
         )
         updates["audit_events"] = append_audit(
@@ -357,7 +357,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         return updates
 
     if mode == "skipped" and _is_issue_route(state):
-        # Issue path without live sandbox: still allow rules+model patch → snippet.
+        # Issue path without live sandbox: still allow rules+model patch â†’ snippet.
         updates["reproduction_result"] = {
             "reproduced": True,
             "matched_expected": None,
@@ -432,7 +432,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
             "observed",
             observed["signature"].get("key"),
         )
-    except (SandboxApiError, OSError, Exception) as exc:  # noqa: BLE001 — fail closed
+    except (SandboxApiError, OSError, Exception) as exc:  # noqa: BLE001 â€” fail closed
         updates["status"] = "failed_closed"
         updates["terminal_reason"] = "sandbox_reproduce_failed"
         updates["errors"] = list(state.get("errors") or []) + [
@@ -699,7 +699,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
             "completed",
             f"baselines={len(baselines)} comparisons={len(comparisons)} candidates={len(candidates)}",
         )
-    except Exception as exc:  # noqa: BLE001 — localization must not bypass existing safety gates
+    except Exception as exc:  # noqa: BLE001 â€” localization must not bypass existing safety gates
         updates["localization_result"] = {
             "status": "error",
             "reason": "localization_failed",
@@ -1165,7 +1165,7 @@ def route_after_validate(state: RunState) -> RouteAfterValidate:
 
 
 def _maybe_terminal_comment(state: RunState, updates: dict[str, Any]) -> None:
-    """GH-M2–M4 terminal GitHub surfaces; never fail the graph or call sandbox HTTP."""
+    """GH-M2â€“M4 terminal GitHub surfaces; never fail the graph or call sandbox HTTP."""
     merged = {**state, **updates}
     try:
         from raphael_agent.github_commands.auto_comments import maybe_on_terminal
@@ -1254,7 +1254,7 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     try:
         merged = {**state, **updates}
         RunStore().save_run(for_run_record_validation(merged))
-    except Exception:  # noqa: BLE001 — persistence must not crash the graph
+    except Exception:  # noqa: BLE001 â€” persistence must not crash the graph
         pass
     record_run_outcome(merged)
     _maybe_terminal_comment(state, updates)
