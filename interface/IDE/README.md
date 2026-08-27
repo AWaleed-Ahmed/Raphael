@@ -1,8 +1,8 @@
 # Raphael IDE (Cursor / VS Code)
 
-**Status:** P0 extension — install via VSIX  
-**Package:** `raphael.raphael-ide`  
-**Talks to:** local agent at `http://127.0.0.1:8091` (I0 APIs)  
+**Status:** P0 extension — install via VSIX
+**Package:** `raphael.raphael-ide`
+**Talks to:** local agent at `http://127.0.0.1:8091` (I0 APIs)
 **Never calls:** sandbox controller (`:8090`)
 
 Inspect Raphael runs, apply proposed manifest fixes into your workspace, open the dry-run draft PR URL, and record accept/reject feedback — without leaving Cursor or VS Code.
@@ -40,9 +40,9 @@ npm run test:unit   # path-guard / delivery_plan unit tests
 
 ## Prerequisites
 
-1. **Open the app workspace** in Cursor (the repo that contains manifests you will patch — e.g. a checkout that includes `deploy/`).  
-   For the demo scenario, open  
-   `Raphael/sandbox/harness/scenarios/probe_port_mismatch`  
+1. **Open the app workspace** in Cursor (the repo that contains manifests you will patch — e.g. a checkout that includes `deploy/`).
+   For the demo scenario, open
+   `Raphael/agent/fixtures/scenarios/probe_port_mismatch`
    (or the monorepo root if that folder is reachable as a relative path from the agent run).
 
 2. **Start the Raphael agent** (from a Raphael clone):
@@ -86,7 +86,7 @@ Status at the top shows Connected / Offline. Use **↻** or **Refresh runs** to 
 ### 2. Create a demo run (agent must be up)
 
 ```bash
-export WS="/path/to/Raphael/sandbox/harness/scenarios/probe_port_mismatch"
+export WS="/path/to/Raphael/agent/fixtures/scenarios/probe_port_mismatch"
 curl -sS -X POST "http://127.0.0.1:8091/v1/runs" \
   -H "Content-Type: application/json" \
   -d "{
@@ -108,10 +108,10 @@ Expect `status=success_draft_pr_ready` and a `run_id`.
 
 ### 3. Click through the UI
 
-1. **How to use** → **Test connection** (status bar / panel should show Connected).  
-2. **Runs** → **Refresh runs** → click your run (opens **Actions**).  
-3. **Actions** → **Apply fix to workspace** → confirm → check allowlisted files (e.g. `deploy/…`).  
-4. **Open draft PR** → browser opens the dry-run compare URL.  
+1. **How to use** → **Test connection** (status bar / panel should show Connected).
+2. **Runs** → **Refresh runs** → click your run (opens **Actions**).
+3. **Actions** → **Apply fix to workspace** → confirm → check allowlisted files (e.g. `deploy/…`).
+4. **Open draft PR** → browser opens the dry-run compare URL.
 5. **Feedback: accepted** or **rejected**.
 
 ---
@@ -126,9 +126,9 @@ There is **no** Merge command.
 
 ## Safety
 
-- Paths must stay inside the workspace and under `fix_rules.writable_path_prefixes` (fallback: `deploy/`, `k8s/`, `manifests/`, …).  
-- `..` and absolute escapes are rejected.  
-- Extension never calls `RAPHAEL_SANDBOX_URL`.  
+- Paths must stay inside the workspace and under `fix_rules.writable_path_prefixes` (fallback: `deploy/`, `k8s/`, `manifests/`, …).
+- `..` and absolute escapes are rejected.
+- Extension never calls `RAPHAEL_SANDBOX_URL`.
 - Dry-run publish remains the agent’s responsibility (`RAPHAEL_PARTNER_MODE`).
 
 ---

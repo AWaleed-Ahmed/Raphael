@@ -24,5 +24,5 @@
     "path": "deploy/manifests",
     "fixed_path": "deploy/manifests_fixed"
   },
-  "notes": "Phase 0 fake failed-run event; workspace_path is filled by smoke runner to sandbox/harness/scenarios/probe_port_mismatch"
+  "notes": "Phase 0 fake failed-run event; workspace_path is supplied by the runner and is not a local sandbox path"
 }

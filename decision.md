@@ -1,7 +1,7 @@
 # Raphael Decision Log
 
-**Purpose:** Track product/architecture decisions for Raphael so future work stays consistent.  
-**Format:** Each entry records the decision, why, alternatives considered, and status.  
+**Purpose:** Track product/architecture decisions for Raphael so future work stays consistent.
+**Format:** Each entry records the decision, why, alternatives considered, and status.
 **Rule:** When we make a new meaningful choice, append a new dated entry here. Do not rewrite history — supersede with a new entry that references the old ID.
 
 ---
@@ -259,14 +259,14 @@
 - **Alternatives:**
   - `raphael_agent/` at repo root — clearer package name, noisier tree next to `sandbox/`.
   - Sqlite/Postgres LangGraph checkpointer in Phase 0 — premature before real ingest.
-  - Put orchestration under `sandbox/harness` — rejected; harness is not the agent.
+  - Put orchestration under the core dispatch service — rejected; harness is not the agent.
 - **Consequences:** Engineer B extends `agent/raphael_agent/{ingest,evidence,...}`; publish remains a no-op until a sandbox `result_id` exists. Supersedes the “do not start agent” portion of D-20260809-02 for this explicit Phase 0 request.
 
 ### D-20260810-01 — P0: clone-at-SHA, secret fixtures, observe artifacts; Docker blocked without sudo
 - **Status:** accepted
 - **Date:** 2026-08-10
 - **Owners:** Engineer A + coding agent
-- **Decision:** Implement FR-030 clone-at-SHA via `repository.clone_url`, apply synthetic secret fixtures on create, capture bounded event/log artifacts on observe. Install kubectl/kind/helm to `~/.local/bin`. Docker install left to the user (`sandbox/kind/install-docker.sh`) because sudo password is required.
+- **Decision:** Implement FR-030 clone-at-SHA via `repository.clone_url`, apply synthetic secret fixtures on create, capture bounded event/log artifacts on observe. Install kubectl/kind/helm to `~/.local/bin`. Docker install left to the user (`the customer-approved Ignis deployment procedure`) because sudo password is required.
 - **Why:** Unblocks P0 code paths without waiting on Docker; kind bake-off remains the remaining P0 gate.
 - **Alternatives:** Block all P0 until Docker works — slower. Embed a rootless container runtime — out of MVP scope.
 - **Consequences:** Mock tests cover new P0 features; kind verification still required before demo claims.
@@ -353,7 +353,7 @@
 - **Status:** accepted
 - **Date:** 2026-08-09
 - **Owners:** Engineer A + coding agent
-- **Decision:** Use **kind** for the local/demo Kubernetes backend. Create **one shared cluster**, and **one namespace per run** (`raphael-run-<run_id>`). Bootstrap lives under `sandbox/kind/`.
+- **Decision:** Use **kind** for the local/demo Kubernetes backend. Create **one shared cluster**, and **one namespace per run** (`raphael-run-<run_id>`). Bootstrap is owned by the external Ignis executor; core has no local bootstrap.
 - **Why:** Closer to standard customer Kubernetes; better long-term fidelity; cheaper than cluster-per-run; API can later point at a remote sandbox cluster without caller changes.
 - **Alternatives:**
   - **k3d** — faster/lighter, but k3s can differ from full upstream K8s.

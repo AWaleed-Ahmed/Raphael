@@ -1,4 +1,4 @@
-"""GH-M4 advisory Check Runs (GH-030–034)."""
+"""GH-M4 advisory Check Runs (GH-030â€“034)."""
 
 from __future__ import annotations
 

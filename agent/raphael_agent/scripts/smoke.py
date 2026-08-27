@@ -18,7 +18,7 @@ AGENT_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = AGENT_ROOT.parent
 FIXTURE = AGENT_ROOT / "fixtures" / "failed_run_event.json"
 DEFAULT_WORKSPACE = (
-    REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+    REPO_ROOT / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 )
 
 

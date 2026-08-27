@@ -20,7 +20,7 @@ from raphael_agent.schema_util import validate_agent
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = AGENT_ROOT / "fixtures" / "github_issue_labeled.json"
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PROBE = REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+PROBE = REPO_ROOT / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 
 def test_normalize_labeled_issue():

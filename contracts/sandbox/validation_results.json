@@ -57,15 +57,6 @@
     "before_signature_key": { "type": ["string", "null"] },
     "after_signature_key": { "type": ["string", "null"] },
     "signature_cleared": { "type": ["boolean", "null"] },
-    "repeat_index": {
-      "type": "integer",
-      "minimum": 2,
-      "description": "One-based repeat attempt number for a repeated sandbox validation"
-    },
-    "observed_signature_key": {
-      "type": ["string", "null"],
-      "description": "Failure signature observed during this repeat attempt"
-    },
     "tool_versions": {
       "type": "object",
       "additionalProperties": { "type": "string" }

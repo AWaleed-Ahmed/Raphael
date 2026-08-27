@@ -1,99 +1,51 @@
 # Raphael
 
-**Raphael** is a self-healing deployment agent for Kubernetes teams.
+Raphael is a self-healing deployment agent for Kubernetes teams. It detects deployment failures, investigates evidence, proposes a narrow change, validates that change through an isolated sandbox, and opens a reviewable pull request. Production remains read-only by default.
 
-When a deploy fails in CI or a workload goes unhealthy, Raphael’s job is to:
+## Repository boundary
 
-1. **Detect** the failure from CI / Kubernetes signals  
-2. **Investigate** with logs, events, manifests, and commit context  
-3. **Reproduce** the failure in an isolated sandbox (not production)  
-4. **Propose** a minimal, reviewable fix  
-5. **Validate** that fix in the same sandbox  
-6. **Open a pull request** with evidence, risk notes, and rollback guidance  
+This repository contains the private-core agent, orchestration contracts, telemetry integration, and the validation-only `dispatch/` service. The sandbox executor is maintained separately in [Ignis](https://github.com/AWaleed-Ahmed/Ignis).
 
-Production stays **read-only** in the MVP. Durable changes only enter through your normal Git review and CI path.
+The core repository vendors only the public sandbox contract snapshot under `contracts/sandbox/`. Its exact source is recorded in `CONTRACTS_VERSION` and must be refreshed only with `tools/sync-sandbox-contracts.ps1`. Run the script with `-Check` to fail if the committed snapshot drifts from the pinned Ignis tag.
 
-Full product intent: [`prd.md`](prd.md).  
-**Teammate handoff (phases, how to run, what’s next):** [`handoff.md`](handoff.md).  
-**Git branches (`feature` / `main` / `prod` / `stash`):** [`docs/BRANCHING.md`](docs/BRANCHING.md).
+The agent communicates with a sandbox through the typed HTTP client in `agent/raphael_agent/sandbox_client/` and a configured `RAPHAEL_SANDBOX_URL`. It must not import or execute a local sandbox controller, harness, kind bootstrap, shell command, or arbitrary kubectl action.
 
----
-
-## What exists today
-
-| Area | Status |
-|------|--------|
-| **Sandbox controller** (Rust / Axum) | Done — create → deploy → observe → validate → finalize → destroy |
-| **Contracts** (JSON Schema) | Frozen under [`contracts/sandbox/`](contracts/sandbox/) + [`contracts/agent/`](contracts/agent/) (skeleton) |
-| **Local kind cluster + tests** | P0–P2 complete (58 manual feature tests green on kind) |
-| **LangGraph agent / GitHub PRs** | **Phase 6** — dual-path: CI templates → draft PR **and** labeled Issues → optional model → fix snippet (human opens PR). See [`agent/`](agent/) |
-| **GitHub-native commands** | **GH-M1–M5** — `/raphael status\|help\|feedback\|retry\|escalate` in the agent (default off), plus labels/sticky footer and opt-in advisory Checks. See [`interface/github-native/prd.md`](interface/github-native/prd.md) |
-| **IDE (VS Code / Cursor)** | **P0 shipped** — [`interface/IDE/README.md`](interface/IDE/README.md) |
-
-The sandbox is the safe “reproduce + prove the fix” engine. The agent track calls it with typed HTTP verbs instead of free-form `kubectl`.
-
----
-
-## Repo map
+## Layout
 
 ```text
-Raphael/
-├── README.md                 ← you are here (what & why)
-├── prd.md                    ← product requirements
-├── CODING_RULE.md            ← engineering rules for this codebase
-├── decision.md               ← architecture decision log
-├── contracts/
-│   ├── sandbox/              ← frozen sandbox API schemas
-│   └── agent/                ← frozen agent run/evidence/diagnosis schemas
-├── docs/                     ← branching, pilot install / permissions / week runbook
-├── interface/                ← CLI usage, I0 API, GitHub-native PRD/templates, IDE
-├── agent/                    ← Engineer B (Phase 0–6 dual-path + GitHub-native commands)
-│   └── README.md             ← partner dry-run + allowlist
-└── sandbox/                  ← Engineer A implementation
-    ├── README.md             ← detailed how-to / all commands
-    ├── controller/           ← Rust HTTP service
-    ├── tests/                ← manual feature / stress suite
-    ├── harness/              ← scenarios + contract tests
-    ├── kind/                 ← local kind bootstrap
-    └── fixtures/             ← synthetic secrets, expected signatures
+agent/       Private Python/LangGraph agent and its tests
+dispatch/    Private Starlette protocol-validation scaffold
+contracts/   Versioned JSON Schema snapshots and agent contracts
+tools/       Contract synchronization and verification tools
+docs/        Private operating, permission, and pilot documentation
+frontend/    Operator-facing frontend
+supabase/    Telemetry migrations and integration documentation
 ```
 
----
+## Quick start
 
-## Quick start (mock — no Docker)
+Install the agent and dispatch dependencies in their respective package directories, then configure the agent to use an authorized sandbox URL. The existing test suites can be run independently with `pytest -q` from `agent/` and `dispatch/`.
 
-```bash
-cd ~/Documents/work/Projects/Raphael
+To verify the contract snapshot:
 
-# Terminal 1 — controller
-RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090 \
-  cargo run --manifest-path sandbox/controller/Cargo.toml
-
-# Terminal 2 — tests
-python3 -m venv sandbox/tests/.venv
-sandbox/tests/.venv/bin/pip install httpx
-sandbox/tests/.venv/bin/python sandbox/tests/test.py
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/sync-sandbox-contracts.ps1 -Check
 ```
 
-For kind (real local Kubernetes), env vars, APIs, and troubleshooting, see the detailed guide:
+To run the agent HTTP service locally:
 
-**→ [`sandbox/README.md`](sandbox/README.md)**
+```powershell
+cd agent
+python -m uvicorn raphael_agent.http_api.app:app --host 127.0.0.1 --port 8091
+```
 
----
+The dispatch scaffold listens on port `8092` when started through its package entry point. It validates connector-v1 envelopes and exposes a fixed placeholder action only; it is intentionally not a reasoning, retry, budget, or terminal-selection loop.
 
-## Design principles (short)
+## Safety principles
 
-- **Evidence before action** — diagnosis cites signals  
-- **Reproduce before repair** — fix is validated in a sandbox  
-- **Smallest safe change** — prefer narrow config/code patches  
-- **Human-controlled delivery** — PRs, not silent production edits  
-- **Uncertainty is visible** — escalate instead of guessing  
+- Evidence precedes action, and uncertainty is visible.
+- The sandbox boundary is typed, outbound-only, and limited to the six approved verbs: `create_sandbox`, `deploy_revision`, `observe_failure`, `run_validation`, `finalize_result`, and `destroy_sandbox`.
+- Credentials, model keys, prompts, ranking, patch generation, GitHub integrations, and Supabase integrations remain in the core deployment and are never part of Ignis or the public contract schemas.
+- Delivery is human-controlled through pull requests; automatic merge, production mutation, secret reads, and arbitrary shell or kubectl actions are prohibited.
 
-Rules that implementers must follow: [`CODING_RULE.md`](CODING_RULE.md).  
-Why we chose things: [`decision.md`](decision.md).
-
----
-
-## Status
-
-Sandbox P0–P2 complete. Agent Phase 0–6 (dual-path CI + labeled Issues) under [`agent/`](agent/) + [`docs/`](docs/). GitHub-native GH-M1–M5 (commands + pilot docs, default off) in [`interface/github-native/prd.md`](interface/github-native/prd.md). Partner week ops checklist: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md). Branching: [`docs/BRANCHING.md`](docs/BRANCHING.md).
+Rules for contributors are in [`CODING_RULE.md`](CODING_RULE.md). Project decisions are recorded in [`decision.md`](decision.md).

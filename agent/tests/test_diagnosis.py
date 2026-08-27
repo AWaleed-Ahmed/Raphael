@@ -9,9 +9,9 @@ from raphael_agent.diagnosis.analyzers import analyze_run
 from raphael_agent.schema_util import validate_agent
 
 REPO = Path(__file__).resolve().parents[2]
-PROBE_WS = REPO / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
-BAD_IMAGE_WS = REPO / "sandbox" / "harness" / "scenarios" / "bad_image"
-MISSING_CM_WS = REPO / "sandbox" / "harness" / "scenarios" / "missing_configmap_key"
+PROBE_WS = REPO / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
+BAD_IMAGE_WS = REPO / "agent" / "fixtures" / "scenarios" / "bad_image"
+MISSING_CM_WS = REPO / "agent" / "fixtures" / "scenarios" / "missing_configmap_key"
 
 
 def _run(workspace: Path, evidence_excerpt: str, manifests_path: str = "deploy/manifests") -> dict:

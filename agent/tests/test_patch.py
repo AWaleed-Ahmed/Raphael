@@ -9,7 +9,7 @@ from raphael_agent.patch.policy import apply_policy, check_patch_policy, path_al
 from raphael_agent.schema_util import validate_agent
 
 REPO = Path(__file__).resolve().parents[2]
-PROBE_WS = REPO / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+PROBE_WS = REPO / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 
 def test_path_allowlist():
