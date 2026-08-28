@@ -32,6 +32,8 @@ dist/
 **/.vite/
 coverage/
 *.log
+*.egg-info/
+dispatch/.pytest-scratch/
 
 # Local generated agent data
 agent/.raphael-agent-data-*/

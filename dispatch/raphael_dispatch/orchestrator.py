@@ -120,7 +120,7 @@ class Orchestrator:
         }
         return state
 
-    def intake(self, job_envelope: dict[str, Any]) -> dict[str, Any]:
+    def intake(self, job_envelope: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
         get_schemas().validate_envelope(job_envelope)
         if job_envelope.get("kind") != "job":
             raise OrchestrationError("job intake requires a job envelope")
@@ -133,10 +133,20 @@ class Orchestrator:
             return {"messages": messages, "idempotent_replay": True}
 
         state = self._state_for_job(job)
+        if tenant_id:
+            state["tenant_id"] = tenant_id
         self.jobs[job_id] = state
         action = self._issue_action(state, "create_sandbox", self._create_args(state))
         self._save(state)
         return {"messages": [action], "idempotent_replay": False}
+
+    def tenant_jobs(self, tenant_id: str) -> list[dict[str, Any]]:
+        return [
+            state for state in self.jobs.values()
+            if state.get("tenant_id") == tenant_id
+            and state.get("dispatch", {}).get("stage") != "terminal"
+            and state.get("dispatch", {}).get("pending_action") is not None
+        ]
 
     def receive_result(self, result_envelope: dict[str, Any]) -> dict[str, Any]:
         get_schemas().validate_envelope(result_envelope)
