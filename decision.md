@@ -30,6 +30,22 @@
 
 ## Decision log (newest first)
 
+### D-20260829-01 — E2E harness verifies dispatch↔Ignis wire-protocol interop
+- **Status:** accepted
+- **Date:** 2026-08-29
+- **Owners:** Engineer B + coding agent
+- **Decision:** Raphael-core dispatch and Ignis's controller+connector binary have been verified to interoperate correctly over the real HTTP wire protocol via a three-scenario harness at `raphael/e2e/`. Neither side is mocked: dispatch runs as a real Starlette process with deterministic `AgentHooks`, and Ignis runs as the compiled release binary with `RAPHAEL_CLUSTER_BACKEND=mock`.
+- **Why:** Prior milestones proved each side independently (Ignis sandbox tests, dispatch unit tests). No test exercised the full connector→dispatch→connector loop with real HTTP, real envelope validation, and real job state machine transitions.
+- **What was proven:**
+  - **Success path:** job reaches `fix_finalized` through create_sandbox → deploy_revision → observe_failure → patch → run_validation → finalize_result → terminal. Ignis calls `destroy_sandbox` and removes its cloned workspace from disk.
+  - **Budget exhaustion:** validation fails repeatedly (same failure signature preserved across patch attempts), job escalates after exactly `RAPHAEL_MAX_PATCH_ATTEMPTS` patch deploys — counted in the trace, not inferred.
+  - **Connector restart mid-flight:** Ignis killed during a 15s artificial delay in the diagnose hook (after create_sandbox + deploy_revision, before patch/finalize). Restarted connector resumes the same job with the same `sandbox_id` — confirmed by extracting sandbox_id from every result POST in the trace. No data loss, no sandbox recreation.
+- **Known gaps (not proven by this milestone):**
+  - **Dispatch-side restart safety.** `Orchestrator.jobs` is in-memory and does not rehydrate from `RunStore`. This harness kept dispatch up throughout; only Ignis was restarted. A dispatch restart mid-job would lose all in-flight state.
+  - **Lease reaping is manual-only.** `POST /v1/leases/reap` exists but no scheduler or timer invokes it automatically. Expired leases are never reaped unless an external caller triggers the endpoint.
+- **Referenced PRs:** connector HTTP transport (Ignis), dispatch job queue + auth fix (Raphael #10, #11), E2E harness (Raphael `feature/e2e-harness`).
+- **Consequences:** The dispatch↔Ignis wire protocol is validated end-to-end. Remaining restart and lease-reaping gaps are tracked separately and do not block pilot.
+
 ### D-20260814-06 — GH-M5 closes github-native with docs only (no new verbs)
 - **Status:** accepted
 - **Date:** 2026-08-14
