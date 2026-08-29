@@ -34,7 +34,7 @@
 - **Status:** accepted
 - **Date:** 2026-08-29
 - **Owners:** Engineer B + coding agent
-- **Decision:** Raphael-core dispatch and Ignis's controller+connector binary have been verified to interoperate correctly over the real HTTP wire protocol via a three-scenario harness at `raphael/e2e/`. Neither side is mocked: dispatch runs as a real Starlette process with deterministic `AgentHooks`, and Ignis runs as the compiled release binary with `RAPHAEL_CLUSTER_BACKEND=mock`.
+- **Decision:** Raphael-core dispatch and Ignis’s controller+connector binary have been verified to interoperate correctly over the real HTTP wire protocol via a three-scenario harness at `raphael/e2e/`. Neither side is mocked: dispatch runs as a real Starlette process with deterministic `AgentHooks`, and Ignis runs as the compiled release binary with `RAPHAEL_CLUSTER_BACKEND=mock`.
 - **Why:** Prior milestones proved each side independently (Ignis sandbox tests, dispatch unit tests). No test exercised the full connector→dispatch→connector loop with real HTTP, real envelope validation, and real job state machine transitions.
 - **What was proven:**
   - **Success path:** job reaches `fix_finalized` through create_sandbox → deploy_revision → observe_failure → patch → run_validation → finalize_result → terminal. Ignis calls `destroy_sandbox` and removes its cloned workspace from disk.
@@ -45,6 +45,15 @@
   - **Lease reaping is manual-only.** `POST /v1/leases/reap` exists but no scheduler or timer invokes it automatically. Expired leases are never reaped unless an external caller triggers the endpoint.
 - **Referenced PRs:** connector HTTP transport (Ignis), dispatch job queue + auth fix (Raphael #10, #11), E2E harness (Raphael `feature/e2e-harness`).
 - **Consequences:** The dispatch↔Ignis wire protocol is validated end-to-end. Remaining restart and lease-reaping gaps are tracked separately and do not block pilot.
+
+### D-20260827-01 — Dispatch orchestration via typed connector loop
+- **Status:** accepted
+- **Date:** 2026-08-27
+- **Owners:** Engineer B + coding agent
+- **Decision:** Replace the fixed dispatch next-action validation stub with a stateful, connector-driven orchestration loop. Dispatch owns typed job intake, action sequencing, result handling, replay idempotency, lease checks, existing budget enforcement, and terminal delivery. Diagnosis, localization, patch generation, and draft-only publish/escalation remain delegated to the existing agent modules. The implementation landed in PR #9 (`feature/dispatch-orchestrator`, merge commit `66a4389`) from the post-core-split `main` state and uses the pinned `contracts-v1.0.0` connector schemas.
+- **Why:** The core split established a stable protocol boundary between the public Raphael agent/dispatch code and the external Ignis executor. A real loop is needed to turn that boundary into an auditable job → sandbox → deploy → observe → diagnose → patch → validate → finalize flow without moving customer source code or GitHub credentials into dispatch.
+- **Alternatives:** Keep the fixed validation-only stub — rejected because it cannot process real connector results. Duplicate diagnosis/patch logic inside dispatch — rejected because the existing agent nodes and budget policy are the source of truth. Add a connector runtime, periodic lease worker, or startup recovery in this change — deferred so the Ignis-side runtime and deployment model can be designed and tested against the pinned contract first.
+- **Consequences:** The branch is reviewable as the dispatch-side orchestration milestone, with no new connector verbs, no live publishing or auto-merge, and no production Kubernetes or Secret access. **Known follow-ups:** lease reaping is currently manual through `POST /v1/leases/reap` with no timer/scheduler; `RunStore` persists dispatch fields but the process does not yet rehydrate in-flight jobs into `Orchestrator.jobs` after restart. Build the Ignis connector next, then add lease-reaper automation and startup rehydration before a real pilot. Prod remains unpromoted until a synthetic end-to-end connector run exists.
 
 ### D-20260814-06 — GH-M5 closes github-native with docs only (no new verbs)
 - **Status:** accepted

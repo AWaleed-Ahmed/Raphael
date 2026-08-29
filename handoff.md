@@ -43,6 +43,8 @@ Self-healing **deployment** agent for Kubernetes + GitHub:
 | Option B (K8s webhook, App JWT, CODEOWNERS, SQLite RunStore) | Done (code) |
 | GitHub-native GH-M1–M4 (agent, default off) | **Done** — `status`/`help`/`feedback`/`retry`/`escalate` + comments/labels/sticky + opt-in Checks |
 | GitHub-native GH-M5 (permission matrix + pilot docs) | **Done** (permission checks, audit events, cancellation safeguards, diagnosis-only mode, and label-gated fixes) |
+| **Dispatch orchestration (typed connector loop)** | **Done** â€” job intake, action/result sequencing, budgets, replay idempotency, lease terminalization, and draft-only terminal delivery | `dispatch/` + pinned `contracts/sandbox/connector/v1/` |
+| **Dispatch follow-ups** | **Open** â€” automate lease reaping (currently manual `POST /v1/leases/reap`) and add startup rehydration for in-flight jobs | `dispatch/` + `RunStore` |
 
 | Telemetry fingerprints + APM evidence adapters | **Done** (Prometheus/Alertmanager and provider-neutral evidence paths) |
 | Supabase healthy-trace catalog + normalized multi-company identity | **Done** (migrations applied to linked project) |
@@ -156,12 +158,13 @@ Real partner week: [`docs/pilot-week-runbook.md`](docs/pilot-week-runbook.md).
 
 ---
 
-## What’s next
+## Whatâ€™s next
 
-1. **Real partner week** — secrets, ≥5 dry-run failures, permission approval  
-2. **Accumulate feedback → rebuild learning snapshots** in partner envs (`RAPHAEL_LEARNING=1`)  
-3. **Interface layer** — CLI + I0 HTTP ([`interface/Usage.md`](interface/Usage.md), [`interface/prd-i0-api.md`](interface/prd-i0-api.md)); **IDE P0**: [`interface/IDE/README.md`](interface/IDE/README.md); **GitHub-native GH-M1–M5** in the agent ([`interface/github-native/prd.md`](interface/github-native/prd.md), default off). The merged command set includes `cancel`, `diagnose`, and `fix`; keep this handoff aligned with the agent implementation.  
-  
-4. Broader Post-MVP adapters (GitLab, ChatOps, …) from prd §25
-
+1. **Ignis connector implementation** â€” outbound-only connector against the pinned v1 schemas; no customer source code or GitHub credentials in dispatch.
+2. **Lease-reaping automation** â€” replace the current manual `POST /v1/leases/reap` invocation with a deployment-owned scheduler or worker before any real pilot.
+3. **Startup rehydration** â€” restore in-flight dispatch jobs from `RunStore` into `Orchestrator.jobs` and define durable multi-process lease ownership before any real pilot.
+4. **Real partner week** â€” secrets, â‰¥5 dry-run failures, permission approval.
+5. **Accumulate feedback â†’ rebuild learning snapshots** in partner envs (`RAPHAEL_LEARNING=1`).
+6. **Interface layer** â€” CLI + I0 HTTP ([`interface/Usage.md`](interface/Usage.md), [`interface/prd-i0-api.md`](interface/prd-i0-api.md)); **IDE P0**: [`interface/IDE/README.md`](interface/IDE/README.md); **GitHub-native GH-M1â€“M5** in the agent ([`interface/github-native/prd.md`](interface/github-native/prd.md), default off).
+7. **Broader Post-MVP adapters** (GitLab, ChatOps, â€¦) from prd Â§25.
 Do **not** invent auto-merge or production remediation.
