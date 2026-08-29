@@ -64,6 +64,10 @@ class TraceMiddleware(BaseHTTPMiddleware):
 
 
 def diagnose(state: dict) -> dict:
+    import time as _time
+    delay = float(os.environ.get("E2E_DIAGNOSE_DELAY_SECONDS", "0"))
+    if delay > 0:
+        _time.sleep(delay)
     return {"diagnosis": {"root_cause": "e2e fixture probe_port_mismatch", "confidence": 1.0}}
 
 

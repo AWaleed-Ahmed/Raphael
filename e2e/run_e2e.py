@@ -215,66 +215,201 @@ def run_scenario_2_escalation(env: dict, trace: Path) -> bool:
     return True
 
 
+def extract_sandbox_ids(records: list[dict], job_id: str) -> list[tuple[int, str, str]]:
+    """Return [(record_index, verb, sandbox_id)] for all records mentioning this job."""
+    results = []
+    for i, rec in enumerate(records):
+        resp_body = rec.get("response", {}).get("body", "")
+        req_body = rec.get("request", {}).get("body", "")
+        if job_id not in resp_body and job_id not in req_body:
+            continue
+        try:
+            parsed = json.loads(resp_body) if resp_body else {}
+        except (json.JSONDecodeError, TypeError):
+            parsed = {}
+        for msg in parsed.get("messages", []):
+            payload = msg.get("payload", {})
+            verb = payload.get("verb", "")
+            sid = payload.get("result", {}).get("sandbox_id", "") or payload.get("args", {}).get("sandbox_id", "")
+            if verb:
+                results.append((i, verb, sid))
+        # Also check request body for result POSTs from connector
+        try:
+            req_parsed = json.loads(req_body) if req_body else {}
+        except (json.JSONDecodeError, TypeError):
+            req_parsed = {}
+        req_payload = req_parsed.get("payload", req_parsed)
+        req_verb = req_payload.get("verb", "")
+        req_sid = (req_payload.get("result") or {}).get("sandbox_id", "")
+        if req_verb and req_sid:
+            results.append((i, f"result:{req_verb}", req_sid))
+    return results
+
+
+def wait_mid_flight(trace: Path, job_id: str, timeout: float = 60) -> tuple[str, list[dict]]:
+    """Poll until create_sandbox result received AND deploy_revision issued but no deploy_revision result yet."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        records = trace_records(trace)
+        verbs_seen = []
+        sandbox_id = ""
+        for rec in records:
+            resp_body = rec.get("response", {}).get("body", "")
+            req_body = rec.get("request", {}).get("body", "")
+            if job_id not in resp_body and job_id not in req_body:
+                continue
+            # Check response messages for dispatched actions
+            try:
+                parsed = json.loads(resp_body) if resp_body else {}
+            except (json.JSONDecodeError, TypeError):
+                parsed = {}
+            for msg in parsed.get("messages", []):
+                payload = msg.get("payload", {})
+                verb = payload.get("verb", "")
+                kind = msg.get("kind", "")
+                if kind == "terminal":
+                    raise RuntimeError("job reached terminal before mid-flight window")
+                if verb:
+                    verbs_seen.append(("dispatched", verb))
+            # Check request body for result POSTs
+            try:
+                req_parsed = json.loads(req_body) if req_body else {}
+            except (json.JSONDecodeError, TypeError):
+                req_parsed = {}
+            req_payload = req_parsed.get("payload", req_parsed)
+            req_verb = req_payload.get("verb", "")
+            req_kind = req_parsed.get("kind", "")
+            if req_kind == "result" and req_verb:
+                verbs_seen.append(("result", req_verb))
+                sid = (req_payload.get("result") or {}).get("sandbox_id", "")
+                if sid:
+                    sandbox_id = sid
+
+        has_create_result = any(v == ("result", "create_sandbox") for v in verbs_seen)
+        has_deploy_dispatched = any(v == ("dispatched", "deploy_revision") for v in verbs_seen)
+        has_deploy_result = any(v == ("result", "deploy_revision") for v in verbs_seen)
+
+        if has_create_result and has_deploy_dispatched and not has_deploy_result and sandbox_id:
+            return sandbox_id, records
+        time.sleep(0.3)
+    raise RuntimeError("timed out waiting for mid-flight state")
+
+
 def run_scenario_3_restart(env: dict, trace: Path, controller_cmd: list[str]) -> bool:
-    print("\n========== SCENARIO 3: whole-process restart ==========")
+    print("\n========== SCENARIO 3: whole-process restart (mid-flight) ==========")
+
+    delay_seconds = 15
+    env["E2E_DIAGNOSE_DELAY_SECONDS"] = str(delay_seconds)
+    print(f"E2E_DIAGNOSE_DELAY_SECONDS={delay_seconds} (diagnose hook will sleep)")
+
     submitted = make_job("e2e-success")
+    t_submit = time.time()
     status, response = http_post(f"{DISPATCH}/v1/tenants/{TENANT}/jobs", submitted, PRODUCER)
-    print(f"Submitted: status={status}, response={json.dumps(response, sort_keys=True)}")
+    print(f"[{time.time() - t_submit:.1f}s] Submitted: status={status}")
     assert status == 202
 
-    print("Waiting 3s for create_sandbox to execute...")
-    time.sleep(3)
+    print(f"[{time.time() - t_submit:.1f}s] Polling trace for confirmed mid-flight state...")
+    try:
+        pre_kill_sandbox_id, _ = wait_mid_flight(trace, submitted["job_id"], timeout=60)
+    except RuntimeError as exc:
+        print(f"FAIL: {exc}")
+        env.pop("E2E_DIAGNOSE_DELAY_SECONDS", None)
+        return False
 
-    records_before = trace_records(trace)
-    has_create = any(
-        "create_sandbox" in r.get("request", {}).get("body", "")
-        and submitted["job_id"] in r.get("request", {}).get("body", "")
-        for r in records_before
-    )
-    print(f"create_sandbox executed before kill: {has_create}")
+    t_midflight = time.time()
+    print(f"[{t_midflight - t_submit:.1f}s] Mid-flight confirmed: sandbox_id={pre_kill_sandbox_id}")
+    print(f"[{t_midflight - t_submit:.1f}s] create_sandbox done, deploy_revision issued, diagnose sleeping {delay_seconds}s")
 
-    terminal_before = find_terminal(records_before, submitted["job_id"])
-    if terminal_before:
-        print(f"Job already terminal before kill: {terminal_before}")
-        print("SKIP: cannot test restart — job completed too fast")
-        return True
+    # Verify no terminal yet
+    records_now = trace_records(trace)
+    terminal_now = find_terminal(records_now, submitted["job_id"])
+    if terminal_now:
+        print(f"FAIL: job already terminal before kill: {terminal_now}")
+        env.pop("E2E_DIAGNOSE_DELAY_SECONDS", None)
+        return False
 
-    print("Killing Ignis process...")
+    print(f"[{time.time() - t_submit:.1f}s] Killing Ignis process...")
+    t_kill = time.time()
     ignis_pid = int(os.environ.get("_E2E_IGNIS_PID", "0"))
     if ignis_pid:
         try:
             os.kill(ignis_pid, signal.SIGTERM)
-            print(f"Sent SIGTERM to pid {ignis_pid}")
+            print(f"[{time.time() - t_submit:.1f}s] Sent SIGTERM to pid {ignis_pid}")
         except ProcessLookupError:
             print(f"Process {ignis_pid} already gone")
-    time.sleep(2)
+    time.sleep(1)
 
-    print("Restarting Ignis...")
+    print(f"[{time.time() - t_submit:.1f}s] Restarting Ignis...")
+    t_restart_start = time.time()
     restart_log = open(E2E / "ignis-restart.log", "w", encoding="utf-8")
     restarted = subprocess.Popen(controller_cmd, env=env, stdout=restart_log, stderr=subprocess.STDOUT)
     os.environ["_E2E_IGNIS_PID"] = str(restarted.pid)
     wait_ready(env["RAPHAEL_CONNECTOR_CONTROLLER_URL"], timeout=15)
-    print(f"Ignis restarted, pid={restarted.pid}")
+    t_restart_ready = time.time()
+    print(f"[{t_restart_ready - t_submit:.1f}s] Ignis restarted, pid={restarted.pid}, startup took {t_restart_ready - t_restart_start:.1f}s")
 
-    kill_time = time.time()
+    env.pop("E2E_DIAGNOSE_DELAY_SECONDS", None)
+
     try:
         terminal, records = wait_terminal(trace, submitted["job_id"], timeout=90)
-        elapsed = time.time() - kill_time
+        t_terminal = time.time()
         final_status = terminal.get("payload", {}).get("final_status", "")
-        print(f"Terminal after restart: final_status={final_status}, elapsed={elapsed:.1f}s")
-        print_trace("Scenario 3 (post-restart)", records, submitted["job_id"])
-        return True
-    except AssertionError:
-        elapsed = time.time() - kill_time
-        print(f"No terminal after {elapsed:.1f}s post-restart")
+        print(f"[{t_terminal - t_submit:.1f}s] Terminal: final_status={final_status}")
 
-        print("Checking lease expiry via POST /v1/leases/reap...")
+        # Extract sandbox_ids from post-restart records
+        all_sids = extract_sandbox_ids(records, submitted["job_id"])
+        print(f"\nSandbox ID timeline:")
+        for idx, verb, sid in all_sids:
+            if sid:
+                print(f"  record[{idx}] {verb}: sandbox_id={sid}")
+
+        post_restart_sids = set()
+        for idx, verb, sid in all_sids:
+            if sid and sid != pre_kill_sandbox_id:
+                post_restart_sids.add(sid)
+
+        if post_restart_sids:
+            print(f"\nFAIL: new sandbox_id(s) appeared post-restart: {post_restart_sids}")
+            print(f"  Pre-kill sandbox_id: {pre_kill_sandbox_id}")
+            resumed = False
+        else:
+            # Check that the pre-kill sandbox_id appears in post-kill activity
+            post_kill_verbs = []
+            for idx, verb, sid in all_sids:
+                if sid == pre_kill_sandbox_id:
+                    post_kill_verbs.append(verb)
+            print(f"\nPre-kill sandbox_id {pre_kill_sandbox_id} seen in verbs: {post_kill_verbs}")
+            resumed = len(post_kill_verbs) > 1  # more than just create_sandbox
+
+        print(f"\nWall-clock timeline:")
+        print(f"  Submit:          t+0.0s")
+        print(f"  Mid-flight:      t+{t_midflight - t_submit:.1f}s")
+        print(f"  Kill:            t+{t_kill - t_submit:.1f}s")
+        print(f"  Restart ready:   t+{t_restart_ready - t_submit:.1f}s")
+        print(f"  Terminal:        t+{t_terminal - t_submit:.1f}s")
+        print(f"  Downtime:        {t_restart_ready - t_kill:.1f}s")
+
+        print_trace("Scenario 3", records, submitted["job_id"])
+
+        if final_status == "fix_finalized" and resumed:
+            print("PASS: job resumed with same sandbox_id after restart")
+            return True
+        elif final_status == "failed":
+            print(f"OBSERVED: job terminalized as failed (possible lease expiry)")
+            return True
+        else:
+            print(f"UNEXPECTED: final_status={final_status}, resumed={resumed}")
+            return False
+
+    except AssertionError:
+        elapsed = time.time() - t_restart_ready
+        print(f"No terminal after {elapsed:.1f}s post-restart")
         reap_status, reap_resp = http_post(f"{DISPATCH}/v1/leases/reap", {}, PRODUCER)
         print(f"Reap: status={reap_status}, response={json.dumps(reap_resp, sort_keys=True)}")
         terminals = reap_resp.get("terminals", [])
-        for t in terminals:
-            if t.get("job_id") == submitted["job_id"]:
-                print(f"Lease-expired terminal: {json.dumps(t, sort_keys=True)}")
+        for t_rec in terminals:
+            if t_rec.get("job_id") == submitted["job_id"]:
+                print(f"Lease-expired terminal: {json.dumps(t_rec, sort_keys=True)}")
                 return True
         print("Job not found in reap results either")
         return False
