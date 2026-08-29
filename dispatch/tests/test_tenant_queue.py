@@ -71,3 +71,10 @@ def test_cross_tenant_result_rejected(monkeypatch):
               "sent_at": "2026-08-28T00:00:00Z", "payload": {"job_id": job_id, "action_id": action["payload"]["action_id"],
               "verb": "create_sandbox", "status": "failed", "error": {"code": "x", "message": "x"}}}
     assert c.post("/v1/results", headers={"Authorization": "Bearer connector-a"}, json=result).status_code == 403
+
+
+def test_results_require_authentication_before_processing(monkeypatch):
+    c = client(monkeypatch)
+    response = c.post("/v1/results", json={"not": "a result envelope"})
+    assert response.status_code == 401
+    assert response.json() == {"valid": False, "error": "missing bearer token"}
