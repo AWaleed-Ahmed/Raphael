@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 
@@ -316,3 +317,59 @@ class TestPrecedenceRule:
         assert "dispatch_job_id" not in body
         # Stub graph SHOULD have been called as fallback
         assert len(stub_graph_called) == 1
+
+
+class TestRealWebhookPayload:
+    """Validate bridge against a real GitHub Actions workflow_run failure payload."""
+
+    def test_real_github_payload_bridges_correctly(self, monkeypatch):
+        """Real workflow_run payload from GitHub bridges to dispatch with correct fields."""
+        monkeypatch.setenv("RAPHAEL_DISPATCH_BRIDGE_ENABLED", "1")
+        monkeypatch.delenv("RAPHAEL_INGEST_RUN_GRAPH", raising=False)
+        monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", f"real-payload-{uuid.uuid4().hex[:8]}")
+        monkeypatch.setenv("RAPHAEL_INGEST_MAX_CONCURRENT_RUNS", "100")
+
+        import raphael_agent.ingest.dispatch_bridge as bridge_mod
+        bridge_mod._orchestrator_instance = None
+
+        from pathlib import Path
+        fixture = Path(__file__).parent / "fixtures" / "real_workflow_run_failure.json"
+        with open(fixture) as f:
+            payload = json.load(f)
+
+        from starlette.testclient import TestClient
+        from raphael_agent.http_api.app import app
+
+        client = TestClient(app)
+        response = client.post(
+            "/v1/webhooks/github",
+            json=payload,
+            headers={
+                "x-github-event": "workflow_run",
+                "x-github-delivery": "real-payload-test-delivery",
+            },
+        )
+
+        assert response.status_code == 202, f"Got {response.status_code}: {response.json()}"
+        body = response.json()
+
+        # Bridge should have submitted
+        assert "dispatch_job_id" in body, f"No dispatch_job_id: {body}"
+        dispatch_job_id = body["dispatch_job_id"]
+        uuid.UUID(dispatch_job_id)  # valid UUID
+
+        # run_id should be derived from workflow_run.id, NOT the dispatch job_id
+        assert body["run_id"] == "ghw-33334546362"
+        assert dispatch_job_id != body["run_id"]
+
+        # Verify job in dispatch queue has correct fields
+        orch = bridge_mod._orchestrator_instance
+        tenant_id = os.environ["RAPHAEL_AGENT_TENANT_ID"]
+        jobs = orch.tenant_jobs(tenant_id)
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job["run_id"] == dispatch_job_id
+        assert job["commit_sha"] == "d6e85236104e8222240c0d88edd5a83fee7f967a"
+        assert job["repository"]["clone_url"] == "https://github.com/AmazingDude/raphael-e2e-fixture.git"
+        # narrowed_location should be the default placeholder (no deployment_config_path in this event)
+        assert job["narrowed_location"]["file_path"] == "."
