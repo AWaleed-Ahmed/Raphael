@@ -41,3 +41,26 @@ binary. It never edits or imports files from the public Ignis repository.
 export E2E_IGNIS_BIN="$HOME/ignis-wsl/controller/target/release/raphael-sandbox-controller"
 ~/venvs/raphael-dispatch/bin/python e2e/run_e2e.py
 ```
+
+## Two harnesses, different purposes
+
+This directory contains two distinct test runners. Pick the right one:
+
+| Harness | Script | Hooks | What it proves |
+|---|---|---|---|
+| **Wire-protocol interop** | `run_e2e.py` | Deterministic mocks | Dispatch↔Ignis HTTP loop works end-to-end: envelope validation, state machine transitions, lease handling, process restart with sandbox_id continuity. Fast, repeatable, no external dependencies beyond the fixture repo. |
+| **Real agent hooks** | `run_real_job.py` | Production defaults (`node_diagnose`, `node_localize`, `node_patch`, `node_publish_or_escalate`) | The actual diagnosis/patch/publish logic produces correct output when fed real manifest content via `rendered_files`. Slower, exercises the full agent pipeline including deterministic analyzers and template-based patch generation. Publish runs in dry_run (no GitHub token set). |
+
+The wire-protocol harness uses mock hooks that return predetermined responses — it validates the plumbing. The real-hooks harness uses production agent code with no overrides — it validates that the plumbing carries useful data through to the actual fix logic. Both are needed; neither substitutes for the other.
+
+### Real-hooks runner
+
+```bash
+export E2E_IGNIS_BIN="$HOME/ignis-wsl/controller/target/release/raphael-sandbox-controller"
+~/venvs/raphael-dispatch/bin/python e2e/run_real_job.py
+```
+
+Requires the Ignis binary built from a commit that includes `contracts-v1.1.0`
+(`rendered_files` in deploy_revision response). Safety: asserts no
+`RAPHAEL_GITHUB_TOKEN` or `GITHUB_TOKEN` is set before running; publish
+defaults to dry_run.

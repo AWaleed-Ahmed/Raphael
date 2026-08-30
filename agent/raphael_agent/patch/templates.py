@@ -35,8 +35,15 @@ def _manifest_sources(run: dict[str, Any]) -> list[tuple[str, str]] | None:
     Prefers ``run["rendered_files"]`` — the files the connector actually rendered
     and applied, disclosed by the deploy_revision response (contracts-v1.1.0). This
     lets the deterministic templates operate in the dispatch path without touching
-    the customer filesystem. Falls back to reading the local workspace for
-    in-process runs that still set ``workspace_path``.
+    the customer filesystem.
+
+    The workspace_path fallback below is ONLY for the agent's legacy in-process
+    test suite (agent/tests/test_patch.py), which constructs run dicts with
+    workspace_path directly and bypasses dispatch/connector entirely. In the
+    production dispatch-connector path, workspace_path is NEVER set in
+    orchestrator state — dispatch has no filesystem access to customer repos
+    by design. Do not treat this fallback as evidence that dispatch sometimes
+    reads manifests from disk; it does not.
     """
     rendered = run.get("rendered_files")
     if isinstance(rendered, list) and rendered:
