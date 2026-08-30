@@ -29,15 +29,58 @@ def _iter_yaml_files(directory: Path) -> list[Path]:
     )
 
 
-def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Align readinessProbe.httpGet.port with containerPort in broken manifests."""
+def _manifest_sources(run: dict[str, Any]) -> list[tuple[str, str]] | None:
+    """Return [(relative_path, content)] for the manifests to fix.
+
+    Prefers ``run["rendered_files"]`` — the files the connector actually rendered
+    and applied, disclosed by the deploy_revision response (contracts-v1.1.0). This
+    lets the deterministic templates operate in the dispatch path without touching
+    the customer filesystem.
+
+    The workspace_path fallback below is ONLY for the agent's legacy in-process
+    test suite (agent/tests/test_patch.py), which constructs run dicts with
+    workspace_path directly and bypasses dispatch/connector entirely. In the
+    production dispatch-connector path, workspace_path is NEVER set in
+    orchestrator state — dispatch has no filesystem access to customer repos
+    by design. Do not treat this fallback as evidence that dispatch sometimes
+    reads manifests from disk; it does not.
+    """
+    rendered = run.get("rendered_files")
+    if isinstance(rendered, list) and rendered:
+        sources: list[tuple[str, str]] = []
+        for item in rendered:
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path")
+            content = item.get("content")
+            if isinstance(path, str) and isinstance(content, str) and path.lower().endswith(
+                (".yaml", ".yml")
+            ):
+                sources.append((path, content))
+        return sources or None
+
     directory = _manifest_dir(run)
     if directory is None:
         return None
-    root = Path(run["workspace_path"])
-    files: list[dict[str, Any]] = []
+    workspace = run.get("workspace_path")
+    root = Path(workspace) if workspace else directory
+    sources = []
     for path in _iter_yaml_files(directory):
-        original = path.read_text(encoding="utf-8")
+        try:
+            rel = path.relative_to(root).as_posix()
+        except ValueError:
+            rel = path.as_posix()
+        sources.append((rel, path.read_text(encoding="utf-8")))
+    return sources or None
+
+
+def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Align readinessProbe.httpGet.port with containerPort in broken manifests."""
+    sources = _manifest_sources(run)
+    if sources is None:
+        return None
+    files: list[dict[str, Any]] = []
+    for rel, original in sources:
         # Only rewrite when containerPort and readiness probe port disagree.
         match = re.search(
             r"(containerPort:\s*)(\d+)([\s\S]{0,500}?readinessProbe:[\s\S]{0,200}?port:\s*)(\d+)",
@@ -56,7 +99,6 @@ def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
         )
         if fixed == original:
             continue
-        rel = path.relative_to(root).as_posix()
         files.append(
             {
                 "path": rel,
@@ -72,13 +114,11 @@ def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
 
 
 def fix_bad_image(run: dict[str, Any], *, known_good: str = "hashicorp/http-echo:1.0") -> list[dict[str, Any]] | None:
-    directory = _manifest_dir(run)
-    if directory is None:
+    sources = _manifest_sources(run)
+    if sources is None:
         return None
-    root = Path(run["workspace_path"])
     files: list[dict[str, Any]] = []
-    for path in _iter_yaml_files(directory):
-        original = path.read_text(encoding="utf-8")
+    for rel, original in sources:
         if "does-not-exist" not in original and "ImagePullBackOff" not in original:
             # Still try common bad tag pattern in image: lines
             if not re.search(r"image:\s*\S+:(does-not-exist|missing|invalid)\b", original):
@@ -95,7 +135,6 @@ def fix_bad_image(run: dict[str, Any], *, known_good: str = "hashicorp/http-echo
         )
         if n == 0 or fixed == original:
             continue
-        rel = path.relative_to(root).as_posix()
         files.append(
             {
                 "path": rel,
@@ -108,13 +147,11 @@ def fix_bad_image(run: dict[str, Any], *, known_good: str = "hashicorp/http-echo
 
 
 def fix_missing_configmap_key(run: dict[str, Any]) -> list[dict[str, Any]] | None:
-    directory = _manifest_dir(run)
-    if directory is None:
+    sources = _manifest_sources(run)
+    if sources is None:
         return None
-    root = Path(run["workspace_path"])
     files: list[dict[str, Any]] = []
-    for path in _iter_yaml_files(directory):
-        original = path.read_text(encoding="utf-8")
+    for rel, original in sources:
         if "key: DATABASE_URL" not in original:
             continue
         if re.search(r"(?m)^  DATABASE_URL:", original):
@@ -138,7 +175,6 @@ def fix_missing_configmap_key(run: dict[str, Any]) -> list[dict[str, Any]] | Non
             )
         if n == 0 or fixed == original:
             continue
-        rel = path.relative_to(root).as_posix()
         files.append(
             {
                 "path": rel,

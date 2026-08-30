@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260830-01 — Known follow-up: service_port_mismatch signature uses array attribute (schema violation)
+- **Status:** accepted
+- **Date:** 2026-08-30
+- **Owners:** Engineer B + coding agent
+- **Decision:** File as a standalone Ignis task (low urgency, separate branch). The `service_port_mismatch` signature in `controller/src/observe/signatures.rs:532-534` emits `container_ports` as an array (`Vec<u16>`), but `contracts/sandbox/failure_signature.json` constrains `normalized.attributes` values to scalar types (`string`, `number`, `boolean`, `null`). When a `service_port_mismatch` job reaches `finalize_result`, the connector's result envelope embeds this signature in `record.after_signature`, and dispatch's schema validation rejects it with `"container_ports: [8080, 8080] is not of type 'string','number','boolean','null'"`. Found as a side effect of the `rendered_files` contract work; unrelated to it; not fixed here.
+- **Why:** The probe/completely-fixable path uses scalar attributes (`container_port`, `probe_port`) and is unaffected. Only `service_port_mismatch` triggers this because its signature carries multiple container ports as an array. No jobs using this failure class can currently reach `fix_finalized`.
+- **Alternatives to evaluate when picked up:** (a) Relax `failure_signature.json` to allow arrays in `attributes` values. (b) Serialize `container_ports` as a joined string (e.g., `"8080,8080"`) to keep attributes scalar-only. Option (b) preserves the existing schema constraint but loses structured data; option (a) is more expressive but widens the contract surface.
+- **Consequences:** Does not block the `rendered_files` contract change or the probe-mismatch fix path. Blocks `fix_finalized` for any `service_port_mismatch` job until resolved. Track separately from the `rendered_files` work so each can be reviewed and reverted independently.
+
 ### D-20260829-01 — E2E harness verifies dispatch↔Ignis wire-protocol interop
 - **Status:** accepted
 - **Date:** 2026-08-29
