@@ -180,10 +180,12 @@ class Orchestrator:
         elif stage == "create_sandbox":
             messages = self._after_create(state, payload)
         elif stage == "deploy_initial":
+            self._record_rendered_files(state, payload)
             messages = [self._issue_action(state, "observe_failure", {"timeout_seconds": self._capped_timeout(90)})]
         elif stage == "observe_failure":
             messages = self._after_observe(state, payload)
         elif stage == "deploy_patch":
+            self._record_rendered_files(state, payload)
             messages = [self._issue_action(state, "run_validation", self._validation_args(state))]
         elif stage == "run_validation":
             result = payload.get("result") or {}
@@ -328,6 +330,12 @@ class Orchestrator:
         if signature.get("key"):
             plan["compare_to_signature_key"] = signature["key"]
         return {"plan": plan}
+
+    @staticmethod
+    def _record_rendered_files(state: dict[str, Any], payload: dict[str, Any]) -> None:
+        rendered = (payload.get("result") or {}).get("rendered_files")
+        if isinstance(rendered, list):
+            state["rendered_files"] = rendered
 
     def _after_observe(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}

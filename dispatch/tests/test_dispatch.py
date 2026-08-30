@@ -43,7 +43,7 @@ def test_health_reports_loaded_contracts() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["contracts_version"] == "contracts-v1.0.0"
+    assert body["contracts_version"] == "contracts-v1.1.0"
     assert body["schemas_loaded"] == sorted(SCHEMA_FILES)
 
 
