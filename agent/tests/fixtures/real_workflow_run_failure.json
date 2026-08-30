@@ -1,0 +1,123 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 33334546362,
+    "name": "fail-test",
+    "node_id": "WFR_kwLOUIJgY88AAAAHwuTPug",
+    "head_branch": "main",
+    "head_sha": "d6e85236104e8222240c0d88edd5a83fee7f967a",
+    "path": ".github/workflows/fail-test.yml",
+    "display_title": "add deterministic failing workflow for bridge validation",
+    "run_number": 1,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "failure",
+    "workflow_id": 346121557,
+    "check_suite_id": 90327581450,
+    "check_suite_node_id": "CS_kwDOUIJgY88AAAAVB_GDCg",
+    "url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362",
+    "html_url": "https://github.com/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362",
+    "pull_requests": [],
+    "created_at": "2026-08-30T20:45:49Z",
+    "updated_at": "2026-08-30T20:45:55Z",
+    "actor": {
+      "login": "AmazingDude",
+      "id": 27140124,
+      "node_id": "MDQ6VXNlcjI3MTQwMTI0",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27140124?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/AmazingDude",
+      "html_url": "https://github.com/AmazingDude",
+      "type": "User",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "referenced_workflows": [],
+    "run_started_at": "2026-08-30T20:45:49Z",
+    "triggering_actor": {
+      "login": "AmazingDude",
+      "id": 27140124,
+      "node_id": "MDQ6VXNlcjI3MTQwMTI0",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27140124?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/AmazingDude",
+      "html_url": "https://github.com/AmazingDude",
+      "type": "User",
+      "site_admin": false
+    },
+    "jobs_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362/jobs",
+    "logs_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362/logs",
+    "check_suites_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/commits/d6e85236104e8222240c0d88edd5a83fee7f967a/check-suites",
+    "artifacts_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362/artifacts",
+    "cancel_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362/cancel",
+    "rerun_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/runs/33334546362/rerun",
+    "previous_attempt_url": null,
+    "workflow_url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/workflows/346121557",
+    "head_commit": {
+      "id": "d6e85236104e8222240c0d88edd5a83fee7f967a",
+      "tree_id": "abc123",
+      "message": "add deterministic failing workflow for bridge validation",
+      "timestamp": "2026-08-30T20:45:40Z",
+      "author": {
+        "name": "AmazingDude",
+        "email": "gamerskull007@gmail.com"
+      },
+      "committer": {
+        "name": "AmazingDude",
+        "email": "gamerskull007@gmail.com"
+      }
+    }
+  },
+  "workflow": {
+    "id": 346121557,
+    "node_id": "W_kwDOUIJgY88AAAATGnSJhQ",
+    "name": "fail-test",
+    "path": ".github/workflows/fail-test.yml",
+    "state": "active",
+    "created_at": "2026-08-30T20:45:49Z",
+    "updated_at": "2026-08-30T20:45:49Z",
+    "url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture/actions/workflows/346121557",
+    "html_url": "https://github.com/AmazingDude/raphael-e2e-fixture/blob/main/.github/workflows/fail-test.yml",
+    "badge_url": "https://github.com/AmazingDude/raphael-e2e-fixture/workflows/fail-test/badge.svg"
+  },
+  "repository": {
+    "id": 1051820544,
+    "node_id": "R_kgDOUPIBgA",
+    "name": "raphael-e2e-fixture",
+    "full_name": "AmazingDude/raphael-e2e-fixture",
+    "private": false,
+    "owner": {
+      "login": "AmazingDude",
+      "id": 27140124,
+      "node_id": "MDQ6VXNlcjI3MTQwMTI0",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27140124?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/AmazingDude",
+      "html_url": "https://github.com/AmazingDude",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/AmazingDude/raphael-e2e-fixture",
+    "description": null,
+    "fork": false,
+    "url": "https://api.github.com/repos/AmazingDude/raphael-e2e-fixture",
+    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
+    "git_url": "git://github.com/AmazingDude/raphael-e2e-fixture.git",
+    "ssh_url": "git@github.com:AmazingDude/raphael-e2e-fixture.git",
+    "svn_url": "https://github.com/AmazingDude/raphael-e2e-fixture",
+    "homepage": null,
+    "language": null,
+    "default_branch": "main"
+  },
+  "sender": {
+    "login": "AmazingDude",
+    "id": 27140124,
+    "node_id": "MDQ6VXNlcjI3MTQwMTI0",
+    "avatar_url": "https://avatars.githubusercontent.com/u/27140124?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/AmazingDude",
+    "html_url": "https://github.com/AmazingDude",
+    "type": "User",
+    "site_admin": false
+  }
+}

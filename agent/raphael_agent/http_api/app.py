@@ -20,6 +20,7 @@ from raphael_agent.ingest import (
     should_auto_run_graph,
     verify_github_signature,
 )
+from raphael_agent.ingest.dispatch_bridge import bridge_enabled, submit_to_dispatch
 from raphael_agent.ingest.policy import IngestPolicyConfig
 from raphael_agent.runs import RunApiError, apply_run_action, create_run, list_runs
 from raphael_agent.store import open_run_store
@@ -27,6 +28,26 @@ from raphael_agent.store import open_run_store
 
 def _store():
     return open_run_store()
+
+
+def _try_dispatch_bridge(seed: dict[str, Any], run: dict[str, Any] | None) -> bool:
+    """Attempt to bridge an accepted event to dispatch.
+
+    Returns True if the bridge successfully submitted a job to dispatch
+    (caller should NOT also run the stub graph for this event). Returns
+    False if the bridge is disabled, skipped, or failed (caller should
+    proceed with whatever existing behavior it would have used).
+
+    Never raises — all errors are caught and returned as False so a
+    bridge failure never crashes or blocks the webhook response.
+    """
+    if not bridge_enabled() or run is None:
+        return False
+    try:
+        result = submit_to_dispatch(seed, run)
+        return result.get("submitted", False)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _ignored_trigger_kind(event_name: str) -> str:
@@ -274,6 +295,20 @@ async def github_webhook(request: Request) -> JSONResponse:
             sandbox_mode=mode,
         )
         if run is not None:
+            # Precedence: if bridge is enabled and submits successfully,
+            # dispatch owns execution for this event — do NOT also run
+            # the stub graph. Fall back to stub graph only if bridge
+            # is disabled, skipped, or failed.
+            if _try_dispatch_bridge(seed, run):
+                store.save_run(dict(run))
+                return JSONResponse(
+                    {
+                        "ingest": decision,
+                        "run_id": run.get("run_id"),
+                        "dispatch_job_id": run.get("dispatch_job_id"),
+                        "status": run.get("status"),
+                    }
+                )
             from raphael_agent.graph import run_stub_graph
 
             final = run_stub_graph(run)
@@ -296,8 +331,11 @@ async def github_webhook(request: Request) -> JSONResponse:
     )
     body_out: dict[str, Any] = {"ingest": decision}
     if run is not None:
+        _try_dispatch_bridge(seed, run)
         body_out["run_id"] = run["run_id"]
         body_out["status"] = run["status"]
+        if run.get("dispatch_job_id"):
+            body_out["dispatch_job_id"] = run["dispatch_job_id"]
     return JSONResponse(body_out, status_code=202)
 
 
@@ -352,6 +390,16 @@ async def k8s_webhook(request: Request) -> JSONResponse:
             sandbox_mode=mode,
         )
         if run is not None:
+            if _try_dispatch_bridge(seed, run):
+                store.save_run(dict(run))
+                return JSONResponse(
+                    {
+                        "ingest": decision,
+                        "run_id": run.get("run_id"),
+                        "dispatch_job_id": run.get("dispatch_job_id"),
+                        "status": run.get("status"),
+                    }
+                )
             from raphael_agent.graph import run_stub_graph
 
             final = run_stub_graph(run)
@@ -374,8 +422,11 @@ async def k8s_webhook(request: Request) -> JSONResponse:
     )
     body_out: dict[str, Any] = {"ingest": decision}
     if run is not None:
+        _try_dispatch_bridge(seed, run)
         body_out["run_id"] = run["run_id"]
         body_out["status"] = run["status"]
+        if run.get("dispatch_job_id"):
+            body_out["dispatch_job_id"] = run["dispatch_job_id"]
     return JSONResponse(body_out, status_code=202)
 
 
@@ -394,7 +445,7 @@ async def alertmanager_webhook(request: Request) -> JSONResponse:
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
-        decision, run = accept_and_run_graph(
+        decision, run = accept_normalized_event(
             seed,
             store=store,
             policy=IngestPolicyConfig.from_env(),
@@ -402,11 +453,25 @@ async def alertmanager_webhook(request: Request) -> JSONResponse:
             sandbox_mode=sandbox_mode,
         )
         if run is not None:
+            if _try_dispatch_bridge(seed, run):
+                store.save_run(dict(run))
+                return JSONResponse(
+                    {
+                        "ingest": decision,
+                        "run_id": run.get("run_id"),
+                        "dispatch_job_id": run.get("dispatch_job_id"),
+                        "status": run.get("status"),
+                    }
+                )
+            from raphael_agent.graph import run_stub_graph
+
+            final = run_stub_graph(run)
+            store.save_run(dict(final))
             return JSONResponse(
                 {
                     "ingest": decision,
-                    "run_id": run.get("run_id"),
-                    "status": run.get("status"),
+                    "run_id": final.get("run_id"),
+                    "status": final.get("status"),
                 }
             )
         return JSONResponse({"ingest": decision}, status_code=202)
@@ -420,8 +485,11 @@ async def alertmanager_webhook(request: Request) -> JSONResponse:
     )
     body_out: dict[str, Any] = {"ingest": decision}
     if run is not None:
+        _try_dispatch_bridge(seed, run)
         body_out["run_id"] = run["run_id"]
         body_out["status"] = run["status"]
+        if run.get("dispatch_job_id"):
+            body_out["dispatch_job_id"] = run["dispatch_job_id"]
     return JSONResponse(body_out, status_code=202)
 
 
@@ -440,7 +508,7 @@ async def datadog_webhook(request: Request) -> JSONResponse:
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
-        decision, run = accept_and_run_graph(
+        decision, run = accept_normalized_event(
             seed,
             store=store,
             policy=IngestPolicyConfig.from_env(),
@@ -448,11 +516,25 @@ async def datadog_webhook(request: Request) -> JSONResponse:
             sandbox_mode=sandbox_mode,
         )
         if run is not None:
+            if _try_dispatch_bridge(seed, run):
+                store.save_run(dict(run))
+                return JSONResponse(
+                    {
+                        "ingest": decision,
+                        "run_id": run.get("run_id"),
+                        "dispatch_job_id": run.get("dispatch_job_id"),
+                        "status": run.get("status"),
+                    }
+                )
+            from raphael_agent.graph import run_stub_graph
+
+            final = run_stub_graph(run)
+            store.save_run(dict(final))
             return JSONResponse(
                 {
                     "ingest": decision,
-                    "run_id": run.get("run_id"),
-                    "status": run.get("status"),
+                    "run_id": final.get("run_id"),
+                    "status": final.get("status"),
                 }
             )
         return JSONResponse({"ingest": decision}, status_code=202)
@@ -466,8 +548,11 @@ async def datadog_webhook(request: Request) -> JSONResponse:
     )
     body_out: dict[str, Any] = {"ingest": decision}
     if run is not None:
+        _try_dispatch_bridge(seed, run)
         body_out["run_id"] = run["run_id"]
         body_out["status"] = run["status"]
+        if run.get("dispatch_job_id"):
+            body_out["dispatch_job_id"] = run["dispatch_job_id"]
     return JSONResponse(body_out, status_code=202)
 
 
@@ -486,7 +571,7 @@ async def cloudwatch_webhook(request: Request) -> JSONResponse:
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
-        decision, run = accept_and_run_graph(
+        decision, run = accept_normalized_event(
             seed,
             store=store,
             policy=IngestPolicyConfig.from_env(),
@@ -494,11 +579,25 @@ async def cloudwatch_webhook(request: Request) -> JSONResponse:
             sandbox_mode=sandbox_mode,
         )
         if run is not None:
+            if _try_dispatch_bridge(seed, run):
+                store.save_run(dict(run))
+                return JSONResponse(
+                    {
+                        "ingest": decision,
+                        "run_id": run.get("run_id"),
+                        "dispatch_job_id": run.get("dispatch_job_id"),
+                        "status": run.get("status"),
+                    }
+                )
+            from raphael_agent.graph import run_stub_graph
+
+            final = run_stub_graph(run)
+            store.save_run(dict(final))
             return JSONResponse(
                 {
                     "ingest": decision,
-                    "run_id": run.get("run_id"),
-                    "status": run.get("status"),
+                    "run_id": final.get("run_id"),
+                    "status": final.get("status"),
                 }
             )
         return JSONResponse({"ingest": decision}, status_code=202)
@@ -512,8 +611,11 @@ async def cloudwatch_webhook(request: Request) -> JSONResponse:
     )
     body_out: dict[str, Any] = {"ingest": decision}
     if run is not None:
+        _try_dispatch_bridge(seed, run)
         body_out["run_id"] = run["run_id"]
         body_out["status"] = run["status"]
+        if run.get("dispatch_job_id"):
+            body_out["dispatch_job_id"] = run["dispatch_job_id"]
     return JSONResponse(body_out, status_code=202)
 
 
