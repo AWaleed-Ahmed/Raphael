@@ -30,6 +30,17 @@
 
 ## Decision log (newest first)
 
+### D-20260830-02 — Deterministic patch templates read manifest content from the wire, not the filesystem
+- **Status:** accepted
+- **Date:** 2026-08-30
+- **Owners:** Engineer B + coding agent
+- **Decision:** The deterministic patch templates (`fix_probe_port_mismatch`, `fix_bad_image`, `fix_missing_configmap_key`) now read manifest content from the deploy_revision response's `rendered_files` field (contracts-v1.1.0) instead of requiring local filesystem access via `workspace_path`. The orchestrator captures `rendered_files` from each deploy result into run state via direct assignment (overwrites on each deploy, no stale-content accumulation). Templates prefer `rendered_files` when present; the `workspace_path` fallback is retained solely for the agent's legacy in-process test suite and is explicitly documented as never reachable in the production dispatch↔connector path.
+- **Why:** The real-job test at D-20260829-01 revealed that patch templates silently produced placeholder no-op patches (`# no deterministic fix generated`) in the dispatch path because they were written assuming local filesystem access from the old in-process agent architecture. This was an architectural gap — `workspace_path` was never set in orchestrator state, so `_manifest_dir()` always returned `None` — not a missing template or an LLM-dependency issue.
+- **What this proves (distinct from D-20260829-01):** That entry proved the wire protocol works end-to-end with mock/stub reasoning hooks. This entry proves the real diagnosis and patch-generation logic — no LLM, no stubs — correctly classifies a genuine YAML defect (`probe_misconfiguration`) and produces a correct, targeted, validated fix through the same dispatch↔connector pipeline. This is the first real, non-mocked, fully deterministic fix generated and validated end-to-end.
+- **Alternatives:** Giving dispatch direct filesystem/network access to the customer's cloned repo — rejected (breaks the sandbox trust boundary this project is built around). Moving patch generation to run on the Ignis/connector side — rejected (keeps reasoning logic entirely private in raphael-core, per the original BYO-model boundary decision).
+- **Consequences:** contracts-v1.1.0 is now the pinned version. The workspace_path fallback in `templates.py` is retained but explicitly documented as legacy-test-only. The dispatch↔connector pipeline now carries manifest content as data (via `rendered_files` → `patch.files`) rather than requiring shared filesystem access, consistent with the "return data, not capability" pattern established by the connector's HTTP polling design.
+- **Known follow-up:** D-20260830-01 — `service_port_mismatch` signature emits `container_ports` as an array, violating `failure_signature.json`'s scalar-only attributes constraint. Unrelated to this work; discovered as a side effect; filed separately.
+
 ### D-20260830-01 — Known follow-up: service_port_mismatch signature uses array attribute (schema violation)
 - **Status:** accepted
 - **Date:** 2026-08-30
