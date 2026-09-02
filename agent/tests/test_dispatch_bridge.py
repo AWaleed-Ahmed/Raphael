@@ -105,9 +105,11 @@ class TestSubmitToDispatch:
         """Bridge submits to orchestrator.intake() and job appears in tenant queue."""
         monkeypatch.setenv("RAPHAEL_DISPATCH_BRIDGE_ENABLED", "1")
 
-        # Reset the singleton so we get a fresh orchestrator
+        # Create a fresh orchestrator and wire it explicitly
         import raphael_agent.ingest.dispatch_bridge as bridge_mod
-        bridge_mod._orchestrator_instance = None
+        from raphael_dispatch.orchestrator import Orchestrator
+        orch = Orchestrator()
+        bridge_mod.set_orchestrator(orch)
 
         seed = _make_seed()
         run = {"run_id": seed["run_id"], "status": "pending"}
@@ -146,7 +148,7 @@ class TestSubmitToDispatch:
             def intake(self, *a, **kw):
                 raise RuntimeError("simulated failure")
 
-        bridge_mod._orchestrator_instance = BrokenOrchestrator()
+        bridge_mod.set_orchestrator(BrokenOrchestrator())
 
         seed = _make_seed()
         run = {"run_id": seed["run_id"], "status": "pending"}
@@ -157,7 +159,21 @@ class TestSubmitToDispatch:
         assert "simulated failure" in result["reason"]
 
         # Clean up
-        bridge_mod._orchestrator_instance = None
+        bridge_mod.set_orchestrator(None)
+
+    def test_bridge_fails_loudly_when_not_wired(self):
+        """Bridge must raise RuntimeError if used before set_orchestrator()."""
+        import raphael_agent.ingest.dispatch_bridge as bridge_mod
+        bridge_mod.set_orchestrator(None)
+
+        seed = _make_seed()
+        run = {"run_id": seed["run_id"], "status": "pending"}
+        result = submit_to_dispatch(seed, run)
+
+        assert result["submitted"] is False
+        assert "bridge_error" in result["reason"]
+        assert "not wired" in result["reason"]
+        assert "set_orchestrator" in result["reason"]
 
 
 class TestPrecedenceRule:
@@ -171,7 +187,8 @@ class TestPrecedenceRule:
         monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", "bridge-test-1")
 
         import raphael_agent.ingest.dispatch_bridge as bridge_mod
-        bridge_mod._orchestrator_instance = None
+        from raphael_dispatch.orchestrator import Orchestrator
+        bridge_mod.set_orchestrator(Orchestrator())
 
         stub_graph_called = []
 
@@ -322,15 +339,17 @@ class TestPrecedenceRule:
 class TestRealWebhookPayload:
     """Validate bridge against a real GitHub Actions workflow_run failure payload."""
 
-    def test_real_github_payload_bridges_correctly(self, monkeypatch):
+    def test_real_github_payload_bridges_correctly(self, monkeypatch, tmp_path):
         """Real workflow_run payload from GitHub bridges to dispatch with correct fields."""
         monkeypatch.setenv("RAPHAEL_DISPATCH_BRIDGE_ENABLED", "1")
         monkeypatch.delenv("RAPHAEL_INGEST_RUN_GRAPH", raising=False)
         monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", f"real-payload-{uuid.uuid4().hex[:8]}")
         monkeypatch.setenv("RAPHAEL_INGEST_MAX_CONCURRENT_RUNS", "100")
+        monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path / "agent-data"))
 
         import raphael_agent.ingest.dispatch_bridge as bridge_mod
-        bridge_mod._orchestrator_instance = None
+        from raphael_dispatch.orchestrator import Orchestrator
+        bridge_mod.set_orchestrator(Orchestrator())
 
         from pathlib import Path
         fixture = Path(__file__).parent / "fixtures" / "real_workflow_run_failure.json"

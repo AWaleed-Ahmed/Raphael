@@ -101,9 +101,7 @@ def submit_to_dispatch(
         }
 
     try:
-        from raphael_dispatch.orchestrator import Orchestrator
-
-        orchestrator = _get_or_create_orchestrator()
+        orchestrator = _get_orchestrator()
         tenant_id = seed.get("tenant_id", "local-dev")
         result = orchestrator.intake(envelope, tenant_id=tenant_id)
 
@@ -123,19 +121,29 @@ def submit_to_dispatch(
         return {"submitted": False, "reason": f"bridge_error: {exc}"}
 
 
-_orchestrator_instance: Orchestrator | None = None  # type: ignore[name-defined]
+_orchestrator_instance = None
 
 
-def _get_or_create_orchestrator():
-    """Return a module-level Orchestrator singleton.
+def set_orchestrator(orchestrator) -> None:
+    """Inject the Orchestrator instance the bridge should submit jobs to.
 
-    Created lazily on first bridge submission. Lives for the process lifetime
-    so jobs accumulate in the same in-memory queue that the HTTP-served
-    dispatch app would use if running in the same process.
+    Must be called at startup before any webhook can trigger the bridge.
+    In the standard single-process deployment (run.py), this is called
+    automatically during app creation. If you see a RuntimeError about
+    the bridge not being wired, it means the entrypoint did not call
+    this function — fix the startup code, do not add a fallback here.
     """
     global _orchestrator_instance
-    if _orchestrator_instance is None:
-        from raphael_dispatch.orchestrator import Orchestrator
+    _orchestrator_instance = orchestrator
 
-        _orchestrator_instance = Orchestrator()
+
+def _get_orchestrator():
+    """Return the wired Orchestrator instance, or raise if not yet wired."""
+    if _orchestrator_instance is None:
+        raise RuntimeError(
+            "dispatch bridge not wired: set_orchestrator() was not called at startup. "
+            "In the standard deployment (run.py), this happens automatically. "
+            "If running agent and dispatch as separate processes, the bridge cannot "
+            "work — use HTTP POST to /v1/tenants/{tenant_id}/jobs instead."
+        )
     return _orchestrator_instance

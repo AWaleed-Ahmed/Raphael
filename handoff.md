@@ -96,11 +96,22 @@ git checkout -b feature/short-name
 ## Get running
 
 ```bash
-cd agent && pip install -e .
-python -m raphael_agent.scripts.pilot_local_preflight
-python -m raphael_agent.scripts.demo_partner
-pytest -q
+# Terminal 1: Sandbox (Ignis executor, mock backend)
+RAPHAEL_CLUSTER_BACKEND=mock cargo run --manifest-path <ignis-checkout>/controller/Cargo.toml
+
+# Terminal 2: Raphael-core (agent webhooks + dispatch orchestrator, single process)
+python run.py
+# health: http://127.0.0.1:8091/health
+# webhooks: http://127.0.0.1:8091/v1/webhooks/github
 ```
+
+`run.py` starts both the agent webhook server and dispatch orchestrator in one
+process with a shared Orchestrator instance. The ingest→dispatch bridge
+(`RAPHAEL_DISPATCH_BRIDGE_ENABLED=1`) submits jobs via direct Python call.
+
+> Multi-process deployment with startup rehydration and durable lease ownership
+> is explicitly deferred future work. See D-20260830-01 and the dispatch
+> follow-ups row above.
 
 ## ML model and hosting research
 
