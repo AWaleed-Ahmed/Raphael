@@ -111,15 +111,25 @@ Force-cleanup of sandboxes is **controller-side**: `POST /v1/admin/force-cleanup
 
 ---
 
-## 5. Agent webhook server — Terminal 2
+## 5. Raphael-core server (agent + dispatch) — Terminal 2
 
 ```bash
-cd agent
-# optional: $env:RAPHAEL_GITHUB_WEBHOOK_SECRET="..."
-python -m raphael_agent.http_api.app
+# from repo root
+python run.py
 # health: http://127.0.0.1:8091/health
-# metrics: http://127.0.0.1:8091/v1/metrics
+# webhooks: http://127.0.0.1:8091/v1/webhooks/github
+# dispatch queue: http://127.0.0.1:8091/v1/tenants/{tenant_id}/jobs/next
 ```
+
+This starts both the agent webhook server and the dispatch orchestrator in a
+single process, sharing one Orchestrator instance. The ingest→dispatch bridge
+(`RAPHAEL_DISPATCH_BRIDGE_ENABLED=1`) submits jobs via direct Python call — no
+HTTP overhead, no internal auth token needed (same trust domain).
+
+> **Note:** This is the current single-process deployment model. Multi-process
+> or multi-instance dispatch (with startup rehydration and durable lease
+> ownership) is explicitly deferred future work. Do not run multiple instances
+> of `run.py` without first implementing those features.
 
 ---
 
