@@ -7,6 +7,9 @@ name: Cross-repository E2E
 on:
   push:
     branches: [main]
+  # Temporary pre-merge verification path. Remove after this feature branch
+  # has completed one successful GitHub-hosted run.
+  pull_request:
   repository_dispatch:
     types: [ignis-main-updated]
   schedule:
