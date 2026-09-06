@@ -41,7 +41,7 @@ def create_app():
 
     # 1. Create the orchestrator — single source of truth for job state
     from raphael_dispatch.orchestrator import Orchestrator
-    from raphael_dispatch.app import create_app as create_dispatch_app
+    from raphael_dispatch.app import create_app as create_dispatch_app, dispatch_lifespan
 
     orchestrator = Orchestrator()
     dispatch_app = create_dispatch_app(orchestrator)
@@ -59,6 +59,7 @@ def create_app():
     combined = Starlette(
         debug=False,
         routes=list(agent_app.routes) + list(dispatch_app.routes),
+        lifespan=dispatch_lifespan,
     )
     combined.state.orchestrator = orchestrator
     combined.state.claimed_jobs = dispatch_app.state.claimed_jobs

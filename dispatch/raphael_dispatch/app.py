@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+from contextlib import asynccontextmanager, suppress
 from json import JSONDecodeError
 from datetime import datetime, timezone
 from typing import Any
@@ -13,6 +16,35 @@ from starlette.routing import Route
 from .orchestrator import OrchestrationError, Orchestrator
 from .protocol import ProtocolValidationError, get_schemas
 from .auth import AuthError, principal_from_request
+
+
+def lease_reap_interval_seconds() -> float:
+    """Return a bounded, configurable cadence for automatic abandoned-job cleanup."""
+    raw = os.environ.get("RAPHAEL_LEASE_REAP_INTERVAL_SECONDS", "10")
+    try:
+        return max(0.1, float(raw))
+    except ValueError:
+        return 10.0
+
+
+@asynccontextmanager
+async def dispatch_lifespan(application: Starlette):
+    """Restore persisted routing before serving, then continuously reap expired leases."""
+    orchestrator = application.state.orchestrator
+    orchestrator.rehydrate()
+
+    async def reap_loop() -> None:
+        while True:
+            await asyncio.sleep(lease_reap_interval_seconds())
+            orchestrator.reap_expired()
+
+    task = asyncio.create_task(reap_loop(), name="raphael-dispatch-lease-reaper")
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 def health(_: Request) -> JSONResponse:
@@ -133,6 +165,7 @@ async def next_tenant_job(request: Request) -> JSONResponse:
 def create_app(orchestrator: Orchestrator | None = None) -> Starlette:
     application = Starlette(
         debug=False,
+        lifespan=dispatch_lifespan,
         routes=[
             Route("/health", health, methods=["GET"]),
             Route("/v1/validate", validate, methods=["POST"]),

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -300,3 +302,77 @@ def test_http_endpoints_use_orchestrator(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json()["messages"][0]["payload"]["verb"] == "create_sandbox"
     assert client.get("/health").json()["status"] == "ok"
+
+
+def _connector_headers(monkeypatch) -> dict[str, str]:
+    monkeypatch.setenv(
+        "RAPHAEL_DISPATCH_TOKENS",
+        json.dumps({"connector-a": {"tenant_id": "tenant-a", "role": "connector"}}),
+    )
+    return {"Authorization": "Bearer connector-a"}
+
+
+def test_reaper_runs_automatically_without_manual_endpoint(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("RAPHAEL_LEASE_REAP_INTERVAL_SECONDS", "0.1")
+    current = [datetime(2026, 9, 6, tzinfo=timezone.utc)]
+    orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
+    action = orchestrator.intake(job_envelope(lease_ttl_seconds=30), tenant_id="tenant-a")["messages"][0]
+    state = orchestrator.jobs[action["payload"]["job_id"]]
+
+    with TestClient(create_app(orchestrator)):
+        current[0] += timedelta(seconds=31)
+        time.sleep(0.25)
+
+    assert state["dispatch"]["stage"] == "terminal"
+    assert state["terminal_reason"] == "job_lease_expired"
+
+
+def test_startup_rehydrates_valid_pending_action_for_connector_poll(tmp_path: Path, monkeypatch) -> None:
+    headers = _connector_headers(monkeypatch)
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=60)
+    action = original.intake(job, tenant_id="tenant-a")["messages"][0]
+
+    restarted = make_orchestrator(tmp_path)
+    with TestClient(create_app(restarted)) as client:
+        response = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"messages": [action], "pending": True}
+    assert restarted.jobs[job["payload"]["job_id"]]["dispatch"]["pending_action"] == action
+
+
+def test_startup_rehydrates_stale_job_as_lease_expired(tmp_path: Path) -> None:
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=30)
+    original.intake(job, tenant_id="tenant-a")
+    state = original.jobs[job["payload"]["job_id"]]
+    state["dispatch"]["last_activity_at"] = "2000-01-01T00:00:00Z"
+    original._save(state)
+
+    restarted = make_orchestrator(tmp_path)
+    with TestClient(create_app(restarted)):
+        pass
+
+    persisted = restarted.store.get_run(job["payload"]["job_id"])
+    assert job["payload"]["job_id"] not in restarted.jobs
+    assert persisted["dispatch"]["stage"] == "terminal"
+    assert persisted["status"] == "failed_closed"
+    assert persisted["terminal_reason"] == "job_lease_expired"
+
+
+def test_producer_retry_after_restart_reuses_persisted_progress(tmp_path: Path) -> None:
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=60)
+    create = original.intake(job, tenant_id="tenant-a")["messages"][0]
+    expected = original.receive_result(
+        result_for(create, result=create_result(job["payload"]["job_id"]))
+    )["messages"][0]
+
+    restarted = make_orchestrator(tmp_path)
+    replay = restarted.intake(job, tenant_id="tenant-a")
+    persisted = restarted.store.get_run(job["payload"]["job_id"])
+
+    assert replay == {"messages": [expected], "idempotent_replay": True}
+    assert persisted["sandbox_id"] == "sb-1"
+    assert persisted["dispatch"]["pending_action"] == expected
