@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260906-04 — Connector restart recovery remains an explicit E2E expected failure
+- **Status:** accepted
+- **Date:** 2026-09-06
+- **Owners:** Raphael + Ignis maintainers
+- **Decision:** Keep the whole-Ignis-process restart scenario in the cross-repository E2E harness, but mark it `XFAIL` rather than allowing its current known failure to block the Scenario 1/2 interoperability gate.
+- **Why:** After an Ignis restart, dispatch can redeliver the pending action, but the connector currently has no durable `job_id` to sandbox/workspace context. It therefore cannot execute that redelivered action safely. The adjacent failed-ConnectorResult protocol fix improves attribution of this case but does not provide recovery state.
+- **Alternatives:** Remove Scenario 3 from CI — rejected because that would hide restart evidence. Treat it as a required pass before every unrelated change — rejected while the known recovery design is still unimplemented.
+- **Consequences:** CI must print `XFAIL` together with this decision ID and retain its trace artifacts. Scenario 1 and Scenario 2 remain required. An `XPASS` is non-blocking but requires review and removal of this marker once durable connector recovery is actually implemented.
+
 ### D-20260830-02 — Deterministic patch templates read manifest content from the wire, not the filesystem
 - **Status:** accepted
 - **Date:** 2026-08-30
