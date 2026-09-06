@@ -52,6 +52,50 @@ class Orchestrator:
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
         self.jobs: dict[str, dict[str, Any]] = {}
 
+    @staticmethod
+    def _is_active_dispatch_state(state: dict[str, Any]) -> bool:
+        dispatch = state.get("dispatch")
+        return (
+            isinstance(dispatch, dict)
+            and dispatch.get("stage") != "terminal"
+            and dispatch.get("pending_action") is not None
+        )
+
+    @staticmethod
+    def _lease_is_expired(state: dict[str, Any], current: datetime) -> bool:
+        """Apply the one lease-staleness rule used at startup and while running."""
+        dispatch = state["dispatch"]
+        ttl = int(dispatch.get("lease_ttl_seconds") or 0)
+        if ttl <= 0:
+            return False
+        last = datetime.fromisoformat(str(dispatch["last_activity_at"]).replace("Z", "+00:00"))
+        return (current - last).total_seconds() > ttl
+
+    def _expire_lease(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Fail closed using the shared terminal transition for an abandoned job."""
+        state["errors"] = list(state.get("errors") or []) + [
+            {"code": "job_lease_expired", "message": "connector lease expired", "retryable": False}
+        ]
+        state["status"] = "failed_closed"
+        state["terminal_reason"] = "job_lease_expired"
+        terminal = self._terminal(state, "failed")
+        self._save(state)
+        return terminal
+
+    def rehydrate(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
+        """Restore valid pending jobs, terminalizing persisted jobs whose lease already expired."""
+        current = (now or self.clock()).astimezone(timezone.utc)
+        terminals: list[dict[str, Any]] = []
+        assert self.store is not None
+        for state in self.store.iter_runs():
+            if not self._is_active_dispatch_state(state):
+                continue
+            if self._lease_is_expired(state, current):
+                terminals.append(self._expire_lease(state))
+                continue
+            self.jobs.setdefault(state["run_id"], state)
+        return terminals
+
     def _now(self) -> str:
         return self.clock().astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -127,7 +171,15 @@ class Orchestrator:
         job = job_envelope["payload"]
         job_id = job["job_id"]
         existing = self.jobs.get(job_id)
+        if existing is None:
+            assert self.store is not None
+            persisted = self.store.get_run(job_id)
+            if persisted is not None and isinstance(persisted.get("dispatch"), dict):
+                existing = persisted
+                self.jobs[job_id] = existing
         if existing is not None:
+            if tenant_id and existing.get("tenant_id") != tenant_id:
+                raise OrchestrationError("job_id belongs to a different tenant")
             pending = existing.get("dispatch", {}).get("pending_action")
             messages = [pending] if pending else []
             return {"messages": messages, "idempotent_replay": True}
@@ -225,22 +277,11 @@ class Orchestrator:
         current = (now or self.clock()).astimezone(timezone.utc)
         terminals: list[dict[str, Any]] = []
         for state in list(self.jobs.values()):
-            dispatch = state["dispatch"]
-            if not dispatch.get("pending_action") or dispatch.get("stage") == "terminal":
+            if not self._is_active_dispatch_state(state):
                 continue
-            ttl = int(dispatch.get("lease_ttl_seconds") or 0)
-            if ttl <= 0:
+            if not self._lease_is_expired(state, current):
                 continue
-            last = datetime.fromisoformat(str(dispatch["last_activity_at"]).replace("Z", "+00:00"))
-            if (current - last).total_seconds() <= ttl:
-                continue
-            state["errors"] = list(state.get("errors") or []) + [
-                {"code": "job_lease_expired", "message": "connector lease expired", "retryable": False}
-            ]
-            state["status"] = "failed_closed"
-            state["terminal_reason"] = "job_lease_expired"
-            terminals.append(self._terminal(state, "failed"))
-            self._save(state)
+            terminals.append(self._expire_lease(state))
         return terminals
 
     def _issue_action(self, state: dict[str, Any], verb: str, args: dict[str, Any]) -> dict[str, Any]:
