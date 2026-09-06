@@ -1,0 +1,115 @@
+name: Cross-repository E2E
+
+# Safety invariant: this workflow must never create a live GitHub publish.
+# It intentionally provides no GitHub credential to Raphael and fails before
+# executing E2E work if its partner or publish posture is changed from dry_run.
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [ignis-main-updated]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      ignis_ref:
+        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Ignis mock backend + Raphael dispatch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Scheduled and Raphael-originated runs use the currently pinned public contract.
+      # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
+      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.0' }}
+      E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
+      RAPHAEL_PARTNER_MODE: dry_run
+      RAPHAEL_PUBLISH_MODE: dry_run
+      GITHUB_TOKEN: ""
+      RAPHAEL_GITHUB_TOKEN: ""
+      RAPHAEL_GITHUB_APP_ID: ""
+      RAPHAEL_GITHUB_INSTALLATION_ID: ""
+      RAPHAEL_GITHUB_APP_PRIVATE_KEY: ""
+      RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH: ""
+    steps:
+      - name: Check out Raphael
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Raphael packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e agent -e dispatch
+
+      - name: Enforce dry-run-only E2E posture
+        shell: bash
+        run: |
+          test "$RAPHAEL_PARTNER_MODE" = "dry_run" || {
+            echo "::error::Cross-repository E2E must run with RAPHAEL_PARTNER_MODE=dry_run."
+            exit 1
+          }
+          test "$RAPHAEL_PUBLISH_MODE" = "dry_run" || {
+            echo "::error::Cross-repository E2E must run with RAPHAEL_PUBLISH_MODE=dry_run."
+            exit 1
+          }
+          test -z "$RAPHAEL_GITHUB_TOKEN" || {
+            echo "::error::Cross-repository E2E must not receive RAPHAEL_GITHUB_TOKEN."
+            exit 1
+          }
+          test -z "$GITHUB_TOKEN" || {
+            echo "::error::Cross-repository E2E must not expose GITHUB_TOKEN to Raphael."
+            exit 1
+          }
+          test -z "$RAPHAEL_GITHUB_APP_ID$RAPHAEL_GITHUB_INSTALLATION_ID$RAPHAEL_GITHUB_APP_PRIVATE_KEY$RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH" || {
+            echo "::error::Cross-repository E2E must not expose GitHub App credentials to Raphael."
+            exit 1
+          }
+
+      - name: Check out pinned Ignis revision
+        uses: actions/checkout@v4
+        with:
+          repository: AWaleed-Ahmed/Ignis
+          ref: ${{ env.IGNIS_REF }}
+          path: ignis
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Ignis controller and embedded connector
+        run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
+
+      - name: Run three-scenario wire-protocol harness
+        shell: bash
+        run: |
+          set -o pipefail
+          python e2e/run_e2e.py 2>&1 | tee e2e/wire-protocol.log
+
+      # This runner retains production hooks. It complements (rather than alters)
+      # the deterministic three-scenario protocol harness above.
+      - name: Run real-agent-hooks smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          python e2e/run_real_job.py 2>&1 | tee e2e/real-hooks.log
+
+      - name: Upload E2E traces and process logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-repo-e2e-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            e2e/*.jsonl
+            e2e/*.log
