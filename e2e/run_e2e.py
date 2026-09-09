@@ -23,15 +23,6 @@ IGNIS_BIN = os.getenv("E2E_IGNIS_BIN", "")
 CLONE_URL = os.getenv("E2E_CLONE_URL", "https://github.com/AmazingDude/raphael-e2e-fixture.git")
 COMMIT_SHA = os.getenv("E2E_COMMIT_SHA", "57f0801fe46527c7531d62c5e278db80b7b56564")
 
-# Known expected failure tracked by D-20260906-04. Scenario 3 remains in the
-# run so CI keeps recording the real restart trace, but it does not gate until
-# Ignis persists enough job/sandbox context to resume a redelivered action.
-SCENARIO_3_XFAIL_REASON = (
-    "D-20260906-04: Ignis connector restart recovery has no durable "
-    "job-to-sandbox/workspace context"
-)
-
-
 def http_post(url: str, body: dict, token: str) -> tuple[int, dict]:
     data = json.dumps(body).encode()
     req = Request(url, data=data, method="POST", headers={
@@ -305,7 +296,7 @@ def run_scenario_3_restart(
     controller_cmd: list[str],
     processes: list[subprocess.Popen],
 ) -> bool:
-    print("\n========== SCENARIO 3: whole-process restart (mid-flight) ==========")
+    print("\n========== SCENARIO 3: whole-process restart (mid-flight) ==========", flush=True)
 
     delay_seconds = int(env["E2E_DIAGNOSE_DELAY_SECONDS"])
     diagnose_marker = Path(env["E2E_DIAGNOSE_STARTED_FILE"])
@@ -314,7 +305,7 @@ def run_scenario_3_restart(
     submitted = make_job("e2e-success")
     t_submit = time.time()
     status, response = http_post(f"{DISPATCH}/v1/tenants/{TENANT}/jobs", submitted, PRODUCER)
-    print(f"[{time.time() - t_submit:.1f}s] Submitted: status={status}")
+    print(f"[{time.time() - t_submit:.1f}s] Submitted: status={status}", flush=True)
     assert status == 202
 
     print(f"[{time.time() - t_submit:.1f}s] Polling trace for confirmed mid-flight state...")
@@ -490,6 +481,7 @@ def main() -> int:
         # The deterministic Scenario 3 delay must be present when dispatch
         # starts; changing this parent-process dictionary later cannot alter
         # the environment of an already-running dispatch child.
+        print("[scenario_3] stopping baseline dispatch", flush=True)
         dispatch.terminate()
         dispatch.wait(timeout=10)
         processes.remove(dispatch)
@@ -498,22 +490,21 @@ def main() -> int:
         diagnose_marker.unlink(missing_ok=True)
         env["E2E_DIAGNOSE_STARTED_FILE"] = str(diagnose_marker)
         scenario_3_dispatch_log = open(E2E / "dispatch-scenario-3.log", "w", encoding="utf-8")
+        print("[scenario_3] spawning delayed dispatch", flush=True)
         dispatch = subprocess.Popen(
             [sys.executable, str(E2E / "dispatch_server.py")],
             cwd=str(ROOT), env=env, stdout=scenario_3_dispatch_log, stderr=subprocess.STDOUT,
         )
         processes.append(dispatch)
+        print("[scenario_3] waiting for delayed dispatch health", flush=True)
         wait_ready(DISPATCH)
-        print(f"Dispatch restarted for Scenario 3, pid={dispatch.pid}")
+        print(f"Dispatch restarted for Scenario 3, pid={dispatch.pid}", flush=True)
+        print("[scenario_3] submitting restart job", flush=True)
         results["scenario_3"] = run_scenario_3_restart(env, trace, controller_cmd, processes)
 
         print("\n========== RESULTS ==========")
         all_pass = True
         for name, passed in results.items():
-            if name == "scenario_3":
-                status = "XPASS" if passed else "XFAIL"
-                print(f"  {name}: {status} ({SCENARIO_3_XFAIL_REASON})")
-                continue
             status = "PASS" if passed else "FAIL"
             if not passed:
                 all_pass = False
