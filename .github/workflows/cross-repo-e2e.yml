@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       ignis_ref:
-        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.0)"
+        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.1)"
         required: false
         type: string
 
@@ -32,7 +32,7 @@ jobs:
     env:
       # Scheduled and Raphael-originated runs use the currently pinned public contract.
       # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
-      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.0' }}
+      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.1' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
