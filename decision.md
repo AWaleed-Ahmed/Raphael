@@ -30,6 +30,17 @@
 
 ## Decision log (newest first)
 
+### D-20260918-02 — Two additional deterministic patch classes proven against immutable real fixtures
+- **Status:** accepted
+- **Date:** 2026-09-18
+- **Decision:** The production-hooks dry-run chain reached `fix_finalized` for `bad_image_reference` at fixture commit `fafa6bc` and `invalid_missing_config` at `29d4928` in `AmazingDude/raphael-e2e-fixture`. The image template replaced `ghcr.io/acme/payments-api:does-not-exist` with `hashicorp/http-echo:1.0`; the ConfigMap template added the missing `DATABASE_URL` key under `payments-config.data`; both then validated in the mock backend.
+- **Important scope limit:** `bad_image_reference` is pattern-matched only (`does-not-exist`, `:missing`, or `invalid.tag`); it does **not** query an image registry or prove detection of arbitrary broken image references. The ConfigMap detector, by contrast, is structural YAML (`configMapKeyRef` versus ConfigMap data). Both traces used LF content with no CRLF-inflated patch payload.
+
+### D-20260918-01 — Restart-recovery E2E gate closed with immutable Ignis release
+- **Status:** closed
+- **Date:** 2026-09-18
+- **Decision:** The former Scenario 3 XFAIL from D-20260906-04 is closed. Ignis `contracts-v1.1.1` is an immutable tag at `44af808`; Raphael CI now pins `IGNIS_REF` to that tag, and all three scenarios passed on Raphael `main` in [run 35257266946](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/35257266946). This replaces one-off/manual validation with a reproducible CI gate.
+
 ### D-20260906-04 — Connector restart recovery remains an explicit E2E expected failure
 - **Status:** accepted
 - **Date:** 2026-09-06

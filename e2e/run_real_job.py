@@ -21,8 +21,12 @@ PRODUCER_TOKEN = "real-producer-token"
 CONNECTOR_TOKEN = "real-connector-token"
 IGNIS_BIN = os.getenv("E2E_IGNIS_BIN", "")
 
-CLONE_URL = "https://github.com/AmazingDude/raphael-e2e-fixture.git"
-COMMIT_SHA = "268d7b781f3849dab5694a8161789099555ebc76"
+# Defaults preserve the existing service-port fixture invocation; environment
+# overrides allow the same real-hooks harness to validate another immutable
+# fixture commit without duplicating orchestration logic.
+CLONE_URL = os.getenv("E2E_REAL_CLONE_URL", "https://github.com/AmazingDude/raphael-e2e-fixture.git")
+COMMIT_SHA = os.getenv("E2E_REAL_COMMIT_SHA", "268d7b781f3849dab5694a8161789099555ebc76")
+NARROWED_LOCATION = os.getenv("E2E_REAL_NARROWED_LOCATION", "deploy/manifests/service-port-mismatch.yaml")
 
 
 def http_post(url, body, token):
@@ -146,7 +150,7 @@ def main():
                 },
                 "commit_sha": COMMIT_SHA,
                 "narrowed_location": {
-                    "file_path": "deploy/manifests/service-port-mismatch.yaml",
+                    "file_path": NARROWED_LOCATION,
                 },
                 "lease_ttl_seconds": 120,
             },
