@@ -652,6 +652,92 @@ Build a versioned scenario suite with known root causes and expected safe outcom
 
 All prompt, model, analyzer, and sandbox changes should run against this suite before release.
 
+### 17.3 Evaluation harness and regression gate
+
+**Changelog — 2026-09-19:** Define a versioned, evidence-producing evaluation harness so deterministic analyzer, patch, sandbox, and optional-model changes are measured against known scenarios before release.
+
+The §17.1 scenarios remain the source list. Each implemented evaluation case must live in a versioned directory:
+
+```text
+evals/scenarios/<scenario-id>/
+  manifest.json
+  fixture/
+  expected-evidence.json
+```
+
+`manifest.json` must declare, at minimum:
+
+- Fixture repository and immutable commit SHA.
+- Trigger and narrowed location.
+- Expected failure class.
+- Expected terminal result: `fix_finalized`, `escalated`, or another explicitly safe terminal state.
+- Expected patch scope where a patch is permitted.
+- Required evidence assertions, including pre-fix signature, post-fix validation result, policy decision, and cleanup result.
+- Whether the scenario is positive remediation, expected escalation, expected policy block, or adversarial safety coverage.
+
+The harness must compute the §17.2 scoring dimensions from machine-readable assertions, rather than relying on a prose pass/fail summary. Every scenario must emit an ordered trace, evidence references, final terminal state, patch/validation artifacts when applicable, and explicit assertion failures.
+
+The existing cross-repository E2E workflow is the required regression gate for implemented scenarios. New evaluation scenarios extend that workflow and publish their traces as artifacts; they must not create a separate, parallel CI system with different runtime assumptions.
+
+The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
+
+### 17.4 Confidence calibration and escalation quality
+
+For each evaluated run, record:
+
+- `asserted_confidence`: the confidence reported by diagnosis.
+- `was_diagnosis_correct`: determined from the scenario’s expected root cause and evidence assertions.
+- `was_fix_correct`: determined from validation and the expected terminal state when remediation is permitted.
+- `escalation_expected` and `escalation_observed`.
+
+Confidence must be evaluated empirically by bucket and overall: an approximately 80% confidence cohort should be correct at approximately 80%, subject to a documented sample-size tolerance. The project must not treat confidence as calibrated merely because it is present in a response.
+
+Escalation quality is a separate metric. Report both:
+
+- **Correct escalation:** a blocked, unsupported, unsafe, or insufficient-evidence scenario escalated as expected.
+- **Unnecessary escalation:** a scenario with adequate deterministic evidence and an allowed validated fix escalated instead.
+
+This prevents a superficially safe system from appearing successful merely by escalating every difficult case.
+
+### 17.5 Detection-coverage roadmap
+
+Extend coverage in order of expected real-world value, and require every newly supported class to ship with at least one versioned evaluation scenario before being claimed as supported:
+
+1. Resource constraints, including deterministic OOM and bounded requests/limits cases.
+2. Service/port mismatch.
+3. Helm/Kustomize render errors.
+4. Deployment regression tied to a relevant deployment commit.
+
+Probe misconfiguration, bad image reference, and missing ConfigMap-key fixtures already provide the initial deterministic baseline. `bad_image_reference` coverage must remain accurately scoped: the current mock detector recognizes known-bad image patterns; it is not registry-verified arbitrary image-reference detection.
+
+Service/port mismatch must remain marked blocked from end-to-end remediation until the known schema issue in D-20260830-01 is resolved: the current scalar-port assumptions conflict with `container_ports` array-shaped evidence. An evaluation scenario may document the expected escalation before that fix, but it must not claim `fix_finalized`.
+
+### 17.6 Localization prove-or-cut gate
+
+`node_localize` has not yet been demonstrated with real Supabase credentials and currently fails open. Before treating it as a production capability:
+
+1. Run the same versioned evaluation subset with localization disabled and enabled.
+2. Compare detection correctness, root-cause correctness, patch correctness, unnecessary escalation, runtime, and cost.
+3. Retain it only if the measured improvement is material and does not weaken safety or evidence provenance.
+
+If no measurable improvement is shown, remove it from the production path rather than retaining an unproven optional dependency.
+
+### 17.7 Inference optimization boundaries
+
+The present default path is deterministic first, with LLM diagnosis disabled by default. Therefore KV-cache infrastructure, speculative decoding, request batching, and dedicated inference-serving infrastructure are not current optimization work.
+
+Bounded evidence input is applicable now and remains required by FR-010 and FR-011: collect only relevant CI steps, bounded log windows, bounded Kubernetes events, and source-linked manifest/diff context.
+
+Prompt or prefix caching may be evaluated only if the optional LLM route is enabled and measured as a real hot path. Do not introduce model-serving infrastructure before evaluation shows that model inference is a material runtime or cost bottleneck.
+
+### 17.8 LLM role and learning-loop gate
+
+An LLM may assist with human-review material: explaining a validated PR, summarizing bounded evidence, or proposing clearly labeled novel hypotheses for the Issues/human-review route.
+
+An LLM must not be the causal or validation gate. Deterministic policy checks, sandbox reproduction, structured failure signatures, and validation evidence decide whether a cause is accepted and whether a fix can be published.
+
+D-20260810-15 remains in effect: `RAPHAEL_LEARNING=0` is the production default. Offline learning, priors, or feedback-driven behavior may only be enabled after this evaluation harness measures an explicit before/after score delta and demonstrates no safety regression.
+
 ## 18. Observability and Operations
 
 ### 18.1 Run timeline
