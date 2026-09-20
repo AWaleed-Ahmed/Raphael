@@ -107,6 +107,16 @@ jobs:
           set -o pipefail
           python e2e/run_real_job.py 2>&1 | tee e2e/real-hooks.log
 
+      # §17.3 extends this existing cross-repository gate. It reuses the
+      # production-hooks runner above for immutable scenario fixtures and
+      # emits machine-scored evidence; it is not a separate CI system.
+      - name: Run versioned evaluation scenarios
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest evals.test_run_evals
+          python evals/run_evals.py 2>&1 | tee evals/evaluation.log
+
       - name: Upload E2E traces and process logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,3 +126,5 @@ jobs:
           path: |
             e2e/*.jsonl
             e2e/*.log
+            evals/out/**
+            evals/evaluation.log
