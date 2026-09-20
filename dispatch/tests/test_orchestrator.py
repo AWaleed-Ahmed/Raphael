@@ -176,6 +176,24 @@ def test_default_hooks_reuse_agent_nodes() -> None:
     assert hooks.publish is node_publish_or_escalate
 
 
+def test_observation_evidence_is_marked_redacted_only_after_real_redaction() -> None:
+    redacted = Orchestrator._observation_evidence(
+        "observe-secret",
+        {
+            "signature": {"key": "probe_port_mismatch:service:8080!=9090"},
+            "detail": "token: SUPERSECRETVALUE123",
+        },
+    )
+    assert redacted["redacted"] is True
+    assert "SUPERSECRETVALUE123" not in redacted["summary"]
+    assert "generic_api_key" in redacted["redaction_notes"]
+
+    clean = Orchestrator._observation_evidence(
+        "observe-clean", {"signature": {"key": "probe_port_mismatch:service:8080!=9090"}}
+    )
+    assert clean["redacted"] is False
+
+
 def test_successful_multistep_job_reaches_fix_finalized(tmp_path: Path) -> None:
     orchestrator = make_orchestrator(tmp_path)
     job = job_envelope()

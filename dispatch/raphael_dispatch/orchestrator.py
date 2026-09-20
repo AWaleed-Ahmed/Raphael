@@ -10,6 +10,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from raphael_agent.budgets import check_budgets, max_patch_attempts_budget, sandbox_http_timeout_seconds
+from raphael_agent.evidence.redaction import redact_evidence_item
 from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
@@ -378,6 +379,19 @@ class Orchestrator:
         if isinstance(rendered, list):
             state["rendered_files"] = rendered
 
+    @staticmethod
+    def _observation_evidence(action_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        """Create connector observation evidence with an honest redaction marker."""
+        return redact_evidence_item(
+            {
+                "evidence_id": f"connector-result:{action_id}",
+                "kind": "artifact",
+                "summary": json.dumps(result, sort_keys=True),
+                # The redaction helper changes this only when it actually redacts text.
+                "redacted": False,
+            }
+        )
+
     def _after_observe(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}
         signature = result.get("signature")
@@ -387,14 +401,8 @@ class Orchestrator:
             "signature_key": (signature or {}).get("key"),
             "message": "connector observation received",
         }
-        state["evidence"] = list(state.get("evidence") or []) + [
-            {
-                "evidence_id": f"connector-result:{payload['action_id']}",
-                "kind": "artifact",
-                "summary": json.dumps(result, sort_keys=True),
-                "redacted": True,
-            }
-        ]
+        observation_evidence = self._observation_evidence(payload["action_id"], result)
+        state["evidence"] = list(state.get("evidence") or []) + [observation_evidence]
         self._run_node(self.hooks.diagnose, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
