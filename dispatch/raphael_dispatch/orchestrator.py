@@ -15,6 +15,7 @@ from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, 
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
 
+from .patch_store import EphemeralPatchStore
 from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, get_schemas
 
 
@@ -46,11 +47,13 @@ class Orchestrator:
     store: RunStore | None = None
     hooks: AgentHooks | None = None
     clock: Callable[[], datetime] | None = None
+    patch_store: EphemeralPatchStore | None = None
 
     def __post_init__(self) -> None:
         self.store = self.store or RunStore()
         self.hooks = self.hooks or AgentHooks()
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
+        self.patch_store = self.patch_store or EphemeralPatchStore()
         self.jobs: dict[str, dict[str, Any]] = {}
 
     @staticmethod
@@ -131,7 +134,8 @@ class Orchestrator:
     def _save(self, state: dict[str, Any]) -> None:
         state["updated_at"] = self._now()
         assert self.store is not None
-        self.store.save_run(dict(state))
+        durable = {k: v for k, v in state.items() if k != "rendered_files"}
+        self.store.save_run(durable)
 
     def _state_for_job(self, job: dict[str, Any]) -> dict[str, Any]:
         job_id = job["job_id"]
@@ -320,6 +324,8 @@ class Orchestrator:
         state["status"] = "success_draft_pr_ready" if final_status == "fix_finalized" else state.get("status", "failed_closed")
         if final_status != "fix_finalized" and state.get("terminal_reason") is None:
             state["terminal_reason"] = "dispatch_terminal"
+        if self.patch_store is not None:
+            self.patch_store.purge(state["run_id"])
         return terminal
 
     def _create_args(self, state: dict[str, Any]) -> dict[str, Any]:
@@ -373,11 +379,11 @@ class Orchestrator:
             plan["compare_to_signature_key"] = signature["key"]
         return {"plan": plan}
 
-    @staticmethod
-    def _record_rendered_files(state: dict[str, Any], payload: dict[str, Any]) -> None:
+    def _record_rendered_files(self, state: dict[str, Any], payload: dict[str, Any]) -> None:
         rendered = (payload.get("result") or {}).get("rendered_files")
         if isinstance(rendered, list):
-            state["rendered_files"] = rendered
+            assert self.patch_store is not None
+            self.patch_store.save_manifests(state["run_id"], rendered)
 
     @staticmethod
     def _observation_evidence(action_id: str, result: dict[str, Any]) -> dict[str, Any]:
@@ -417,7 +423,14 @@ class Orchestrator:
             state["status"] = halt["terminal"]
             state["terminal_reason"] = halt["reason_code"]
             return [self._terminal(state, "escalated")]
-        self._run_node(self.hooks.patch, state)
+        patch_context = dict(state)
+        assert self.patch_store is not None
+        manifests = self.patch_store.get_manifests(state["run_id"])
+        if manifests:
+            patch_context["rendered_files"] = manifests
+        self._run_node(self.hooks.patch, patch_context)
+        patch_context.pop("rendered_files", None)
+        state.update(patch_context)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
         active = state.get("active_patch_id")

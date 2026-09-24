@@ -66,6 +66,8 @@ class SqliteRunStore(RunStore):
                 conn.commit()
 
     def save_run(self, run: dict[str, Any]) -> None:
+        if "rendered_files" in run:
+            run = {k: v for k, v in run.items() if k != "rendered_files"}
         run_id = run["run_id"]
         payload = json.dumps(run, default=str)
         with self._lock:

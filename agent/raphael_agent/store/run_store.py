@@ -36,6 +36,8 @@ class RunStore:
     def save_run(self, run: dict[str, Any]) -> None:
         run_id = run["run_id"]
         path = self._run_path(run_id)
+        if "rendered_files" in run:
+            run = {k: v for k, v in run.items() if k != "rendered_files"}
         with self._lock:
             path.write_text(json.dumps(run, indent=2, default=str) + "\n", encoding="utf-8")
 

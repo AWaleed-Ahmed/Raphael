@@ -30,6 +30,17 @@
 
 ## Decision log (newest first)
 
+### D-20260924-01 — Ephemeral patch manifest store isolates raw manifests from durable RunStore
+- **Status:** accepted
+- **Date:** 2026-09-24
+- **Owners:** Engineer B + coding agent
+- **Decision:** Introduce `EphemeralPatchStore` to stage raw manifest content (`rendered_files`) disclosed by connector deploy responses outside of `RunStore` and `RunState`. The orchestrator records `rendered_files` strictly into `EphemeralPatchStore` and injects them only into the execution context of the patch generation hook (`self.hooks.patch`). `rendered_files` is never retained in `RunState`, never exposed to diagnosis or localization nodes, and defense-in-depth sanitization strips `rendered_files` from any payload passed to `RunStore.save_run`. At terminal transition (`fix_finalized`, `escalated`, `failed`, or lease expiration), the job's ephemeral patch store is purged.
+- **Why:** Redacting manifests before persistence would corrupt deterministic patch templates, which require exact string/YAML line-splicing against unredacted customer content. Persisting raw manifests in `RunStore` would leak secrets and sensitive customer manifests into long-term audit storage (`.raphael-agent-data/runs/`). Isolating `rendered_files` into a short-lived, patch-only staging store preserves the guarantee that diagnosis and audit records only see redacted evidence while allowing patch generation to operate on high-fidelity manifest text.
+- **Alternatives:**
+  - Redact `rendered_files` before saving to `RunStore`: rejected because redaction tokens (e.g. `[REDACTED]`) corrupt line-splicing diff calculations.
+  - Ephemeral scratchpad on disk: rejected in favor of an in-memory store because `Orchestrator.jobs` is already in-memory and in-memory storage eliminates the risk of orphaned secret files surviving crashes.
+- **Consequences:** `RunStore` persisted JSON records never contain `rendered_files` or unredacted manifest secrets. Diagnosis never sees unredacted manifests. Terminal cleanup guarantees ephemeral manifest disposal matching connector sandbox teardown.
+
 ### D-20260918-02 — Two additional deterministic patch classes proven against immutable real fixtures
 - **Status:** accepted
 - **Date:** 2026-09-18
