@@ -105,7 +105,7 @@ def for_run_record_validation(state: dict[str, Any]) -> dict[str, Any]:
         "pull_request_number",
     }
     out: dict[str, Any] = {}
-    ephemeral = {"validation_retryable"}
+    ephemeral = {"validation_retryable", "rendered_files"}
     for key, value in state.items():
         if key in ephemeral:
             continue

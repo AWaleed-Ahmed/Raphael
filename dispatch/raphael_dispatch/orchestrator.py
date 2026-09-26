@@ -14,7 +14,9 @@ from raphael_agent.evidence.redaction import redact_evidence_item
 from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
+from raphael_agent.store.patch_content import without_patch_content
 
+from .patch_store import EphemeralPatchStore
 from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, get_schemas
 
 
@@ -46,11 +48,13 @@ class Orchestrator:
     store: RunStore | None = None
     hooks: AgentHooks | None = None
     clock: Callable[[], datetime] | None = None
+    patch_store: EphemeralPatchStore | None = None
 
     def __post_init__(self) -> None:
         self.store = self.store or RunStore()
         self.hooks = self.hooks or AgentHooks()
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
+        self.patch_store = self.patch_store or EphemeralPatchStore()
         self.jobs: dict[str, dict[str, Any]] = {}
 
     @staticmethod
@@ -94,8 +98,19 @@ class Orchestrator:
             if self._lease_is_expired(state, current):
                 terminals.append(self._expire_lease(state))
                 continue
+            if state["dispatch"].get("patch_payloads_omitted"):
+                terminals.append(self._lost_patch_context(state))
+                continue
             self.jobs.setdefault(state["run_id"], state)
         return terminals
+
+    def _lost_patch_context(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Never replay metadata as though it were the original executable patch."""
+        state["status"] = "failed_closed"
+        state["terminal_reason"] = "patch_context_lost_on_restart"
+        terminal = self._terminal(state, "failed")
+        self._save(state)
+        return terminal
 
     def _now(self) -> str:
         return self.clock().astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -131,7 +146,8 @@ class Orchestrator:
     def _save(self, state: dict[str, Any]) -> None:
         state["updated_at"] = self._now()
         assert self.store is not None
-        self.store.save_run(dict(state))
+        durable = {k: v for k, v in state.items() if k != "rendered_files"}
+        self.store.save_run(durable)
 
     def _state_for_job(self, job: dict[str, Any]) -> dict[str, Any]:
         job_id = job["job_id"]
@@ -181,6 +197,8 @@ class Orchestrator:
         if existing is not None:
             if tenant_id and existing.get("tenant_id") != tenant_id:
                 raise OrchestrationError("job_id belongs to a different tenant")
+            if existing.get("dispatch", {}).get("patch_payloads_omitted"):
+                return {"messages": [self._lost_patch_context(existing)], "idempotent_replay": True}
             pending = existing.get("dispatch", {}).get("pending_action")
             messages = [pending] if pending else []
             return {"messages": messages, "idempotent_replay": True}
@@ -235,6 +253,14 @@ class Orchestrator:
         elif stage == "deploy_initial":
             self._record_rendered_files(state, payload)
             messages = [self._issue_action(state, "observe_failure", {"timeout_seconds": self._capped_timeout(90)})]
+        elif stage == "refresh_patch_input":
+            self._record_rendered_files(state, payload)
+            if not self.patch_store.get_manifests(job_id):
+                state["status"] = "escalated"
+                state["terminal_reason"] = "patch_input_unavailable"
+                messages = [self._terminal(state, "escalated")]
+            else:
+                messages = self._prepare_patch(state)
         elif stage == "observe_failure":
             messages = self._after_observe(state, payload)
         elif stage == "deploy_patch":
@@ -317,9 +343,17 @@ class Orchestrator:
         terminal = self._envelope(job_id=state["run_id"], kind="terminal", payload=payload)
         state["dispatch"]["pending_action"] = None
         state["dispatch"]["stage"] = "terminal"
+        state["dispatch"].pop("patch_payloads_omitted", None)
         state["status"] = "success_draft_pr_ready" if final_status == "fix_finalized" else state.get("status", "failed_closed")
         if final_status != "fix_finalized" and state.get("terminal_reason") is None:
             state["terminal_reason"] = "dispatch_terminal"
+        if self.patch_store is not None:
+            self.patch_store.purge(state["run_id"])
+        # Publication has finished (or the job has stopped). Drop raw output
+        # copies too, including rejected proposals and finalized patch records.
+        for key in ("candidate_patches", "validated_fix_record"):
+            if key in state:
+                state[key] = without_patch_content(state[key])
         return terminal
 
     def _create_args(self, state: dict[str, Any]) -> dict[str, Any]:
@@ -373,11 +407,12 @@ class Orchestrator:
             plan["compare_to_signature_key"] = signature["key"]
         return {"plan": plan}
 
-    @staticmethod
-    def _record_rendered_files(state: dict[str, Any], payload: dict[str, Any]) -> None:
+    def _record_rendered_files(self, state: dict[str, Any], payload: dict[str, Any]) -> None:
         rendered = (payload.get("result") or {}).get("rendered_files")
         if isinstance(rendered, list):
-            state["rendered_files"] = rendered
+            assert self.patch_store is not None
+            self.patch_store.save_manifests(state["run_id"], rendered)
+            state["dispatch"]["requires_patch_input"] = True
 
     @staticmethod
     def _observation_evidence(action_id: str, result: dict[str, Any]) -> dict[str, Any]:
@@ -417,7 +452,21 @@ class Orchestrator:
             state["status"] = halt["terminal"]
             state["terminal_reason"] = halt["reason_code"]
             return [self._terminal(state, "escalated")]
-        self._run_node(self.hooks.patch, state)
+        patch_context = dict(state)
+        assert self.patch_store is not None
+        manifests = self.patch_store.get_manifests(state["run_id"])
+        if state["dispatch"].get("requires_patch_input") and not manifests:
+            # Rehydration preserves the observation action. Once it completes,
+            # reacquire the original revision in the same sandbox before patching.
+            action = self._issue_action(state, "deploy_revision", self._deploy_args(state))
+            if action["kind"] == "action":
+                state["dispatch"]["stage"] = "refresh_patch_input"
+            return [action]
+        if manifests:
+            patch_context["rendered_files"] = manifests
+        self._run_node(self.hooks.patch, patch_context)
+        patch_context.pop("rendered_files", None)
+        state.update(patch_context)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
         active = state.get("active_patch_id")

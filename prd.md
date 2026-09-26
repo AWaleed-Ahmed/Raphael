@@ -545,6 +545,10 @@ Use separate identities for separate capabilities:
 - Use references to managed credentials, not credentials embedded in graph state or prompts.
 - Prevent secrets from appearing in commits, PR bodies, model traces, or exported audit logs.
 
+**Implementation and verification — 2026-09-26 (PR #27):** Connector patch inputs remain ephemeral. Durable JSON/SQLite run records must also exclude generated file bodies and diffs from candidate proposals, pending actions, and finalized records; removing only `rendered_files` is insufficient. Policy-rejected proposals must be stripped before append. Tests must search the entire persisted record for a seeded secret after real patch generation, including SQLite payloads and JSON mirrors. Cross-repo [run 36236583521](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36236583521) passed on `111f42a`, including Scenario 3's whole-Ignis restart, real hooks, and three positive evaluations. That scenario does not substitute for the local dispatch-reconstruction tests of patch-input recovery.
+
+Restart behavior is explicit: before patch generation, re-fetch manifests through an unpatched `deploy_revision` on the same sandbox without consuming a patch attempt; missing refreshed input escalates as `patch_input_unavailable`. After generated patch bytes are lost, fail closed as `patch_context_lost_on_restart`, never replay a stripped action. This is not a guarantee of post-patch dispatch restart resumability or comprehensive redaction of arbitrary metadata/logs. See D-20260926-01.
+
 ### 14.3 Prompt-injection and untrusted-input defense
 
 Logs, source files, comments, commit messages, and runbooks are untrusted data, not instructions. Tool permissions and graph transitions must be enforced in code rather than by model prompts. Model output must be parsed into a strict schema and independently validated before any tool executes.
@@ -682,6 +686,8 @@ The existing cross-repository E2E workflow is the required regression gate for i
 The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
 
 ### 17.4 Confidence calibration and escalation quality
+
+**Delivery status — 2026-09-26:** The three positive fixture evaluations are implemented. PR #25 adds honest scaffolding for secret-required escalation, prompt-injection equivalence, and unreproducible failure; those scenarios remain `blocked_pending_evidence_boundary` until bounded, redacted source/trigger context actually reaches diagnosis and they pass real runs. Fresh `main` does not yet expose `Orchestrator.intake(initial_evidence=...)`; do not count that bridge enhancement as shipped or count blocked scenarios as safety coverage. A real forbidden-patch policy-block scenario remains required separately.
 
 For each evaluated run, record:
 
