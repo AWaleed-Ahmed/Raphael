@@ -26,8 +26,8 @@
     }
   },
   "implementation_status": {
-    "state": "blocked_pending_evidence_boundary",
-    "reason": "The supported-looking trigger is not available to diagnosis in the connector dispatch path; see the evidence-boundary investigation."
+    "state": "active",
+    "reason": "Real-process verification passed: source evidence reaches diagnosis and reproduced:false yields reproduction_failed without a patch. See D-20260927-01."
   },
   "category": "expected_escalation"
 }

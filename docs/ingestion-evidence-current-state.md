@@ -1,5 +1,13 @@
 # Ingestion and diagnosis evidence: current implementation
 
+**2026-09-27 update (branch pending review):** D-20260927-01 supersedes the
+missing-boundary findings below. The bridge now forwards available run evidence
+through internal `intake(initial_evidence=...)`; bounded redacted manifest
+excerpts come from the ephemeral patch store. Three formerly blocked scenarios
+passed real runs and are active. This does not add Actions-log downloading or
+evidence collection to empty runs, nor change raw webhook persistence. The
+following dated audit remains a historical baseline, not current branch status.
+
 Verified 2026-09-26 against fetched `main` at `afa463d` and PR #27 follow-up
 `111f42a`. This is a code audit, not a claim of live-provider verification.
 The separate diagnosis-evidence-boundary work has not merged. In particular,

@@ -28,8 +28,8 @@
     }
   },
   "implementation_status": {
-    "state": "blocked_pending_evidence_boundary",
-    "reason": "Dispatch does not yet provide bounded, redacted trigger or rendered-source evidence to diagnosis; see the evidence-boundary investigation."
+    "state": "active",
+    "reason": "Real-process verification passed: production_secret_required, no patch/publish, and named secret absent. See D-20260927-01."
   },
   "category": "expected_escalation"
 }

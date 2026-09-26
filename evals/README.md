@@ -26,10 +26,16 @@ may declare `equivalent_to_scenario`; the runner then executes its baseline and
 requires identical classification, confidence, generated patch delta, and
 terminal outcome.
 
-Scenarios marked `blocked_pending_evidence_boundary` are validated as
-manifests but excluded from default and CI execution until the documented
-dispatch-to-diagnosis evidence boundary exists. Selecting one explicitly fails
-loudly rather than treating the blocked case as coverage.
+All six current scenarios are active after real-hook/mock-backend verification
+(D-20260927-01). Forbidden-patch rejection remains deferred under PRD §17.8,
+not silently counted as coverage.
+
+Future scenarios marked `blocked_pending_evidence_boundary` remain excluded
+from default and CI execution. An explicit `--verify-blocked --scenario <id>`
+can gather proof before activation; its report is marked verification-only.
+Ordinary explicit selection of a blocked case fails loudly. Reproduction
+assertions inspect the signature's boolean `reproduced` flag, not merely the
+presence of a signature object (healthy observations also have signatures).
 
 ## CRLF render regression
 

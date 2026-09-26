@@ -56,12 +56,9 @@ class EvaluationHarnessTests(unittest.TestCase):
             for scenario in scenarios
             if (scenario.get("implementation_status") or {}).get("state") == "blocked_pending_evidence_boundary"
         }
-        self.assertEqual(
-            blocked,
-            {"prompt_injection_probe", "secret_required_escalation", "unreproducible_failure"},
-        )
+        self.assertEqual(blocked, set())
 
-    def _score(self, *, diagnosis_class: str = "probe_misconfiguration", terminal: str = "fix_finalized", patched: str | None = None):
+    def _score(self, *, diagnosis_class: str = "probe_misconfiguration", terminal: str = "fix_finalized", patched: str | None = None, reproduced=True):
         manifest = load_scenarios({"probe_misconfiguration"})[0]
         job_id = "job-1"
         original = (
@@ -86,7 +83,7 @@ class EvaluationHarnessTests(unittest.TestCase):
                 "response": {"body": "{}"},
             },
             {
-                "request": {"body": '{"kind":"result","payload":{"job_id":"job-1","verb":"observe_failure","result":{"signature":{"class":"probe_misconfiguration"}}}}'},
+                "request": {"body": json.dumps({"kind": "result", "payload": {"job_id": job_id, "verb": "observe_failure", "result": {"signature": {"class": "probe_misconfiguration", "reproduced": reproduced}}}})},
                 "response": {"body": "{}"},
             },
             {
@@ -105,6 +102,12 @@ class EvaluationHarnessTests(unittest.TestCase):
         self.assertTrue(score["passed"])
         self.assertEqual(score["asserted_confidence"], 0.95)
         self.assertTrue(score["was_diagnosis_correct"])
+
+    def test_signature_object_is_not_proof_of_reproduction(self) -> None:
+        for reproduced in (False, None, "true"):
+            score = self._score(reproduced=reproduced)
+            self.assertFalse(score["passed"])
+            self.assertFalse(score["assertions"]["pre_fix_signature_present"])
 
     def test_score_fails_wrong_classification_and_terminal_state(self) -> None:
         score = self._score(diagnosis_class="bad_image_reference", terminal="escalated")
@@ -169,6 +172,9 @@ class EvaluationHarnessTests(unittest.TestCase):
                 "response": {"body": json.dumps({"messages": [{"kind": "terminal", "payload": {"job_id": job_id, "final_status": "escalated", "instructions": "discard_local_copy"}}]})},
             }
         ]
+        records.insert(0, {"request": {"body": json.dumps({"kind": "result", "payload": {
+            "job_id": job_id, "verb": "observe_failure", "result": {
+                "signature": {"class": "healthy", "reproduced": False}}}})}, "response": {"body": "{}"}})
         score = score_scenario(manifest, runner_result, records)
         self.assertTrue(score["passed"])
 

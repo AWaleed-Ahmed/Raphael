@@ -30,6 +30,17 @@
 
 ## Decision log (newest first)
 
+### D-20260927-01 — Bounded diagnosis evidence without restoring durable raw manifests
+- **Status:** implemented and locally verified on `feature/diagnosis-evidence-boundary`; pending PR review, not merged.
+- **Date:** 2026-09-27
+- **Decision:** Reconcile onto `bd95ca2`, retaining PR #27's ephemeral patch store and durable patch-body stripping. Derive scoped, bounded, redacted evidence from that store after initial deploy, before observation, so safe diagnosis context survives a dispatch restart. Raw content stays patch-only. The same-process bridge passes available evidence through internal `intake(initial_evidence=...)`; public envelopes and connector schemas are unchanged.
+- **Safety:** Redact before truncation; sanitize structured observations and YAML secret fields, including encoded/multiline values. Keep actual redaction markers. Preserve original live patch bytes and PR #27's fail-closed post-patch restart behavior. This is not universal secret detection or a change to raw webhook/log retention.
+- **Proof:** WSL dispatch 51 passed; agent 209 passed/4 skipped; evaluator 9 passed. The exact whole-state secret-absence regression passed all 12 JSON/SQLite cases after real patch generation, including rejection and restart paths. Seven connector-v1 byte hashes remain unchanged. Injection equivalence, bridge propagation, unreproducible outcome, and safe-evidence restart tests pass.
+- **Real runs:** All six immutable fixtures passed with real hooks and an actual Ignis mock-backend process, LLM disabled and publish dry-run. Positive classes and injection reach `fix_finalized`; secret-required escalates with `production_secret_required`, unreproducible with `reproduction_failed`. Activate the three formerly blocked manifests only after this proof; a subsequent ordinary six-scenario run also passed (`evals/out/evidence-boundary-active/eval-results.json`, full per-scenario HTTP traces alongside it).
+- **Finding:** A healthy signature is a nonempty object with `reproduced: false`, not evidence of failure reproduction. Both orchestration and evaluation inspect the flag; evaluation rejects missing/nonboolean flags too.
+- **Limits:** Bridge tests prove propagation of available evidence, not new collection or Actions-log downloading. These are deterministic mock-backend proofs, not enabled-LLM or real-cluster proofs. Forbidden-patch rejection remains deferred under §17.8; no synthetic unsafe generator was added.
+- **Prior closure:** PR #27 is merged. PR #28 merged at `bd95ca2`, aligning runtime and snapshot pins to Ignis `contracts-v1.1.2`/`ded0dbd`. Fresh main [default run 36255524251](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36255524251) and [forced-CRLF run 36255526533](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36255526533) passed, closing the pending release gate in D-20260926-02.
+
 ### D-20260926-02 — Normalize YAML render output, not customer workspaces
 - **Status:** Ignis fix merged in [PR #12](https://github.com/AWaleed-Ahmed/Ignis/pull/12), merge `ded0dbd206f13ff59cb114e66dee56d3dbcd31c8`, now tagged `contracts-v1.1.2`. Raphael's verification branch aligns `IGNIS_REF` and `CONTRACTS_VERSION` to this tag; contract-drift validation passes with no schema changes. Merge and fresh main-branch validation are pending.
 - **Date:** 2026-09-26

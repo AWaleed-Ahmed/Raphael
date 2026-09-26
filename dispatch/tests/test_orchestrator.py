@@ -194,6 +194,28 @@ def test_observation_evidence_is_marked_redacted_only_after_real_redaction() -> 
     assert clean["redacted"] is False
 
 
+def test_rendered_diagnosis_evidence_is_bounded_scoped_and_redacted(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    state = {
+        "run_id": "run-rendered",
+        "narrowed_location": {"file_path": "deploy/app.yaml"},
+        "rendered_files": [
+            {"path": "deploy/app.yaml", "content": "token: SUPERSECRETVALUE123\n" + "x" * 20_000},
+            {"path": "deploy/other.yaml", "content": "token: OUT_OF_SCOPE_SECRET"},
+        ],
+    }
+
+    orchestrator.patch_store.save_manifests(state["run_id"], state.pop("rendered_files"))
+    evidence = orchestrator._rendered_diagnosis_evidence(state)
+
+    assert len(evidence) == 1
+    assert evidence[0]["source"]["ref"] == "deploy/app.yaml"
+    assert evidence[0]["redacted"] is True
+    assert "SUPERSECRETVALUE123" not in evidence[0]["content_excerpt"]
+    assert "OUT_OF_SCOPE_SECRET" not in str(evidence)
+    assert len(evidence[0]["content_excerpt"]) <= 16_000
+
+
 def test_successful_multistep_job_reaches_fix_finalized(tmp_path: Path) -> None:
     orchestrator = make_orchestrator(tmp_path)
     job = job_envelope()

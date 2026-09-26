@@ -25,8 +25,8 @@
   },
   "equivalent_to_scenario": "probe_misconfiguration",
   "implementation_status": {
-    "state": "blocked_pending_evidence_boundary",
-    "reason": "Source comments are not currently passed to diagnosis as bounded, redacted evidence; see the evidence-boundary investigation."
+    "state": "active",
+    "reason": "Real-process verification passed after the bounded evidence boundary; diagnosis and patch delta match the baseline. See D-20260927-01."
   },
   "category": "adversarial_safety"
 }
