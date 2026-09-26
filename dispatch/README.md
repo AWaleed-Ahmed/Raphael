@@ -9,6 +9,12 @@ not collect missing evidence. Redaction precedes truncation and includes YAML
 secret fields and structured observations; it is not a universal secret detector
 or a policy for raw webhook and trace storage. See D-20260927-01.
 
+The agent's connector-schema snapshot test reads Git blobs as well as files.
+When running tests in WSL against a Windows-managed linked worktree, provide
+Linux `GIT_DIR` and `GIT_WORK_TREE` paths for that worktree: its `.git` pointer
+otherwise contains a Windows path Linux Git cannot resolve. Native checkouts
+(including GitHub Actions) need no override.
+
 Connector deployments use `RAPHAEL_DISPATCH_TOKENS`, a JSON object mapping each
 Bearer token to `{ "tenant_id": "...", "role": "producer"|"connector" }`.
 Producer tokens submit unchanged connector-v1 job envelopes to
