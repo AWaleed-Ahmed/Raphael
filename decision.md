@@ -30,6 +30,13 @@
 
 ## Decision log (newest first)
 
+### D-20260920-01 — Generative patch paths require an end-to-end forbidden-patch gate
+- **Status:** accepted
+- **Date:** 2026-09-20
+- **Decision:** Do not create a synthetic unsafe-patch generator solely to claim E2E policy coverage. Current deterministic templates cannot propose privileged, host-access, or control-disabling patches, so their rejection remains unit-tested only. Before any LLM-assisted or expanded-template generator ships, a real E2E forbidden-patch-rejection scenario must exist and pass.
+- **Why:** A test-only generator would prove behavior unavailable in production and create misleading coverage. The risk becomes real only when production can generate a plausibly unsafe patch.
+- **Consequences:** `prd.md` §17.8 records this as a release precondition for every future generative patch path.
+
 ### D-20260918-02 — Two additional deterministic patch classes proven against immutable real fixtures
 - **Status:** accepted
 - **Date:** 2026-09-18

@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "scenario_id": "unreproducible_failure",
+  "fixture": {
+    "repository": "AmazingDude/raphael-e2e-fixture",
+    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
+    "commit_sha": "6b520b870b741290dbcb70d27b194c1eedb496d0"
+  },
+  "trigger": { "kind": "deployment_failure", "source": "eval:unreproducible-failure" },
+  "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },
+  "expected": {
+    "failure_class": "probe_misconfiguration",
+    "terminal_status": "escalated",
+    "terminal_reason": "reproduction_failed"
+  },
+  "required_evidence": {
+    "pre_fix_signature": false,
+    "validation": { "attempted": false },
+    "terminal_instruction": "discard_local_copy",
+    "no_candidate_patch": true,
+    "no_publish": true,
+    "escalation_report": {
+      "reason_code": "reproduction_failed",
+      "required_fields": ["what_happened", "evidence_ids", "hypotheses_considered", "why_no_fix", "recommended_next_checks"],
+      "contains": ["not reproduced"]
+    }
+  },
+  "implementation_status": {
+    "state": "blocked_pending_evidence_boundary",
+    "reason": "The supported-looking trigger is not available to diagnosis in the connector dispatch path; see the evidence-boundary investigation."
+  },
+  "category": "expected_escalation"
+}

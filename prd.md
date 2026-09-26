@@ -738,6 +738,8 @@ An LLM must not be the causal or validation gate. Deterministic policy checks, s
 
 D-20260810-15 remains in effect: `RAPHAEL_LEARNING=0` is the production default. Offline learning, priors, or feedback-driven behavior may only be enabled after this evaluation harness measures an explicit before/after score delta and demonstrates no safety regression.
 
+Before any generative patch path ships (LLM-assisted or an expanded template set), an end-to-end forbidden-patch-rejection evaluation must exist and pass. The current deterministic templates cannot generate privileged, host-access, or control-disabling patches; their policy rejection is unit-tested, but an E2E scenario would be synthetic until a production-capable generator can plausibly produce such output.
+
 ## 18. Observability and Operations
 
 ### 18.1 Run timeline

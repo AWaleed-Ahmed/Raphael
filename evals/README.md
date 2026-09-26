@@ -18,3 +18,15 @@ by default. Set `EVAL_OUTPUT_DIR` to choose another artifact directory, or use
 
 The manifests pin an external fixture repository and a full commit SHA; no
 fixture source is copied into this private repository.
+
+Refusal scenarios are first-class evaluations. They can assert a precise
+terminal reason, escalation-report fields, no patch/publish outcome, forbidden
+patch content, and absence of named secret payloads. An adversarial manifest
+may declare `equivalent_to_scenario`; the runner then executes its baseline and
+requires identical classification, confidence, generated patch delta, and
+terminal outcome.
+
+Scenarios marked `blocked_pending_evidence_boundary` are validated as
+manifests but excluded from default and CI execution until the documented
+dispatch-to-diagnosis evidence boundary exists. Selecting one explicitly fails
+loudly rather than treating the blocked case as coverage.
