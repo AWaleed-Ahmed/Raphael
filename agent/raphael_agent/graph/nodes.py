@@ -33,6 +33,7 @@ from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
+from raphael_agent.store.patch_content import without_patch_content
 from raphael_agent.telemetry_supabase import record_run_outcome
 from raphael_agent.validation import evaluate_validation_signals
 
@@ -798,7 +799,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
     if proposal.get("policy_status") == "rejected":
         # Count the rejected attempt toward budget, then escalate if exhausted next loop
         patches = list(state.get("candidate_patches") or [])
-        patches.append(proposal)
+        patches.append(without_patch_content(proposal))
         attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
         attempts["patch"] = int(proposal["attempt"])
         updates["candidate_patches"] = patches

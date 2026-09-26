@@ -30,8 +30,16 @@
 
 ## Decision log (newest first)
 
+### D-20260926-01 — Strip durable patch bodies and define patch-input restart recovery
+- **Status:** proposed in PR #27 follow-up; awaiting review
+- **Date:** 2026-09-26
+- **Decision:** Supersede D-20260924-01's claim that removing `rendered_files` alone prevents manifest-secret persistence. Connector-run JSON/SQLite projections also strip nested file bodies and diffs, including candidate proposals, pending actions, and finalized records. Live action bytes remain unmodified in memory. Policy-rejected proposals are stripped before append, not merely during disk serialization.
+- **Restart behavior:** Before patch generation, preserve the pending observation action and re-fetch manifests using a fresh unpatched `deploy_revision` in the same sandbox, without charging a patch attempt. Missing refreshed input escalates as `patch_input_unavailable`. After generated patch bytes are lost, fail closed as `patch_context_lost_on_restart`; do not replay incomplete metadata or regenerate different bytes under the same action ID. Lease expiry still takes precedence.
+- **Evidence:** Tests use real `node_patch`, search the entire persisted record for a seeded secret in both JSON and SQLite, check rejection before terminal cleanup, and reconstruct dispatch before patch generation and during re-fetch. Successful re-fetch reaches `fix_finalized` on the same sandbox.
+- **Scope:** This is the connector patch-content storage boundary, not a claim of comprehensive redaction of arbitrary metadata, observation evidence, or logs. It does not scrub historical records or guarantee post-patch dispatch restart resumability. Those limits must not be confused with the separate Ignis restart-recovery proof.
+
 ### D-20260924-01 — Ephemeral patch manifest store isolates raw manifests from durable RunStore
-- **Status:** accepted
+- **Status:** correction proposed in D-20260926-01 (the original persistence guarantee below was disproven during review)
 - **Date:** 2026-09-24
 - **Owners:** Engineer B + coding agent
 - **Decision:** Introduce `EphemeralPatchStore` to stage raw manifest content (`rendered_files`) disclosed by connector deploy responses outside of `RunStore` and `RunState`. The orchestrator records `rendered_files` strictly into `EphemeralPatchStore` and injects them only into the execution context of the patch generation hook (`self.hooks.patch`). `rendered_files` is never retained in `RunState`, never exposed to diagnosis or localization nodes, and defense-in-depth sanitization strips `rendered_files` from any payload passed to `RunStore.save_run`. At terminal transition (`fix_finalized`, `escalated`, `failed`, or lease expiration), the job's ephemeral patch store is purged.
