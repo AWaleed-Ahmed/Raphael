@@ -31,7 +31,7 @@
 ## Decision log (newest first)
 
 ### D-20260926-01 — Strip durable patch bodies and define patch-input restart recovery
-- **Status:** proposed in PR #27 follow-up; awaiting review
+- **Status:** approved; merge gated on fresh cross-repo CI
 - **Date:** 2026-09-26
 - **Decision:** Supersede D-20260924-01's claim that removing `rendered_files` alone prevents manifest-secret persistence. Connector-run JSON/SQLite projections also strip nested file bodies and diffs, including candidate proposals, pending actions, and finalized records. Live action bytes remain unmodified in memory. Policy-rejected proposals are stripped before append, not merely during disk serialization.
 - **Restart behavior:** Before patch generation, preserve the pending observation action and re-fetch manifests using a fresh unpatched `deploy_revision` in the same sandbox, without charging a patch attempt. Missing refreshed input escalates as `patch_input_unavailable`. After generated patch bytes are lost, fail closed as `patch_context_lost_on_restart`; do not replay incomplete metadata or regenerate different bytes under the same action ID. Lease expiry still takes precedence.
@@ -49,6 +49,13 @@
   - Redact `rendered_files` before saving to `RunStore`: rejected because redaction tokens (e.g. `[REDACTED]`) corrupt line-splicing diff calculations.
   - Ephemeral scratchpad on disk: rejected in favor of an in-memory store because `Orchestrator.jobs` is already in-memory and in-memory storage eliminates the risk of orphaned secret files surviving crashes.
 - **Consequences:** `RunStore` persisted JSON records never contain `rendered_files` or unredacted manifest secrets. Diagnosis never sees unredacted manifests. Terminal cleanup guarantees ephemeral manifest disposal matching connector sandbox teardown.
+
+### D-20260920-01 — Generative patch paths require an end-to-end forbidden-patch gate
+- **Status:** accepted
+- **Date:** 2026-09-20
+- **Decision:** Do not create a synthetic unsafe-patch generator solely to claim E2E policy coverage. Current deterministic templates cannot propose privileged, host-access, or control-disabling patches, so their rejection remains unit-tested only. Before any LLM-assisted or expanded-template generator ships, a real E2E forbidden-patch-rejection scenario must exist and pass.
+- **Why:** A test-only generator would prove behavior unavailable in production and create misleading coverage. The risk becomes real only when production can generate a plausibly unsafe patch.
+- **Consequences:** `prd.md` §17.8 records this as a release precondition for every future generative patch path.
 
 ### D-20260918-02 — Two additional deterministic patch classes proven against immutable real fixtures
 - **Status:** accepted

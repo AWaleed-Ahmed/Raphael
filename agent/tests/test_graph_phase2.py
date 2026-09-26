@@ -69,7 +69,7 @@ def test_low_confidence_escalates(monkeypatch):
     assert updates.get("escalation_report")
 
 
-def test_blocked_class_escalates(monkeypatch):
+def test_secret_required_block_preserves_specific_terminal_reason(monkeypatch):
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "0")
     state = initial_run_state(_seed(), sandbox_mode="recorded_stub")
     state["workspace_path"] = None
@@ -87,7 +87,8 @@ def test_blocked_class_escalates(monkeypatch):
     ]
     updates = node_diagnose(state)
     assert updates["status"] == "escalated"
-    assert updates["terminal_reason"] == "blocked_category"
+    assert updates["terminal_reason"] == "production_secret_required"
+    assert updates["escalation_report"]["reason_code"] == "production_secret_required"
 
 
 def test_patch_budget_exhaust(monkeypatch):

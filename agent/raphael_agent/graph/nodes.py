@@ -235,15 +235,19 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
     conf = float(diagnosis.get("confidence") or 0)
     threshold = float(diagnosis.get("confidence_threshold") or 0.7)
     if classification.get("category") == "blocked":
+        blocked_reason = str(classification.get("blocked_reason") or "blocked_category")
         updates["status"] = "escalated"
-        updates["terminal_reason"] = "blocked_category"
+        # Keep the reason that caused the safety stop durable and operator-visible.
+        # A generic terminal loses the distinction between a production-secret
+        # dependency and privileged host access.
+        updates["terminal_reason"] = blocked_reason
         updates["escalation_report"] = _escalation(
             {**state, **updates},
-            reason_code="blocked_category",
+            reason_code=blocked_reason,
             summary="Diagnosis classified as blocked",
             what_happened=diagnosis.get("notes") or "blocked category",
             why_no_fix="Automatic fix not proposed for blocked failure classes",
-            attempts=[{"kind": "other", "status": "blocked", "detail": "blocked_category"}],
+            attempts=[{"kind": "other", "status": "blocked", "detail": blocked_reason}],
         )
     elif diagnosis.get("selected_hypothesis_id") is None or conf < threshold:
         updates["status"] = "escalated"
