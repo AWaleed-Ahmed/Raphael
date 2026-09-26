@@ -1,13 +1,43 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from evals.run_evals import apply_equivalence_assertions, load_scenarios, score_scenario
+from evals.verify_rendered_lf import verify
 
 
 class EvaluationHarnessTests(unittest.TestCase):
+    def test_wire_lf_verifier_rejects_crlf_and_accepts_clean_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scenarios = []
+            trace = root / "trace.jsonl"
+            for name in ("probe_misconfiguration", "bad_image_reference", "invalid_missing_config"):
+                scenarios.append({"scenario_id": name, "job_id": "job", "passed": True,
+                                  "trace": str(trace), "actual": {"patch_changed_line_count": 2}})
+            report = root / "eval-results.json"
+            report.write_text(json.dumps({"scenarios": scenarios}), encoding="utf-8")
+            for content in ("kind: Deployment\r\n", "kind: Deployment\n"):
+                files = [{"path": "app.yaml", "content": content}]
+                record = {
+                    "request": {"body": json.dumps({"kind": "result", "payload": {
+                        "job_id": "job", "verb": "deploy_revision", "result": {"rendered_files": files}}})},
+                    "response": {"body": json.dumps({"messages": [{"kind": "action", "payload": {
+                        "job_id": "job", "verb": "deploy_revision", "args": {"patch": {"files": files}}}}]})},
+                }
+                trace.write_text(json.dumps(record) + "\n", encoding="utf-8")
+                if "\r\n" in content:
+                    with self.assertRaisesRegex(ValueError, "non-LF content"):
+                        verify(report)
+                else:
+                    checks = verify(report)
+                    self.assertEqual(len(checks), 3)
+                    self.assertTrue(all(item["passed"] for item in checks))
+
     def test_committed_manifests_validate(self) -> None:
         scenarios = load_scenarios()
         self.assertEqual(
@@ -94,6 +124,22 @@ class EvaluationHarnessTests(unittest.TestCase):
         self.assertFalse(score["passed"])
         self.assertFalse(score["assertions"]["patch_scope_correct"])
         self.assertGreater(score["actual"]["patch_changed_line_count"], 2)
+
+    def test_score_accepts_normalized_render_boundary_output(self) -> None:
+        # Positive counterpart, not a replacement for the rejection test above.
+        # Rust render tests and the forced-CRLF cross-repo run prove that the
+        # real renderer produces these LF bytes; the scorer must retain them.
+        clean = (
+            "containers:\n"
+            "        - name: app\n"
+            "          readinessProbe:\n"
+            "            httpGet:\n"
+            "              port: 8080\n"
+        )
+        score = self._score(patched=clean)
+        self.assertTrue(score["passed"])
+        self.assertTrue(score["assertions"]["patch_scope_correct"])
+        self.assertEqual(score["actual"]["patch_changed_line_count"], 2)
 
     def test_score_rejects_wrong_secret_reason_and_missing_negative_guarantees(self) -> None:
         manifest = load_scenarios({"secret_required_escalation"})[0]

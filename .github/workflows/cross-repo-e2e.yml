@@ -20,6 +20,11 @@ on:
         description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.1)"
         required: false
         type: string
+      crlf_checkouts:
+        description: "Exercise Windows-style fixture checkout line endings"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -93,6 +98,14 @@ jobs:
       - name: Build Ignis controller and embedded connector
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
 
+      # Disposable hosted runner only; production/user Git settings are untouched.
+      # Set after source checkout so only harness fixture clones exercise CRLF.
+      - name: Force CRLF fixture checkouts
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: |
+          git config --global core.autocrlf true
+          git config --global --get core.autocrlf
+
       - name: Run three-scenario wire-protocol harness
         shell: bash
         run: |
@@ -116,6 +129,10 @@ jobs:
           set -o pipefail
           python -m unittest evals.test_run_evals
           python evals/run_evals.py 2>&1 | tee evals/evaluation.log
+
+      - name: Verify LF wire content under CRLF checkout settings
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: python -m evals.verify_rendered_lf
 
       - name: Upload E2E traces and process logs
         if: always()

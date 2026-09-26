@@ -30,3 +30,16 @@ Scenarios marked `blocked_pending_evidence_boundary` are validated as
 manifests but excluded from default and CI execution until the documented
 dispatch-to-diagnosis evidence boundary exists. Selecting one explicitly fails
 loudly rather than treating the blocked case as coverage.
+
+## CRLF render regression
+
+The existing cross-repository workflow accepts `crlf_checkouts=true` on manual
+runs. On that disposable runner only, it sets global Git `core.autocrlf=true`
+after source checkout, so the real harness fixture clones exercise Windows-style
+line endings. Use `ignis_ref` to pin the exact candidate commit.
+
+After the unchanged harness and evaluations run, `python -m evals.verify_rendered_lf`
+checks actual deploy-result and patch-action wire payloads for all three positive
+fixtures. Missing evidence or any CRLF content fails loudly; successful checks
+write `evals/out/line-endings.json`, included in the existing artifact upload.
+This complements, rather than weakens, the scorer's inflated-diff rejection test.
