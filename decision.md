@@ -30,6 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260926-02 — Normalize YAML render output, not customer workspaces
+- **Status:** implemented on review branches; not merged
+- **Date:** 2026-09-26
+- **Decision:** Ignis commit `ea40e144692b9cc8acc1c371f4926caf607d5438` replaces CRLF pairs with LF in `render/yaml.rs:read_file`, so both `rendered_files` and combined YAML have stable line endings. It leaves workspace bytes, trailing-newline presence, Unicode, standalone carriage returns, and public schemas unchanged. Two real-render regression tests failed before the change; the full WSL Rust suite then passed 32 tests without warnings.
+- **Why A, not B:** Normalizing the render boundary directly closes the payload bug without changing checkout policy. Clone-level `core.autocrlf`/`core.eol` control is deferred: repository attributes and intentionally CRLF-authored blobs require a separate fidelity decision. This fix is for YAML rendering, not a universal promise for every renderer or repository encoding.
+- **Proof:** The existing cross-repo workflow ran with forced `core.autocrlf=true` on a disposable hosted runner. [Old pinned binary run 36252136130](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252136130) failed evaluations; [candidate run 36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) passed all three wire scenarios, real hooks, positive evaluations, LF wire checks, and artifact upload. Both used Raphael verification commit `5a3b3a7`.
+- **Measured difference:** Comparing captured patches against the immutable fixture blobs, probe changed-line count fell 30 to 2 and image 26 to 2. ConfigMap previously escalated with `budget_exhausted` after three empty-patch attempts (its `data:\n` template regex does not match CRLF); it now reaches `fix_finalized` with one added line. All three candidate traces contain zero CRLF pairs in rendered and patched content. These are forced-CRLF comparisons, not claims that normal Linux diffs became smaller.
+- **Gate integrity:** Retain the evaluator's inflated-output rejection test; add a positive clean-output test and real-wire LF verification. Do not weaken scoring to accept inflated patches. Ignis #4 remains open pending review/merge; #11 remains deferred. The separate synthetic diff-hunk note in #4 is not changed by this render fix.
+
 ### D-20260926-01 — Strip durable patch bodies and define patch-input restart recovery
 - **Status:** approved; merge gated on fresh cross-repo CI
 - **Date:** 2026-09-26

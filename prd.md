@@ -208,6 +208,8 @@ If the evidence is insufficient, reproduction fails, confidence is below thresho
 
 ### 8.5 Fix generation
 
+**Render fidelity checkpoint — 2026-09-26:** Ignis #4's YAML CRLF normalization is implemented on a review branch, not yet merged. Under forced Windows-style checkout settings, cross-repo run [36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) verifies LF-only render/patch payloads and minimal real fixture diffs (probe/image: one removed plus one added line; ConfigMap: one added line). Preserve the evaluator's rejection of inflated output. Checkout-level byte fidelity and other renderers are not claimed fixed; see D-20260926-02.
+
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-040 | Generate changes only in allowlisted repositories, branches, and file paths. | P0 |
