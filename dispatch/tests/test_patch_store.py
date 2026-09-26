@@ -363,4 +363,3 @@ def test_real_node_patch_consumes_ephemeral_store_and_keeps_state_clean(tmp_path
     assert orchestrator.jobs[job_id]["attempt_count"]["patch"] == 1
     assert not orchestrator.patch_store.has_manifests(job_id)
     assert_no_secret_in_persisted_run(run_store, job_id)
-
