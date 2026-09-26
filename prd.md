@@ -208,6 +208,10 @@ If the evidence is insufficient, reproduction fails, confidence is below thresho
 
 ### 8.5 Fix generation
 
+**Release alignment — 2026-09-26:** Annotated Ignis `contracts-v1.1.2` contains the CRLF renderer fix at `ded0dbd`. The verification branch updates both the runtime and contract snapshot pins; unchanged contract bytes pass the sync check. Fresh main-branch CI remains the final release gate, not inferred from the earlier candidate run.
+
+**Render fidelity checkpoint — 2026-09-26:** Ignis #4's YAML CRLF normalization merged in PR #12 (`ded0dbd`); #4 closed after merge. Under forced Windows-style checkout settings, cross-repo run [36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) verifies LF-only render/patch payloads and minimal real fixture diffs (probe/image: one removed plus one added line; ConfigMap: one added line). Preserve the evaluator's rejection of inflated output. Paired verification changes remain on a Raphael branch; no new release pin is implied. Checkout-level byte fidelity (Ignis #13) and other renderers are not claimed fixed; see D-20260926-02.
+
 | ID | Requirement | Priority |
 |---|---|---|
 | FR-040 | Generate changes only in allowlisted repositories, branches, and file paths. | P0 |

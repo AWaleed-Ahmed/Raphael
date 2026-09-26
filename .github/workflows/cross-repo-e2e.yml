@@ -17,9 +17,14 @@ on:
   workflow_dispatch:
     inputs:
       ignis_ref:
-        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.1)"
+        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.2)"
         required: false
         type: string
+      crlf_checkouts:
+        description: "Exercise Windows-style fixture checkout line endings"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -32,7 +37,7 @@ jobs:
     env:
       # Scheduled and Raphael-originated runs use the currently pinned public contract.
       # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
-      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.1' }}
+      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.2' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -93,6 +98,14 @@ jobs:
       - name: Build Ignis controller and embedded connector
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
 
+      # Disposable hosted runner only; production/user Git settings are untouched.
+      # Set after source checkout so only harness fixture clones exercise CRLF.
+      - name: Force CRLF fixture checkouts
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: |
+          git config --global core.autocrlf true
+          git config --global --get core.autocrlf
+
       - name: Run three-scenario wire-protocol harness
         shell: bash
         run: |
@@ -116,6 +129,10 @@ jobs:
           set -o pipefail
           python -m unittest evals.test_run_evals
           python evals/run_evals.py 2>&1 | tee evals/evaluation.log
+
+      - name: Verify LF wire content under CRLF checkout settings
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: python -m evals.verify_rendered_lf
 
       - name: Upload E2E traces and process logs
         if: always()
