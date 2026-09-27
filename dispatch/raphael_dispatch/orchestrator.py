@@ -15,6 +15,7 @@ from raphael_agent.evidence.boundary import bounded_evidence, redact_manifest, r
 from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
+from raphael_agent.sandbox_config import secret_fixture_args
 from raphael_agent.store.patch_content import without_patch_content
 
 from .patch_store import EphemeralPatchStore
@@ -180,6 +181,9 @@ class Orchestrator:
             *self._sanitize_initial_evidence(initial_evidence or []),
         ]
         state["dispatch"] = {
+            # Snapshot operator selection at intake so retries/restarts cannot
+            # silently switch fixture sets when process configuration changes.
+            **secret_fixture_args(),
             "stage": "create_sandbox",
             "pending_action": None,
             "processed_actions": {},
@@ -371,6 +375,8 @@ class Orchestrator:
 
     def _create_args(self, state: dict[str, Any]) -> dict[str, Any]:
         return {
+            **({"secret_fixture_set": state["dispatch"]["secret_fixture_set"]}
+               if state["dispatch"].get("secret_fixture_set") else {}),
             "run_id": state["run_id"],
             "tenant_id": state["tenant_id"],
             "repository": state["repository"],

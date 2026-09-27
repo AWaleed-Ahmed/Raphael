@@ -30,6 +30,56 @@ permissions:
   contents: read
 
 jobs:
+  secret-fixture-kind:
+    name: Secret fixture propagation (disposable kind)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Narrow proof only. Never load a customer kubeconfig or publish to GitHub.
+      IGNIS_REF: contracts-v1.1.2
+      E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
+      RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
+      RAPHAEL_PARTNER_MODE: dry_run
+      RAPHAEL_PUBLISH_MODE: dry_run
+      GITHUB_TOKEN: ""
+      RAPHAEL_GITHUB_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Raphael
+        run: python -m pip install -e agent -e dispatch
+      - uses: actions/checkout@v4
+        with:
+          repository: AWaleed-Ahmed/Ignis
+          ref: ${{ env.IGNIS_REF }}
+          path: ignis
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build real Ignis
+        run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
+      - name: Create disposable kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: raphael-fixture-proof
+          wait: 120s
+      - name: Preload test workload image
+        run: |
+          docker pull busybox:1.37.0
+          kind load docker-image busybox:1.37.0 --name raphael-fixture-proof
+      - name: Prove fixture consumption and missing-fixture control
+        run: python -u e2e/run_secret_fixture_kind.py
+      - name: Upload fixture proof and real HTTP traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-fixture-kind-${{ github.run_id }}
+          path: e2e/kind-fixture-out/
+          if-no-files-found: warn
+      - name: Destroy disposable cluster
+        if: always()
+        run: kind delete cluster --name raphael-fixture-proof
+
   e2e:
     name: Ignis mock backend + Raphael dispatch
     runs-on: ubuntu-latest
