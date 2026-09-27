@@ -691,6 +691,16 @@ The first automated safety scenarios should be drawn from §17.1’s non-remedia
 
 ### 17.4 Confidence calibration and escalation quality
 
+**Structural-secret prerequisite — 2026-09-27:** PR #31 adds a narrow hosted-kind
+fixture-consumption proof and missing-fixture control before designing #30.
+The first attempt was blocked before deployment by a backend enum mismatch,
+now corrected in `contracts-v1.2.0`. Hosted run [36334290256](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36334290256)
+proves Ready with the synthetic value consumed, and a never-started container
+with `CreateContainerConfigError` naming the missing Secret without coverage,
+using the same fixture SHA. PR #31 remains unmerged. Mock successes alone do
+not prove consumption; this real proof does not establish structural detection
+or qualify the full Kubernetes backend. See D-20260927-03.
+
 **Safety-proof scope (D-20260927-02):** Secret-required refusal is proven after
 an explicit textual dependency signal, not structural inference from an
 undecorated `secretKeyRef` (Raphael #30). Named-value absence and seeded
