@@ -31,6 +31,7 @@ from raphael_agent.localization import (
 )
 from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
+from raphael_agent.sandbox_config import secret_fixture_args
 from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
 from raphael_agent.store.patch_content import without_patch_content
@@ -402,7 +403,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
                 },
                 "commit_sha": state["commit_sha"],
                 "timeout_minutes": 20,
-                "secret_fixture_set": "payments-test",
+                **secret_fixture_args(),
             }
         )
         sandbox_id = created["sandbox_id"]

@@ -30,6 +30,16 @@
 
 ## Decision log (newest first)
 
+### D-20260927-03 — Explicit fixture selection and versioned real-backend compatibility
+- **Status:** implemented on PR #31, not merged; hosted kind proof passed, not a structural-detection milestone.
+- **Date:** 2026-09-27
+- **Decision:** Both reproduction paths use explicit deployment-level `RAPHAEL_SECRET_FIXTURE_SET`; unset means none. Dispatch snapshots the selection at intake for stable replay. This is not per-tenant fixture authorization. The prior direct-path hardcoded `payments-test` default is removed; operators wanting it must configure it.
+- **Contract:** Annotated Ignis `contracts-v1.2.0` at `26557908a1d3182de749a05a46de4252d8c08324` adds the documented `kubectl` identity to the create response enum, retaining existing values. Both runtime and snapshot pins match; connector-v1 envelopes are unchanged. No sibling backend enum was found.
+- **Error classification:** Result authentication remains mandatory and precedes body validation. Auth failures remain 401/403; schema and orchestration failures, including conflicting replays, return 422 with the existing error body. This is separate from the earlier connector error-envelope misuse.
+- **Evidence:** The first hosted kind attempt [36331895851](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36331895851) exposed the enum mismatch and its misleading 401 before workload deployment. Neither fixture consumption nor its negative control passed in that attempt. Local prerequisite suites: dispatch 66 passed, agent 209 passed/4 skipped, evaluator 9 passed, Ignis contract tests 10 passed.
+- **Real proof:** [36334290256](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36334290256) is green on application head `2228cc7`, pinned to the release above. Both cases cloned the same fixture commit `d10c683ad193806a08a7c45e9960f925703f63f5`. With fixture, sandbox `sb-61e345fac678` reached Pod Ready at 16:46:19 UTC; the readiness exec compares the consumed environment value with the synthetic expected value. Without fixture, `sb-5d0cd6472f66` had no fixture Secret and its container never started (`CreateContainerConfigError: secret "payments-db" not found`). Artifacts contain real HTTP traces, Pod observations, events and process logs; cluster cleanup passed. Existing mock E2E, real-hooks smoke and evaluations remained green; core CI [36334290222](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36334290222) also passed.
+- **Scope:** Disposable hosted kind only, no production secrets or live publishing. These cases prove explicit fixture consumption and the missing-fixture control at startup, not remediation or structural secret-dependency inference. The prerequisite is satisfied; structural design is still unimplemented and awaits its own review. This is not the full Kubernetes-backend qualification workstream.
+
 ### D-20260927-02 — Scope safety-evaluation claims to the evidence actually tested
 - **Status:** accepted; [PR #29](https://github.com/AWaleed-Ahmed/Raphael/pull/29) approved with these explicit boundaries.
 - **Date:** 2026-09-27

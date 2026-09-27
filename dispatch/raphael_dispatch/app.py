@@ -95,13 +95,16 @@ async def receive_result(request: Request) -> JSONResponse:
     try:
         principal = principal_from_request(request.headers.get("authorization"), "connector")
         envelope = await _json_body(request)
+        get_schemas().validate_envelope(envelope)
         job_id = envelope.get("payload", {}).get("job_id")
         state = request.app.state.orchestrator.jobs.get(job_id)
         if state is None or state.get("tenant_id") != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not own job"}, status_code=403)
         result = request.app.state.orchestrator.receive_result(envelope)
-    except (ProtocolValidationError, OrchestrationError, AuthError) as exc:
+    except AuthError as exc:
         return JSONResponse({"valid": False, "error": str(exc)}, status_code=getattr(exc, "status_code", 401))
+    except (ProtocolValidationError, OrchestrationError) as exc:
+        return _error(exc)
     return JSONResponse(result)
 
 

@@ -44,3 +44,4 @@ agent/.raphael-agent-data-*/
 
 # Generated evaluation traces and score reports
 /evals/out/
+e2e/kind-fixture-out/

@@ -1,5 +1,20 @@
 # Dispatch operational notes
 
+## Synthetic Secret fixture selection
+
+Set `RAPHAEL_SECRET_FIXTURE_SET=payments-test` (or another Ignis-local fixture
+name) explicitly to apply synthetic Secrets. Unset/empty means no fixture in
+both connector-driven dispatch and direct `node_reproduce`. The latter no
+longer silently hardcodes `payments-test`. Selection is trusted operator
+configuration, not inferred from evidence or added to the public job envelope.
+Dispatch snapshots the selection at intake, preserving it on replay/restart.
+This deployment-level option is not per-tenant fixture authorization.
+
+The separate `secret-fixture-kind` CI job checks the actual connector path
+against disposable Kubernetes, with identical workload manifests for covered
+and uncovered cases. It does not implement structural-secret diagnosis or
+claim general real-backend validation. See `e2e/run_secret_fixture_kind.py`.
+
 Diagnosis receives scoped, bounded, redacted manifest excerpts derived from
 the ephemeral patch store, never its raw content. These safe excerpts are
 persisted after initial deploy, before observation, so they survive restart.
