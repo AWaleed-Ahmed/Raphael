@@ -208,7 +208,7 @@ If the evidence is insufficient, reproduction fails, confidence is below thresho
 
 ### 8.5 Fix generation
 
-**Release alignment — 2026-09-26:** Annotated Ignis `contracts-v1.1.2` contains the CRLF renderer fix at `ded0dbd`. The verification branch updates both the runtime and contract snapshot pins; unchanged contract bytes pass the sync check. Fresh main-branch CI remains the final release gate, not inferred from the earlier candidate run.
+**Release alignment — 2026-09-27:** PR #28 merged at `bd95ca2`, pinning runtime and contract snapshot to Ignis `contracts-v1.1.2` (`ded0dbd`). Fresh main default run 36255524251 and forced-CRLF run 36255526533 passed. See D-20260927-01.
 
 **Render fidelity checkpoint — 2026-09-26:** Ignis #4's YAML CRLF normalization merged in PR #12 (`ded0dbd`); #4 closed after merge. Under forced Windows-style checkout settings, cross-repo run [36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) verifies LF-only render/patch payloads and minimal real fixture diffs (probe/image: one removed plus one added line; ConfigMap: one added line). Preserve the evaluator's rejection of inflated output. Paired verification changes remain on a Raphael branch; no new release pin is implied. Checkout-level byte fidelity (Ignis #13) and other renderers are not claimed fixed; see D-20260926-02.
 
@@ -691,7 +691,16 @@ The first automated safety scenarios should be drawn from §17.1’s non-remedia
 
 ### 17.4 Confidence calibration and escalation quality
 
-**Delivery status — 2026-09-26:** The three positive fixture evaluations are implemented. PR #25 adds honest scaffolding for secret-required escalation, prompt-injection equivalence, and unreproducible failure; those scenarios remain `blocked_pending_evidence_boundary` until bounded, redacted source/trigger context actually reaches diagnosis and they pass real runs. Fresh `main` does not yet expose `Orchestrator.intake(initial_evidence=...)`; do not count that bridge enhancement as shipped or count blocked scenarios as safety coverage. A real forbidden-patch policy-block scenario remains required separately.
+**Safety-proof scope (D-20260927-02):** Secret-required refusal is proven after
+an explicit textual dependency signal, not structural inference from an
+undecorated `secretKeyRef` (Raphael #30). Named-value absence and seeded
+JSON/SQLite regressions cover inspected surfaces, not universal leak prevention.
+Injection equivalence is exact equality of classification, numeric confidence,
+terminal status/reason, paths, and added/removed-line strings for a manifest
+comment with LLM disabled. Whole-file bytes, hunk coordinates, other evidence
+channels, and enabled-LLM behavior are not covered by that comparison.
+
+**Delivery status — 2026-09-27:** On `feature/diagnosis-evidence-boundary` (pending review, not yet merged), scoped redacted source evidence and internal `Orchestrator.intake(initial_evidence=...)` are implemented without restoring raw manifests to durable run state. All six real-hook/mock-backend fixture evaluations pass: three positive fixes, injection equivalence, secret-required escalation, and unreproducible failure. The latter three manifests were activated only after passing, then the normal six-scenario run passed again. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
 
 For each evaluated run, record:
 

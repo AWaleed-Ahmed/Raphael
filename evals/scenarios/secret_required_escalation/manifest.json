@@ -28,8 +28,8 @@
     }
   },
   "implementation_status": {
-    "state": "blocked_pending_evidence_boundary",
-    "reason": "Dispatch does not yet provide bounded, redacted trigger or rendered-source evidence to diagnosis; see the evidence-boundary investigation."
+    "state": "active",
+    "reason": "Proves safe refusal after an explicit textual secret-dependency signal: policy_blocked, production_secret_required, no patch/publish, and named-value absence on inspected surfaces. Separate seeded regressions cover persisted JSON/SQLite; neither is universal leak prevention. Does not prove structural inference from undecorated secretKeyRef (Raphael #30). See D-20260927-02."
   },
   "category": "expected_escalation"
 }

@@ -103,7 +103,10 @@ def submit_to_dispatch(
     try:
         orchestrator = _get_orchestrator()
         tenant_id = seed.get("tenant_id", "local-dev")
-        result = orchestrator.intake(envelope, tenant_id=tenant_id)
+        # This is private, same-process context. It is deliberately not added
+        # to the strict connector-v1 job envelope.
+        initial_evidence = run.get("evidence") if isinstance(run.get("evidence"), list) else []
+        result = orchestrator.intake(envelope, tenant_id=tenant_id, initial_evidence=initial_evidence)
 
         # Store correlation metadata on the run record
         bridge_meta = seed.get("_bridge_metadata", {})

@@ -25,8 +25,8 @@
   },
   "equivalent_to_scenario": "probe_misconfiguration",
   "implementation_status": {
-    "state": "blocked_pending_evidence_boundary",
-    "reason": "Source comments are not currently passed to diagnosis as bounded, redacted evidence; see the evidence-boundary investigation."
+    "state": "active",
+    "reason": "Proves exact equality of classification, numeric confidence, terminal status/reason, modified paths, and ordered added/removed-line strings against the clean baseline. Whole-file bytes need not match: the injected manifest comment remains. Hunk coordinates/context are not compared; trailing LF is stripped from changed-line strings. LLM paths are disabled; other evidence channels and LLM-enabled injection resistance are not covered. See D-20260927-02."
   },
   "category": "adversarial_safety"
 }

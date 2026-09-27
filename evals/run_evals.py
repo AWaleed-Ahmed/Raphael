@@ -231,7 +231,12 @@ def score_scenario(manifest: dict[str, Any], runner_result: dict[str, Any], reco
         "classification_correct": actual_class == expected["failure_class"],
         "terminal_state_correct": actual_terminal == expected["terminal_status"],
         "patch_scope_correct": patch_scope_correct,
-        "pre_fix_signature_present": bool(evidence["observed_signature"]) == required["pre_fix_signature"],
+        # Healthy observations still have a signature object. Require an actual
+        # boolean observation, not object truthiness (or missing evidence).
+        "pre_fix_signature_present": (
+            isinstance(nested(evidence["observed_signature"], "reproduced"), bool)
+            and nested(evidence["observed_signature"], "reproduced") == required["pre_fix_signature"]
+        ),
         "validation_matches": validation_matches,
         "terminal_instruction_matches": nested(evidence["terminal"], "instructions") == required["terminal_instruction"],
     }
@@ -369,22 +374,27 @@ def is_blocked_pending_evidence_boundary(manifest: dict[str, Any]) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", action="append", default=[], help="run one scenario id; repeatable")
+    parser.add_argument("--verify-blocked", action="store_true",
+                        help="Explicit local verification of selected blocked scenarios; does not activate them")
     parser.add_argument("--output-dir", default=os.getenv("EVAL_OUTPUT_DIR", str(EVALS / "out")))
     args = parser.parse_args(argv)
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     scenarios = load_scenarios(set(args.scenario) or None)
     blocked = [manifest for manifest in scenarios if is_blocked_pending_evidence_boundary(manifest)]
-    if args.scenario and blocked:
+    if args.verify_blocked and not args.scenario:
+        raise ValueError("--verify-blocked requires explicit --scenario selections")
+    if args.scenario and blocked and not args.verify_blocked:
         ids = ", ".join(manifest["scenario_id"] for manifest in blocked)
         raise ValueError(f"selected scenario(s) are blocked pending evidence-boundary work: {ids}")
-    active = [manifest for manifest in scenarios if not is_blocked_pending_evidence_boundary(manifest)]
+    active = [manifest for manifest in scenarios if args.verify_blocked or not is_blocked_pending_evidence_boundary(manifest)]
     results = [run_scenario(manifest, output_dir) for manifest in active]
     apply_equivalence_assertions(results)
     report = {
         "schema_version": "1.0",
         "generated_at_epoch_seconds": time.time(),
         "scenario_count": len(results),
+        "verification_only": args.verify_blocked,
         "passed": all(result["passed"] for result in results),
         "scenarios": results,
         "blocked_scenarios": [

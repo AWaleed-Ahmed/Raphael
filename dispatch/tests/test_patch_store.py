@@ -73,6 +73,8 @@ def test_rendered_files_isolated_from_run_store_and_purged_at_terminal(tmp_path:
     orchestrator = Orchestrator(store=run_store, hooks=hooks, patch_store=patch_store)
 
     job = job_envelope()
+    # Exercise the real rendered-evidence conversion as well as patch generation.
+    job["payload"]["narrowed_location"]["file_path"] = "deploy/manifests/app.yaml"
     job_id = job["payload"]["job_id"]
     action = orchestrator.intake(job)["messages"][0]
 
@@ -98,7 +100,8 @@ def test_rendered_files_isolated_from_run_store_and_purged_at_terminal(tmp_path:
     assert "rendered_files" not in persisted_run
     raw_json = (tmp_path / "runs" / "runs" / f"{job_id}.json").read_text(encoding="utf-8")
     assert "RAW_SECRET_12345" not in raw_json
-    assert "rendered_files" not in raw_json
+    # Provenance may name the source field; the raw-content key must be absent.
+    assert '"rendered_files":' not in raw_json
 
     # Observe failure -> diagnose -> localize -> patch
     action = orchestrator.receive_result(result_for(action, result=observe_result()))["messages"][0]
@@ -256,6 +259,7 @@ def test_real_node_patch_consumes_ephemeral_store_and_keeps_state_clean(tmp_path
     orchestrator = Orchestrator(store=run_store, hooks=hooks, patch_store=patch_store)
 
     job = job_envelope()
+    job["payload"]["narrowed_location"]["file_path"] = "deploy/manifests/app.yaml"
     job_id = job["payload"]["job_id"]
     action = orchestrator.intake(job)["messages"][0]
     action = orchestrator.receive_result(result_for(action, result=create_result(job_id)))["messages"][0]
@@ -336,6 +340,9 @@ def test_real_node_patch_consumes_ephemeral_store_and_keeps_state_clean(tmp_path
 
     assert "rendered_files" not in orchestrator.jobs[job_id]
     persisted_run = run_store.get_run(job_id)
+    if scenario == "normal":
+        excerpts = [e for e in persisted_run["evidence"] if e["kind"] == "manifest"]
+        assert excerpts and "[REDACTED]" in excerpts[0]["content_excerpt"]
     assert "rendered_files" not in persisted_run
     assert_no_secret_in_persisted_run(run_store, job_id)
     assert "content" not in persisted_run["candidate_patches"][-1]["files"][0]
