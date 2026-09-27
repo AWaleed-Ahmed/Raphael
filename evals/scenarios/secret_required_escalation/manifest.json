@@ -29,7 +29,7 @@
   },
   "implementation_status": {
     "state": "active",
-    "reason": "Real-process verification passed: production_secret_required, no patch/publish, and named secret absent. See D-20260927-01."
+    "reason": "Proves safe refusal after an explicit textual secret-dependency signal: policy_blocked, production_secret_required, no patch/publish, and named-value absence on inspected surfaces. Separate seeded regressions cover persisted JSON/SQLite; neither is universal leak prevention. Does not prove structural inference from undecorated secretKeyRef (Raphael #30). See D-20260927-02."
   },
   "category": "expected_escalation"
 }

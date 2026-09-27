@@ -691,6 +691,15 @@ The first automated safety scenarios should be drawn from §17.1’s non-remedia
 
 ### 17.4 Confidence calibration and escalation quality
 
+**Safety-proof scope (D-20260927-02):** Secret-required refusal is proven after
+an explicit textual dependency signal, not structural inference from an
+undecorated `secretKeyRef` (Raphael #30). Named-value absence and seeded
+JSON/SQLite regressions cover inspected surfaces, not universal leak prevention.
+Injection equivalence is exact equality of classification, numeric confidence,
+terminal status/reason, paths, and added/removed-line strings for a manifest
+comment with LLM disabled. Whole-file bytes, hunk coordinates, other evidence
+channels, and enabled-LLM behavior are not covered by that comparison.
+
 **Delivery status — 2026-09-27:** On `feature/diagnosis-evidence-boundary` (pending review, not yet merged), scoped redacted source evidence and internal `Orchestrator.intake(initial_evidence=...)` are implemented without restoring raw manifests to durable run state. All six real-hook/mock-backend fixture evaluations pass: three positive fixes, injection equivalence, secret-required escalation, and unreproducible failure. The latter three manifests were activated only after passing, then the normal six-scenario run passed again. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
 
 For each evaluated run, record:

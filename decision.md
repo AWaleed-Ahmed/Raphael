@@ -30,8 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20260927-02 — Scope safety-evaluation claims to the evidence actually tested
+- **Status:** accepted; [PR #29](https://github.com/AWaleed-Ahmed/Raphael/pull/29) approved with these explicit boundaries.
+- **Date:** 2026-09-27
+- **Secret-required proof:** An explicit textual secret-dependency signal in manifest evidence selects the real `blocked_secret` analyzer, produces `policy_blocked`, preserves `production_secret_required` through persisted terminal state and escalation report, and stops without a patch. Named-value absence is checked on inspected surfaces; separate seeded regressions check complete JSON/SQLite payloads after patch generation, rejection, and restart. This is not universal leak prevention. Structural inference from an undecorated `secretKeyRef` is unproven and separately tracked in [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30); the reference alone also does not establish that a credential must come from production.
+- **Injection proof:** The manifest-comment fixture has exactly equal classification, numeric confidence, terminal status/reason, modified paths, and ordered added/removed-line strings versus the clean baseline, with no tolerance. Whole-file bytes legitimately differ because the inert comment remains. Comparison omits hunk coordinates/context and strips trailing LF from changed-line strings. This proves this deterministic fixture's bounded equivalence, not universal injection resistance; log/commit-message channels and enabled-LLM paths remain untested by this scenario.
+- **Evidence:** [Final application/test head CI 36275365505](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36275365505) passed all three wire scenarios, real-hooks smoke, six evaluations, and artifact upload on `67fad11`. Scope notes do not change expectations, fixtures, scoring, or production code. Forbidden-patch rejection remains deferred under §17.8.
+
 ### D-20260927-01 — Bounded diagnosis evidence without restoring durable raw manifests
-- **Status:** implemented and locally verified on `feature/diagnosis-evidence-boundary`; pending PR review, not merged.
+- **Status:** verified and approved in PR #29; claim boundaries clarified by D-20260927-02.
 - **Date:** 2026-09-27
 - **Decision:** Reconcile onto `bd95ca2`, retaining PR #27's ephemeral patch store and durable patch-body stripping. Derive scoped, bounded, redacted evidence from that store after initial deploy, before observation, so safe diagnosis context survives a dispatch restart. Raw content stays patch-only. The same-process bridge passes available evidence through internal `intake(initial_evidence=...)`; public envelopes and connector schemas are unchanged.
 - **Safety:** Redact before truncation; sanitize structured observations and YAML secret fields, including encoded/multiline values. Keep actual redaction markers. Preserve original live patch bytes and PR #27's fail-closed post-patch restart behavior. This is not universal secret detection or a change to raw webhook/log retention.

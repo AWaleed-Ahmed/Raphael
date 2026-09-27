@@ -13,6 +13,8 @@ This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [
 
 ### Current review checkpoint
 
+- PR #29 approved with bounded claims (D-20260927-02): explicit textual secret-dependency refusal, not structural inference from `secretKeyRef` ([#30](https://github.com/AWaleed-Ahmed/Raphael/issues/30)); exact injection delta/outcome equality for one manifest-comment fixture with LLM disabled, not whole-file byte identity or universal injection resistance. Named-secret checks cover verified surfaces, not arbitrary logs/storage. Final application/test head CI [36275365505](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36275365505) is green; merge remains gated on the current PR checks. This supersedes earlier pending-review wording below.
+
 - Release alignment complete: PR #28 merged at `bd95ca2`; `IGNIS_REF` and `CONTRACTS_VERSION` both pin annotated `contracts-v1.1.2` at Ignis `ded0dbd206f13ff59cb114e66dee56d3dbcd31c8`. Main [default CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36255524251) and [forced-CRLF CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36255526533) passed. This supersedes earlier pending-release notes.
 
 - Ignis #4 is closed after [PR #12](https://github.com/AWaleed-Ahmed/Ignis/pull/12) merged as `ded0dbd`: YAML render normalizes CRLF; Rust suite 32 passed. Paired Raphael verification landed in PR #28. Forced-CRLF fixture diff counts: probe 30→2, image 26→2; ConfigMap changed from budget exhaustion to a one-line fix. Clone-level fidelity is deferred in Ignis #13; #11 remains deferred. See D-20260926-02 and D-20260927-01.
