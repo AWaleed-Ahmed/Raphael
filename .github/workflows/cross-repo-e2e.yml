@@ -36,7 +36,8 @@ jobs:
     timeout-minutes: 20
     env:
       # Narrow proof only. Never load a customer kubeconfig or publish to GitHub.
-      IGNIS_REF: contracts-v1.2.0
+      # Pre-release proof for the paired Ignis digest-poll branch; pin a tag before merge.
+      IGNIS_REF: codex/poll-image-digests
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
       RAPHAEL_PARTNER_MODE: dry_run

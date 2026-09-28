@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -98,6 +99,17 @@ def run_case(covered, fixture, sha, output, binary):
         wait_for(received.exists, "real connector deploy result at inspection barrier")
         deployed = json.loads(received.read_text())["payload"]
         assert deployed["status"] == "ok", deployed
+        deploy_result = deployed["result"]
+        digest_refs = [ref for ref in deploy_result["image_refs"]
+                       if re.search(r"@sha256:[0-9a-f]{64}$", ref)]
+        digest_gap = "image digests not resolved; tags only"
+        gaps = deploy_result["fidelity"]["material_gaps"]
+        if covered:
+            assert digest_refs, f"real kind deploy did not resolve an image digest: {deploy_result['image_refs']}"
+            assert digest_gap not in gaps, gaps
+        else:
+            assert not digest_refs, digest_refs
+            assert digest_gap in gaps, gaps
         snapshots = []
         def observed():
             pods = json.loads(kube("get", "pods", "-n", namespace, "-o", "json"))
@@ -127,6 +139,7 @@ def run_case(covered, fixture, sha, output, binary):
             "passed": True, "case": label, "job_id": job_id, "sandbox_id": result["sandbox_id"],
             "namespace": namespace, "fixture_commit": sha, "pod": pod,
             "secret_names": secrets.splitlines(),
+            "image_refs": deploy_result["image_refs"], "fidelity_gaps": gaps,
         }, indent=2))
         print(f"PASS {label}: " + ("Ready; synthetic value verified by readiness exec" if covered
                                    else "CreateContainerConfigError: payments-db not found"), flush=True)
