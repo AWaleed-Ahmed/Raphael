@@ -368,10 +368,14 @@ class Orchestrator:
     @staticmethod
     def _validation_args(state: dict[str, Any]) -> dict[str, Any]:
         signature = state.get("failure_signature") or {}
+        normalized = signature.get("normalized") or {}
+        res_kind = (normalized.get("resource_kind") or "deployment").lower()
+        res_name = normalized.get("resource_name") or "target"
+        resource = f"{res_kind}/{res_name}"
         plan: dict[str, Any] = {
             "commands": [],
             "health_checks": [
-                {"type": "rollout", "resource": "deployment/target", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
+                {"type": "rollout", "resource": resource, "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
                 {"type": "signature_absent", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
             ],
         }

@@ -107,7 +107,12 @@ def main():
     env["RAPHAEL_PARTNER_MODE"] = "dry_run"
     env["RAPHAEL_PUBLISH_MODE"] = "dry_run"
     env["RAPHAEL_LLM_DIAGNOSIS"] = "0"
-    env["RAPHAEL_CLUSTER_BACKEND"] = "mock"
+    backend = os.getenv("E2E_CLUSTER_BACKEND", os.getenv("RAPHAEL_CLUSTER_BACKEND", "mock"))
+    env["RAPHAEL_CLUSTER_BACKEND"] = backend
+    if os.getenv("E2E_KUBE_CONTEXT"):
+        env["RAPHAEL_KUBE_CONTEXT"] = os.getenv("E2E_KUBE_CONTEXT")
+    elif os.getenv("RAPHAEL_KUBE_CONTEXT"):
+        env["RAPHAEL_KUBE_CONTEXT"] = os.getenv("RAPHAEL_KUBE_CONTEXT")
     env["RAPHAEL_LISTEN"] = "127.0.0.1:8090"
     env["RAPHAEL_CONNECTOR_DISPATCH_URL"] = DISPATCH
     env["RAPHAEL_CONNECTOR_CONTROLLER_URL"] = "http://127.0.0.1:8090"

@@ -30,6 +30,19 @@
 
 ## Decision log (newest first)
 
+### D-20260930-01 — Closed-loop remediation proven on live local Kubernetes (kind) cluster
+- **Status:** accepted
+- **Date:** 2026-09-30
+- **Owners:** Waleed + coding agent
+- **Decision:** Verified the end-to-end closed loop (`Raphael Dispatch` <-> `Production AgentHooks` <-> `Ignis Connector` <-> `Live Kubernetes Cluster`) against a real local `kind` cluster (`v1.33.1`) for both `probe_misconfiguration` and `bad_image_reference` with `RAPHAEL_PARTNER_MODE=dry_run`. Real Kubernetes workloads were deployed via `kubectl apply`, live failure conditions (`Readiness probe failed`, `ImagePullBackOff`) were observed from cluster events and pod statuses, deterministic patch templates generated minimal 2-line diffs, Ignis applied the patched manifests, real Kubernetes completed rollout reconciliation (`kubectl rollout status deployment/payments-api`), and both scenarios terminated in `fix_finalized`.
+- **Why:** Until now, all E2E proofs used Ignis's mock cluster backend (`RAPHAEL_CLUSTER_BACKEND=mock`). The mock performed static YAML parsing without ever invoking `kubectl apply`, which masked invalid Kubernetes manifests and left runtime container lifecycles unproven. Testing on a real `kind` cluster uncovered two core gaps: (1) Ignis's `KubectlCluster` returned backend name `"kubectl"` which violated `contracts/sandbox/create_sandbox.response.json` schema (`enum: ["kind", "kubeconfig", "mock"]`); (2) Dispatch orchestrator hardcoded `deployment/target` instead of dynamically querying the normalized signature resource name (`deployment/payments-api`).
+- **Fixes Applied & Assets Created:**
+  - `Ignis/controller/src/k8s/kubectl.rs`: Configured `KubectlCluster` to report backend name `"kind"` when `RAPHAEL_CLUSTER_BACKEND=kind` or `kubectl`.
+  - `dispatch/raphael_dispatch/orchestrator.py`: Updated `_validation_args()` to extract `res_kind` and `res_name` dynamically from the failure signature.
+  - `evals/scenarios/`: Updated scenario manifests to point to valid, immutable Kubernetes deployment fixtures (`AmazingDude/raphael-live-target` at `7c2c479` for probe and `AWaleed-Ahmed/raphael-bad-image-fixture` at `ea4c898` for bad image).
+  - `e2e/cluster.py` & `e2e/run_kind_verification.py`: Created generic, reusable cluster lifecycle management and verification runner for local dev and CI.
+- **Consequences:** Closed the loop with real Kubernetes container runtimes. Both deterministic remediation flows are confirmed functioning against genuine cluster rollouts.
+
 ### D-20260924-01 — Ephemeral patch manifest store isolates raw manifests from durable RunStore
 - **Status:** accepted
 - **Date:** 2026-09-24

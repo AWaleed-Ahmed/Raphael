@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "scenario_id": "bad_image_reference",
   "fixture": {
-    "repository": "AmazingDude/raphael-e2e-fixture",
-    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
-    "commit_sha": "fafa6bcb0f758b7fdf082770151e2752f8f15d00"
+    "repository": "AWaleed-Ahmed/raphael-bad-image-fixture",
+    "clone_url": "https://github.com/AWaleed-Ahmed/raphael-bad-image-fixture.git",
+    "commit_sha": "ea4c898f0a66d7c98a8cad956793d54ede223cfb"
   },
   "trigger": { "kind": "connector_job", "source": "evals/run_evals.py" },
   "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },

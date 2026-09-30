@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "scenario_id": "probe_misconfiguration",
   "fixture": {
-    "repository": "AmazingDude/raphael-e2e-fixture",
-    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
-    "commit_sha": "268d7b781f3849dab5694a8161789099555ebc76"
+    "repository": "AmazingDude/raphael-live-target",
+    "clone_url": "https://github.com/AmazingDude/raphael-live-target.git",
+    "commit_sha": "7c2c4792e7eb2a902d5e03379a2795d0fc80af26"
   },
   "trigger": { "kind": "connector_job", "source": "evals/run_evals.py" },
   "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },
