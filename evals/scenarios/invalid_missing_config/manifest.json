@@ -10,18 +10,20 @@
   "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },
   "expected": {
     "failure_class": "invalid_missing_config",
-    "terminal_status": "fix_finalized",
-    "patch_scope": {
-      "allowed_file_paths": ["deploy/manifests/app.yaml"],
-      "required_content": ["DATABASE_URL: postgres://payments:payments@db:5432/payments"],
-      "required_changed_line_fragments": ["+  DATABASE_URL: postgres://payments:payments@db:5432/payments"],
-      "max_changed_lines": 1
-    }
+    "terminal_status": "escalated",
+    "terminal_reason": "patch_value_unavailable"
   },
   "required_evidence": {
     "pre_fix_signature": true,
-    "validation": { "passed": true, "signature_cleared": true },
-    "terminal_instruction": "discard_local_copy"
+    "validation": { "attempted": false },
+    "terminal_instruction": "discard_local_copy",
+    "no_candidate_patch": true,
+    "no_publish": true,
+    "escalation_report": {
+      "reason_code": "patch_value_unavailable",
+      "required_fields": ["what_happened", "evidence_ids", "hypotheses_considered", "why_no_fix", "recommended_next_checks"],
+      "contains": ["No evidenced value"]
+    }
   },
-  "category": "positive_remediation"
+  "category": "expected_escalation"
 }

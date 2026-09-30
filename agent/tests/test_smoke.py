@@ -19,7 +19,7 @@ _for_validation = for_run_record_validation
 AGENT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = AGENT_ROOT.parent
 FIXTURE = AGENT_ROOT / "fixtures" / "failed_run_event.json"
-WORKSPACE = REPO_ROOT / "sandbox" / "harness" / "scenarios" / "probe_port_mismatch"
+WORKSPACE = AGENT_ROOT / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 
 def test_agent_contracts_exist():

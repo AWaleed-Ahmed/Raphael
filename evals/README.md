@@ -30,6 +30,11 @@ All six current scenarios are active after real-hook/mock-backend verification
 (D-20260927-01). Forbidden-patch rejection remains deferred under PRD §17.8,
 not silently counted as coverage.
 
+The original missing-ConfigMap fixture is now an expected escalation, not a
+positive fix: it identifies the missing key but supplies no trustworthy value
+to insert. The prior mock validation accepted an invented database URL. See
+D-20260930-01; probe and bad-image remain the two positive patch scenarios.
+
 Future scenarios marked `blocked_pending_evidence_boundary` remain excluded
 from default and CI execution. An explicit `--verify-blocked --scenario <id>`
 can gather proof before activation; its report is marked verification-only.
@@ -45,7 +50,8 @@ after source checkout, so the real harness fixture clones exercise Windows-style
 line endings. Use `ignis_ref` to pin the exact candidate commit.
 
 After the unchanged harness and evaluations run, `python -m evals.verify_rendered_lf`
-checks actual deploy-result and patch-action wire payloads for all three positive
-fixtures. Missing evidence or any CRLF content fails loudly; successful checks
+checks rendered content for all three pinned fixtures, patch content for the
+two positive fixes, and absence of a patch for missing-config. Missing or
+unexpected evidence or any CRLF content fails loudly; successful checks
 write `evals/out/line-endings.json`, included in the existing artifact upload.
 This complements, rather than weakens, the scorer's inflated-diff rejection test.

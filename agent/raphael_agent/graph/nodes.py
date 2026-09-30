@@ -12,6 +12,7 @@ from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
+from raphael_agent.patch.templates import TemplateRefusal
 from raphael_agent.publish import publish
 from raphael_agent.rules import load_or_derive_fix_rules
 from raphael_agent.localization import (
@@ -800,7 +801,26 @@ def node_patch(state: RunState) -> dict[str, Any]:
         }
         updates["model_results"] = model_results
 
-    proposal = propose_patch(merged_for_patch)
+    try:
+        proposal = propose_patch(merged_for_patch)
+    except TemplateRefusal as refusal:
+        # A missing/ambiguous target or unevidenced value is not a patch attempt.
+        # Do not persist a marker proposal or send a no-op deploy to the connector.
+        reason = refusal.reason
+        updates["status"] = "escalated"
+        updates["terminal_reason"] = reason
+        updates["escalation_report"] = _escalation(
+            {**state, **updates},
+            reason_code=reason,
+            summary="No evidence-backed deterministic patch available",
+            what_happened=str(refusal),
+            why_no_fix="No safe file change can be justified by the observed signature",
+            attempts=[{"kind": "patch", "status": "blocked", "detail": reason}],
+        )
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "patch", "refused", reason
+        )
+        return updates
     if proposal.get("policy_status") == "rejected":
         # Count the rejected attempt toward budget, then escalate if exhausted next loop
         patches = list(state.get("candidate_patches") or [])

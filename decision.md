@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20260930-01 — Require exact patch targets and evidence-backed values
+- **Status:** implementation under review; supersedes the *safe automated ConfigMap fix* claim in D-20260918-02, not its historical run result.
+- **Date:** 2026-09-30
+- **Decision:** The three deterministic manifest templates may patch only an unambiguous resource identified by the observed structural failure signature. Pod-only/live fallback or duplicate/missing targets escalate without a patch. A missing ConfigMap key additionally requires an evidenced value; no such value exists for fixture `29d4928`, so that scenario now expects `escalated`/`patch_value_unavailable` instead of `fix_finalized`.
+- **Why:** The old templates selected the first content match, and the ConfigMap template invented `DATABASE_URL: postgres://payments:payments@db:5432/payments`. D-20260918-02's claim that this was a *safe automated fix* was wrong: it accurately recorded a mock-backend validation result, but validation did **not** make the fabricated value an evidence-backed repair. No empty marker patch may stand in for refusal.
+- **Scope:** The probe and pattern-matched bad-image fixtures retain their structural-target fixes. Generic Pod ownership mapping and the hardcoded replacement-image provenance are separate follow-ups; neither is silently inferred here. This change does not alter Ignis or its public signature schema.
+- **Proof:** WSL agent 236 passed/4 skipped, dispatch 72 passed, evaluator 9 passed. Wrong-target and duplicate-target tests include second-of-two resources; JSON and SQLite persistence tests confirm no candidate patch or pending action after refusal. Freshly built Ignis main `2f2841f` and real dispatch hooks passed all six active mock-backend evaluations: probe and image finalized; missing-config escalated before patch/validation with `patch_value_unavailable`. Wire LF verification found two single-file patches and zero ConfigMap patch files. Hardcoded expected keys and replacement-image provenance are tracked in Raphael [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33) and [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34).
+
 ### D-20260927-03 — Explicit fixture selection and versioned real-backend compatibility
 - **Status:** implemented on PR #31, not merged; hosted kind proof passed, not a structural-detection milestone.
 - **Date:** 2026-09-27
@@ -96,7 +104,7 @@
 - **Consequences:** `prd.md` §17.8 records this as a release precondition for every future generative patch path.
 
 ### D-20260918-02 — Two additional deterministic patch classes proven against immutable real fixtures
-- **Status:** accepted
+- **Status:** The earlier *safe automated ConfigMap fix* claim was wrong and is superseded by D-20260930-01; the historical mock-validation result below remains a factual observation, not proof of a safe repair.
 - **Date:** 2026-09-18
 - **Decision:** The production-hooks dry-run chain reached `fix_finalized` for `bad_image_reference` at fixture commit `fafa6bc` and `invalid_missing_config` at `29d4928` in `AmazingDude/raphael-e2e-fixture`. The image template replaced `ghcr.io/acme/payments-api:does-not-exist` with `hashicorp/http-echo:1.0`; the ConfigMap template added the missing `DATABASE_URL` key under `payments-config.data`; both then validated in the mock backend.
 - **Important scope limit:** `bad_image_reference` is pattern-matched only (`does-not-exist`, `:missing`, or `invalid.tag`); it does **not** query an image registry or prove detection of arbitrary broken image references. The ConfigMap detector, by contrast, is structural YAML (`configMapKeyRef` versus ConfigMap data). Both traces used LF content with no CRLF-inflated patch payload.

@@ -14,22 +14,25 @@ class EvaluationHarnessTests(unittest.TestCase):
     def test_wire_lf_verifier_rejects_crlf_and_accepts_clean_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            scenarios = []
-            trace = root / "trace.jsonl"
-            for name in ("probe_misconfiguration", "bad_image_reference", "invalid_missing_config"):
-                scenarios.append({"scenario_id": name, "job_id": "job", "passed": True,
-                                  "trace": str(trace), "actual": {"patch_changed_line_count": 2}})
             report = root / "eval-results.json"
-            report.write_text(json.dumps({"scenarios": scenarios}), encoding="utf-8")
             for content in ("kind: Deployment\r\n", "kind: Deployment\n"):
+                scenarios = []
                 files = [{"path": "app.yaml", "content": content}]
-                record = {
-                    "request": {"body": json.dumps({"kind": "result", "payload": {
-                        "job_id": "job", "verb": "deploy_revision", "result": {"rendered_files": files}}})},
-                    "response": {"body": json.dumps({"messages": [{"kind": "action", "payload": {
-                        "job_id": "job", "verb": "deploy_revision", "args": {"patch": {"files": files}}}}]})},
-                }
-                trace.write_text(json.dumps(record) + "\n", encoding="utf-8")
+                for name in ("probe_misconfiguration", "bad_image_reference", "invalid_missing_config"):
+                    trace = root / f"{name}.jsonl"
+                    scenarios.append({"scenario_id": name, "job_id": name, "passed": True,
+                                      "trace": str(trace), "actual": {"patch_changed_line_count": 2 if name != "invalid_missing_config" else None}})
+                    response = {"messages": [{"kind": "action", "payload": {
+                        "job_id": name, "verb": "deploy_revision", "args": {"patch": {"files": files}}}}]}
+                    if name == "invalid_missing_config":
+                        response = {"messages": [{"kind": "terminal", "payload": {"job_id": name, "final_status": "escalated"}}]}
+                    record = {
+                        "request": {"body": json.dumps({"kind": "result", "payload": {
+                            "job_id": name, "verb": "deploy_revision", "result": {"rendered_files": files}}})},
+                        "response": {"body": json.dumps(response)},
+                    }
+                    trace.write_text(json.dumps(record) + "\n", encoding="utf-8")
+                report.write_text(json.dumps({"scenarios": scenarios}), encoding="utf-8")
                 if "\r\n" in content:
                     with self.assertRaisesRegex(ValueError, "non-LF content"):
                         verify(report)
@@ -37,6 +40,7 @@ class EvaluationHarnessTests(unittest.TestCase):
                     checks = verify(report)
                     self.assertEqual(len(checks), 3)
                     self.assertTrue(all(item["passed"] for item in checks))
+                    self.assertEqual(next(item for item in checks if item["scenario"] == "invalid_missing_config")["patch_files_checked"], 0)
 
     def test_committed_manifests_validate(self) -> None:
         scenarios = load_scenarios()
