@@ -20,6 +20,9 @@
       "type": "string",
       "enum": [
         "insufficient_evidence",
+        "patch_target_unavailable",
+        "patch_value_unavailable",
+        "patch_unavailable",
         "low_confidence",
         "blocked_category",
         "reproduction_failed",

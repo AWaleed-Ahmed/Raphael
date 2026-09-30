@@ -712,6 +712,8 @@ channels, and enabled-LLM behavior are not covered by that comparison.
 
 **Delivery status — 2026-09-27:** On `feature/diagnosis-evidence-boundary` (pending review, not yet merged), scoped redacted source evidence and internal `Orchestrator.intake(initial_evidence=...)` are implemented without restoring raw manifests to durable run state. All six real-hook/mock-backend fixture evaluations pass: three positive fixes, injection equivalence, secret-required escalation, and unreproducible failure. The latter three manifests were activated only after passing, then the normal six-scenario run passed again. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
 
+**Correction under review — 2026-09-30:** The earlier three-positive-fixture count included an unsafe ConfigMap patch that invented a `DATABASE_URL` value. On `codex/strict-template-targeting`, the same immutable missing-config fixture now correctly expects `escalated`/`patch_value_unavailable` with no candidate patch or validation attempt. Probe and bad-image still finalize after exact structural resource matching. All six real-process evaluations pass with this corrected expectation; this branch is not yet merged. See D-20260930-01. The bad-image replacement-image provenance question remains separately tracked.
+
 For each evaluated run, record:
 
 - `asserted_confidence`: the confidence reported by diagnosis.

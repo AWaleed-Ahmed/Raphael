@@ -193,6 +193,89 @@ def assert_no_secret_in_persisted_run(store, job_id):
 
 
 @pytest.mark.parametrize("store_type", [RunStore, SqliteRunStore])
+@pytest.mark.parametrize("case,expected_reason", [
+    ("missing_target", "patch_target_unavailable"),
+    ("duplicate_target", "patch_target_unavailable"),
+    ("missing_value", "patch_value_unavailable"),
+])
+def test_template_refusal_persists_no_patch_or_pending_action(tmp_path, monkeypatch, store_type, case, expected_reason):
+    from raphael_agent.graph.nodes import node_patch
+
+    monkeypatch.setenv("RAPHAEL_LLM_PATCH", "0")
+    store = store_type(tmp_path / "runs")
+    failure_class = "invalid_missing_config" if case == "missing_value" else "probe_misconfiguration"
+    hooks = AgentHooks(
+        diagnose=lambda state: {"status": "running", "diagnosis": {
+            "classification": {"failure_class": failure_class},
+            "selected_hypothesis_id": "hyp-refusal", "confidence": 0.95,
+        }},
+        localize=lambda state: {"localization_result": {"status": "localized", "candidates": []}},
+        patch=node_patch,
+        publish=fake_publish,
+    )
+    orchestrator = Orchestrator(store=store, hooks=hooks)
+    job = job_envelope()
+    job_id = job["payload"]["job_id"]
+    action = orchestrator.intake(job)["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=create_result(job_id)))["messages"][0]
+
+    configmap = "kind: ConfigMap\nmetadata:\n  name: target-config\ndata:\n  LOG_LEVEL: info\n"
+    deployment = """kind: Deployment
+metadata:
+  name: service
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            port: 9090
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: target-config
+              key: DATABASE_URL
+"""
+    if case == "missing_target":
+        manifest = configmap + "---\n" + deployment.replace("name: service", "name: unrelated")
+    elif case == "duplicate_target":
+        manifest = configmap + "---\n" + deployment + "---\n" + deployment
+    else:
+        manifest = configmap + "---\n" + deployment
+    deploy = deploy_result()
+    deploy["rendered_files"] = [{"path": "deploy/manifests/app.yaml", "content": manifest}]
+    action = orchestrator.receive_result(result_for(action, result=deploy))["messages"][0]
+    observed = observe_result()
+    if case == "missing_value":
+        observed["signature"]["class"] = "invalid_missing_config"
+        observed["signature"]["key"] = "missing_configmap_key:target-config:DATABASE_URL"
+        observed["signature"]["normalized"].update({
+            "reason": "CreateContainerConfigError", "resource_kind": "Deployment",
+            "resource_name": "service", "container": "app",
+            "attributes": {"configmap": "target-config", "key": "DATABASE_URL"},
+        })
+    else:
+        observed["signature"]["class"] = "probe_misconfiguration"
+        observed["signature"]["key"] = "probe_port_mismatch:service:8080!=9090"
+        observed["signature"]["normalized"].update({
+            "reason": "ReadinessProbePortMismatch", "resource_kind": "Deployment",
+            "resource_name": "service", "container": "app",
+            "attributes": {"container_port": 8080, "probe_port": 9090},
+        })
+    terminal = orchestrator.receive_result(result_for(action, result=observed))["messages"][0]
+    assert terminal["kind"] == "terminal"
+    assert terminal["payload"]["final_status"] == "escalated"
+    persisted = store.get_run(job_id)
+    assert persisted["terminal_reason"] == expected_reason
+    assert persisted.get("candidate_patches") in (None, [])
+    assert persisted["dispatch"]["pending_action"] is None
+
+
+@pytest.mark.parametrize("store_type", [RunStore, SqliteRunStore])
 def test_durable_projection_strips_all_patch_copies_without_mutating_live_state(tmp_path, store_type):
     secret = "UNREDACTED_API_SECRET_TOKEN"
     proposal = {
@@ -298,7 +381,12 @@ def test_real_node_patch_consumes_ephemeral_store_and_keeps_state_clean(tmp_path
         assert orchestrator.jobs[job_id]["sandbox_id"] == "sb-1"
 
     observe_res = observe_result()
-    observe_res["signature"]["normalized"]["attributes"] = {"container_port": 8080, "probe_port": 9090}
+    observe_res["signature"]["class"] = "probe_misconfiguration"
+    observe_res["signature"]["normalized"].update({
+        "reason": "ReadinessProbePortMismatch", "resource_kind": "Deployment",
+        "resource_name": "service", "container": "app",
+        "attributes": {"container_port": 8080, "probe_port": 9090},
+    })
     action = orchestrator.receive_result(result_for(action, result=observe_res))["messages"][0]
 
     if scenario in {"restart_before_patch", "restart_during_refetch", "missing_refetch"}:

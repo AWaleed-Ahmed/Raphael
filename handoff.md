@@ -5,6 +5,8 @@
 **Branches:** `feature/*` → `main` (PRs) → `prod` (promote). Park WIP on `stash/*`. See [`docs/BRANCHING.md`](docs/BRANCHING.md).  
 **Last verified work (2026-09-27):** `feature/diagnosis-evidence-boundary` reconciled onto main `bd95ca2`, preserving merged PR #27's patch-store protection. Fresh WSL results: dispatch 51 passed; agent 209 passed/4 skipped; evaluator 9 passed; exact whole-state secret regression 12 passed. All six real-hook/mock-backend evaluations pass, including three formerly blocked cases, now activated after proof. Pending PR review, not merged. See D-20260927-01; fourth forbidden-patch scenario remains deferred under §17.8.
 
+**Current review checkpoint (2026-10-01, not merged):** `codex/strict-template-targeting` refuses patches without a unique structural target; the ConfigMap fixture escalates with `patch_value_unavailable` because its missing value has no legitimate source. Probe and bad-image still finalize. Full real-process evaluation: 6/6 pass under the corrected expectations, with no ConfigMap candidate patch or validation attempt. Final WSL suites: agent 236 passed/4 skipped, dispatch 72 passed, evaluator 9 passed. The added second-resource, duplicate-target, and persisted-refusal tests are green. See D-20260930-01. Image-replacement provenance and hardcoded expected signature keys are tracked separately in Raphael #34 and #33.
+
 This file is the shortest path to context. Deeper sources: [`prd.md`](prd.md), [`CODING_RULE.md`](CODING_RULE.md), [`decision.md`](decision.md).
 
 ---

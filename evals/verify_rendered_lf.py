@@ -10,9 +10,10 @@ from evals.run_evals import body_as_json, parse_trace, trace_evidence
 def verify(report_path: Path) -> list[dict]:
     report = json.loads(report_path.read_text(encoding="utf-8"))
     required = {"probe_misconfiguration", "bad_image_reference", "invalid_missing_config"}
+    patch_expected = {"probe_misconfiguration", "bad_image_reference"}
     scenarios = {item["scenario_id"]: item for item in report["scenarios"]}
     if not required.issubset(scenarios):
-        raise ValueError("all three proven positive scenarios must have run")
+        raise ValueError("all three pinned scenarios must have run")
     checks = []
     for name in sorted(required):
         scenario = scenarios[name]
@@ -28,8 +29,8 @@ def verify(report_path: Path) -> list[dict]:
                     and payload.get("verb") == "deploy_revision"):
                 rendered.extend((payload.get("result") or {}).get("rendered_files") or [])
         patch_files = trace_evidence(records, scenario["job_id"])["patch_files"]
-        if not rendered or not patch_files:
-            raise ValueError(f"{name}: missing real render or patch evidence")
+        if not rendered or (name in patch_expected and not patch_files) or (name not in patch_expected and patch_files):
+            raise ValueError(f"{name}: incorrect render/patch evidence for expected outcome")
         for item in rendered + patch_files:
             content = item.get("content")
             if not isinstance(content, str) or "\r\n" in content:

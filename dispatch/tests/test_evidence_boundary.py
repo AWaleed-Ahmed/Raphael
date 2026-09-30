@@ -54,6 +54,13 @@ def through_observe(tmp_path, content, *, initial=None, signature=True, restart=
         orch = Orchestrator(store=store, hooks=hooks)
         orch.rehydrate()
     observed = observe_result()
+    observed["signature"]["class"] = "probe_misconfiguration"
+    observed["signature"]["key"] = "probe_port_mismatch:app:8080!=9090"
+    observed["signature"]["normalized"].update({
+        "reason": "ReadinessProbePortMismatch", "resource_kind": "Deployment",
+        "resource_name": "app", "container": "app",
+        "attributes": {"container_port": 8080, "probe_port": 9090},
+    })
     if not signature:
         observed["signature"]["reproduced"] = False
     response = orch.receive_result(result_for(action, result=observed))["messages"][0]
