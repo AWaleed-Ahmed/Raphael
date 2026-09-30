@@ -30,8 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20261001-01 — Prove exact-target probe repair across two Deployments
+- **Status:** local real-process proof complete; scenario awaiting hosted CI review.
+- **Date:** 2026-10-01
+- **Decision:** Pin public fixture `AmazingDude/raphael-e2e-fixture@26192b891952fedd0478a2d8b8ba3d5878614722` with two Deployments in one manifest: the first healthy, the second with a readiness-probe port mismatch. Score only `deploy/manifests/app.yaml` with exactly two changed lines (`9090` to `8080`), `probe_misconfiguration`, and `fix_finalized`.
+- **Red/green proof:** Real dispatch and Ignis mock-backend processes on pre-PR #35 Raphael `db7ee90` escalated after three `.raphael-empty-patch` attempts (`budget_exhausted`, 21.3 seconds). On post-merge main `d88a6be`, the same immutable fixture finalized in 24.8 seconds with one patch changing only the second Deployment's port; the first remained unchanged. The full seven-scenario real-process suite and evaluator unit tests (9/9) then passed. All runs were dry-run publish, with no GitHub token.
+- **Limit:** This proves wrong-target prevention for this mock-backend fixture, not arbitrary multi-resource Kubernetes manifests. A separate duplicate-name ambiguity eval was not added; it requires an explicitly authorized disposable fixture and actual Ignis signature proof. No application code or public contract changed in this follow-up.
+
 ### D-20260930-01 — Require exact patch targets and evidence-backed values
-- **Status:** implementation under review; supersedes the *safe automated ConfigMap fix* claim in D-20260918-02, not its historical run result.
+- **Status:** accepted; merged in [PR #35](https://github.com/AWaleed-Ahmed/Raphael/pull/35) at `d88a6be`. Supersedes the *safe automated ConfigMap fix* claim in D-20260918-02, not its historical run result.
 - **Date:** 2026-09-30
 - **Decision:** The three deterministic manifest templates may patch only an unambiguous resource identified by the observed structural failure signature. Pod-only/live fallback or duplicate/missing targets escalate without a patch. A missing ConfigMap key additionally requires an evidenced value; no such value exists for fixture `29d4928`, so that scenario now expects `escalated`/`patch_value_unavailable` instead of `fix_finalized`.
 - **Why:** The old templates selected the first content match, and the ConfigMap template invented `DATABASE_URL: postgres://payments:payments@db:5432/payments`. D-20260918-02's claim that this was a *safe automated fix* was wrong: it accurately recorded a mock-backend validation result, but validation did **not** make the fabricated value an evidence-backed repair. No empty marker patch may stand in for refusal.
