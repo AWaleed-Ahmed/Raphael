@@ -26,9 +26,15 @@ may declare `equivalent_to_scenario`; the runner then executes its baseline and
 requires identical classification, confidence, generated patch delta, and
 terminal outcome.
 
-All six current scenarios are active after real-hook/mock-backend verification
-(D-20260927-01). Forbidden-patch rejection remains deferred under PRD §17.8,
-not silently counted as coverage.
+All seven current scenarios are active after real-hook/mock-backend verification.
+The seventh pins a two-Deployment fixture: the first is healthy and the second
+has a readiness-probe port mismatch. Its patch scope requires exactly the
+second Deployment's `9090` to `8080` change in the single manifest file.
+The pre-strict-targeting runner (`db7ee90`) escalated after three empty-marker
+patch attempts against this same fixture SHA; main after PR #35 finalized with
+only those two changed lines. This is a local real-process red/green proof,
+not yet a hosted CI result. Forbidden-patch rejection remains deferred under
+PRD §17.8, not silently counted as coverage.
 
 The original missing-ConfigMap fixture is now an expected escalation, not a
 positive fix: it identifies the missing key but supplies no trustworthy value

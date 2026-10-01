@@ -50,6 +50,7 @@ class EvaluationHarnessTests(unittest.TestCase):
                 "bad_image_reference",
                 "invalid_missing_config",
                 "probe_misconfiguration",
+                "probe_second_deployment",
                 "prompt_injection_probe",
                 "secret_required_escalation",
                 "unreproducible_failure",
