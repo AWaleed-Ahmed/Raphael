@@ -149,6 +149,17 @@ def test_publish_requires_result_id(monkeypatch):
     assert result["pull_request_url"] is None
 
 
+def test_pr_body_preserves_per_image_material_gap_messages():
+    gaps = [
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+        "image digests not resolved; tags only: busybox:1.37.0",
+    ]
+    body = build_pr_body(_base_run(validated_fix_record={
+        "fidelity": {"score": 0.8, "material_gaps": gaps},
+    }))
+    assert "## Sandbox fidelity\n- Score: `0.8`\n- Material gaps: " + ", ".join(gaps) in body
+
+
 def test_publish_skips_escalated(monkeypatch):
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "dry_run")
     result = publish(_base_run(status="escalated"))

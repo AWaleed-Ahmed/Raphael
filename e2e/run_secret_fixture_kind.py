@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -35,8 +36,10 @@ def wait_for(check, description, timeout=120):
     raise AssertionError(f"timeout: {description}")
 
 
-def run_case(covered, fixture, sha, output, binary):
+def run_case(covered, fixture, sha, output, binary, two_images=False):
     label = "with-fixture" if covered else "without-fixture"
+    if two_images:
+        label += "-two-images"
     out = output / label
     out.mkdir(parents=True, exist_ok=True)
     gate = out / "release"
@@ -98,21 +101,47 @@ def run_case(covered, fixture, sha, output, binary):
         wait_for(received.exists, "real connector deploy result at inspection barrier")
         deployed = json.loads(received.read_text())["payload"]
         assert deployed["status"] == "ok", deployed
+        deploy_result = deployed["result"]
+        digest_refs = [ref for ref in deploy_result["image_refs"]
+                       if re.search(r"@sha256:[0-9a-f]{64}$", ref)]
+        digest_gap = "image digests not resolved; tags only"
+        gaps = deploy_result["fidelity"]["material_gaps"]
+        if covered:
+            assert digest_refs, f"real kind deploy did not resolve an image digest: {deploy_result['image_refs']}"
+            assert not any(gap.startswith(digest_gap) for gap in gaps), gaps
+            if two_images:
+                assert len(set(digest_refs)) == 2, digest_refs
+        else:
+            assert len(set(digest_refs)) == (1 if two_images else 0), digest_refs
+            assert [gap for gap in gaps if gap.startswith(digest_gap)] == [
+                digest_gap + ": busybox:1.37.0"
+            ], gaps
         snapshots = []
         def observed():
             pods = json.loads(kube("get", "pods", "-n", namespace, "-o", "json"))
             snapshots.append(pods)
             for pod in pods["items"]:
                 statuses = pod.get("status", {}).get("containerStatuses", [])
-                for container in statuses:
-                    if covered and container.get("ready"):
+                if covered:
+                    expected_count = 2 if two_images else 1
+                    if len(statuses) == expected_count and all(c.get("ready") for c in statuses):
+                        # Independently confirm every runtime imageID appears in
+                        # the real deploy response, not just one global digest.
+                        for container in statuses:
+                            image_id = container.get("imageID", "")
+                            assert "sha256:" in image_id, container
+                            digest = image_id[image_id.index("sha256:"):]
+                            assert any(ref.endswith("@" + digest) for ref in digest_refs), digest_refs
                         return pod
+                for container in statuses:
                     waiting = container.get("state", {}).get("waiting", {})
                     if not covered and waiting.get("reason") == "CreateContainerConfigError":
                         message = waiting.get("message", "")
                         if "payments-db" in message and "not found" in message.lower():
                             assert not container.get("ready")
                             assert not container.get("state", {}).get("running")
+                            if two_images and not any(c.get("name") == "sidecar" and c.get("ready") for c in statuses):
+                                continue
                             return pod
         try:
             pod = wait_for(observed, f"{label} Kubernetes readiness/control outcome")
@@ -127,6 +156,7 @@ def run_case(covered, fixture, sha, output, binary):
             "passed": True, "case": label, "job_id": job_id, "sandbox_id": result["sandbox_id"],
             "namespace": namespace, "fixture_commit": sha, "pod": pod,
             "secret_names": secrets.splitlines(),
+            "image_refs": deploy_result["image_refs"], "fidelity_gaps": gaps,
         }, indent=2))
         print(f"PASS {label}: " + ("Ready; synthetic value verified by readiness exec" if covered
                                    else "CreateContainerConfigError: payments-db not found"), flush=True)
@@ -155,15 +185,17 @@ def main():
     # Commit a copy of the tracked fixture locally, then let the real connector
     # clone that exact SHA. No public repo or Ignis source modifications needed.
     with tempfile.TemporaryDirectory(prefix="fixture-source-") as temp:
-        fixture = Path(temp) / "repo"
-        shutil.copytree(ROOT / "e2e/fixtures/secret-consumer", fixture)
-        command("git", "init", cwd=fixture)
-        command("git", "add", ".", cwd=fixture)
-        command("git", "-c", "user.name=Fixture CI", "-c", "user.email=fixture@example.invalid",
-                "commit", "-m", "Synthetic secret consumer fixture", cwd=fixture)
-        sha = command("git", "rev-parse", "HEAD", cwd=fixture).strip()
-        for covered in (True, False):
-            run_case(covered, fixture, sha, output, binary)
+        for two_images in (False, True):
+            fixture_name = "secret-consumer-two-images" if two_images else "secret-consumer"
+            fixture = Path(temp) / fixture_name
+            shutil.copytree(ROOT / "e2e/fixtures" / fixture_name, fixture)
+            command("git", "init", cwd=fixture)
+            command("git", "add", ".", cwd=fixture)
+            command("git", "-c", "user.name=Fixture CI", "-c", "user.email=fixture@example.invalid",
+                    "commit", "-m", "Synthetic secret consumer fixture", cwd=fixture)
+            sha = command("git", "rev-parse", "HEAD", cwd=fixture).strip()
+            for covered in (True, False):
+                run_case(covered, fixture, sha, output, binary, two_images)
 
 
 if __name__ == "__main__":

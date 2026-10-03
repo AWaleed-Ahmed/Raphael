@@ -697,9 +697,22 @@ The first attempt was blocked before deployment by a backend enum mismatch,
 now corrected in `contracts-v1.2.0`. Hosted run [36334290256](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36334290256)
 proves Ready with the synthetic value consumed, and a never-started container
 with `CreateContainerConfigError` naming the missing Secret without coverage,
-using the same fixture SHA. PR #31 remains unmerged. Mock successes alone do
+using the same fixture SHA. PR #31 merged at `db7ee90`. Mock successes alone do
 not prove consumption; this real proof does not establish structural detection
 or qualify the full Kubernetes backend. See D-20260927-03.
+
+**Image-fidelity checkpoint — 2026-10-02:** Ignis PR #16 merged at `ece2029`,
+tagged as annotated `contracts-v1.2.1`. It polls real Kubernetes image IDs
+within existing deploy `wait_seconds`, requires completeness per image, and
+discloses each unresolved image. Mock behavior and public schemas are unchanged.
+Pinned [hosted run 37035326891](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37035326891)
+passed all four kind cases, mock Scenarios 1–3, real-hooks smoke, and all seven
+evals. The partially covered two-image case resolved the Ready sidecar and
+named only the blocked app in the gap. The public schema snapshot stays at
+`contracts-v1.2.0`; the paired Raphael PR still needs human review.
+This does not qualify the backend generally. The separate ConfigMap
+fabrication finding is closed by PR #35: missing-config is now a correct
+refusal (`patch_value_unavailable`), not a third safe-fix class.
 
 **Safety-proof scope (D-20260927-02):** Secret-required refusal is proven after
 an explicit textual dependency signal, not structural inference from an
