@@ -30,6 +30,24 @@
 
 ## Decision log (newest first)
 
+### D-20261004-02 — Applied fixture Secret coverage gates patching
+- **Status:** accepted; reviewed in Raphael PR #42 and Ignis PR #18; delivery authorized by the user.
+- **Date:** 2026-10-04
+- **Decision:** Persist applied synthetic fixture names/keys privately in Ignis; report bounded reference-level coverage in `contracts-v1.3.0`. Raphael structurally refuses patching only for complete supported evidence of a required missing object/key. Textual safety blocks retain precedence; incomplete/legacy evidence stays unknown.
+- **Why:** Manifest references alone do not establish which approved fixtures were successfully applied. Optional references must not become required gaps, and payload values must not enter the coverage model.
+- **Alternatives:** Inferring authorization from names or treating truncated reports as complete was rejected. Existing dependency fidelity booleans keep their prior meaning.
+- **Proof:** Ignis 62 controller/18 contract tests; Raphael hosted core CI 37217777993 and cross-repo 37217777910 passed, including six narrow kind controls and three persisted no-patch structural refusals. Detailed evidence and remaining limits are in `docs/implementation-review-2026-10-04-issue-30.md`.
+- **Consequences:** Contract/runtime pins move together. Live Supabase ingestion, broad backend qualification, Ignis #11/#17, and partner-pilot gates remain open.
+
+### D-20261004-01 — Observed validation targets and evidence-backed image replacement
+- **Status:** implemented locally on `docs/contributor-handoff`; uncommitted, pending review
+- **Date:** 2026-10-04
+- **Decision:** Preserve observed signature keys and probe attributes; use the observed workload in both direct and dispatch rollout validation. Replace the generic image fallback with an exact, scoped container image from a verified last-known-good Supabase trace. Record trace ID and full source commit SHA; missing or ambiguous provenance refuses the patch.
+- **Why:** A correct patch must not be validated against a hardcoded workload or replace the application with a generic demo image. Placeholder commit provenance and malformed baseline JSON must not authorize a repair or hide valid baseline rows.
+- **Alternatives:** Keep the demo replacement or inject synthetic approvals into the real-hook evaluator — rejected because neither proves trusted provenance. The existing bad-image fixture now expects an explicit no-provenance refusal; its historical successful demo-image results remain historical evidence, not proof of this implementation.
+- **Verification:** Agent 272 passed, 4 existing skipped; dispatch 74 passed; evaluator unit tests 10 passed. Regression coverage includes unrelated probe ports, exact observed key formats, renamed rollout targets, missing identity, placeholder commit SHAs, malformed baseline rows, and scoring of no-provenance image refusal. See `docs/implementation-review-2026-10-04.md`.
+- **Limits:** No live Supabase, Ignis real-process evaluation, or hosted proof was run. The required per-container baseline metadata has not been verified in live ingestion. Secret coverage #30 is untouched; no public sandbox contract or runtime pin changed.
+
 ### D-20261003-01 — Make deterministic safety blocks immutable to model refinement
 - **Status:** accepted; merged in [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) at `60c03cf` after [core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185366239) and [cross-repo E2E/kind/evals](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185366271) passed. Missing model-runtime plumbing/default policy is tracked separately in [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40).
 - **Date:** 2026-10-03

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -82,6 +84,12 @@ def fidelity() -> dict:
             "dependencies_available": True,
         },
         "material_gaps": [],
+        "secret_coverage": {
+            "format_version": 1,
+            "complete": True,
+            "truncated": False,
+            "references": [],
+        },
     }
 
 
@@ -237,6 +245,28 @@ def test_successful_multistep_job_reaches_fix_finalized(tmp_path: Path) -> None:
     messages = orchestrator.receive_result(result_for(messages[0]))["messages"]
     assert messages[0]["kind"] == "terminal"
     assert messages[0]["payload"]["final_status"] == "fix_finalized"
+
+
+def test_required_secret_gap_escalates_before_patch(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=create_result(job["payload"]["job_id"]))) ["messages"][0]
+    deploy = deploy_result()
+    deploy["fidelity"]["secret_coverage"] = {
+        "format_version": 1,
+        "complete": True,
+        "truncated": False,
+        "references": [{"workload_kind": "Deployment", "workload_name": "api", "namespace": "raphael-run", "source": "secretKeyRef", "secret_name": "payments-db", "key": "PASSWORD", "optional": False, "status": "missing_key"}],
+    }
+    action = orchestrator.receive_result(result_for(action, result=deploy))["messages"][0]
+    terminal = orchestrator.receive_result(result_for(action, result=observe_result()))["messages"][0]
+
+    assert terminal["kind"] == "terminal"
+    assert terminal["payload"]["final_status"] == "escalated"
+    state = orchestrator.jobs[job["payload"]["job_id"]]
+    assert state["terminal_reason"] == "unresolved_secret_dependency"
+    assert state["attempt_count"]["patch"] == 0
 
 
 def test_patch_attempt_budget_escalates_without_looping(tmp_path: Path, monkeypatch) -> None:
@@ -416,3 +446,16 @@ def test_producer_retry_after_restart_reuses_persisted_progress(tmp_path: Path) 
     assert replay == {"messages": [expected], "idempotent_replay": True}
     assert persisted["sandbox_id"] == "sb-1"
     assert persisted["dispatch"]["pending_action"] == expected
+
+
+def test_validation_plan_targets_observed_resource():
+    state = {'failure_signature': {'key': 'before', 'normalized': {
+        'resource_kind': 'Deployment', 'resource_name': 'worker-api'}}}
+    plan = Orchestrator._validation_args(state)['plan']
+    assert plan['health_checks'][0]['resource'] == 'deployment/worker-api'
+    assert plan['compare_to_signature_key'] == 'before'
+
+
+def test_validation_plan_refuses_missing_resource_identity():
+    with pytest.raises(ValueError, match='Observed resource identity'):
+        Orchestrator._validation_args({'failure_signature': {'key': 'before'}})

@@ -12,7 +12,7 @@ import tempfile
 import time
 import uuid
 
-from run_real_job import wait_ready, http_post, trace_records
+from run_real_job import wait_ready, http_post, trace_records, find_terminal
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTEXT = "kind-raphael-fixture-proof"
@@ -36,8 +36,12 @@ def wait_for(check, description, timeout=120):
     raise AssertionError(f"timeout: {description}")
 
 
-def run_case(covered, fixture, sha, output, binary, two_images=False):
+def run_case(covered, fixture, sha, output, binary, two_images=False, missing_key=False, optional=False):
     label = "with-fixture" if covered else "without-fixture"
+    if missing_key:
+        label = "optional-missing-key" if optional else "required-missing-key"
+    has_fixture = covered or missing_key
+    ready_expected = covered or optional
     if two_images:
         label += "-two-images"
     out = output / label
@@ -50,7 +54,7 @@ def run_case(covered, fixture, sha, output, binary, two_images=False):
                 "RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH"):
         env.pop(key, None)
     env.update({
-        "RAPHAEL_SECRET_FIXTURE_SET": "payments-test" if covered else "",
+        "RAPHAEL_SECRET_FIXTURE_SET": "payments-test" if has_fixture else "",
         "RAPHAEL_CLUSTER_BACKEND": "kind", "RAPHAEL_KUBE_CONTEXT": CONTEXT,
         "RAPHAEL_LISTEN": "127.0.0.1:8090",
         "RAPHAEL_CONNECTOR_DISPATCH_URL": "http://127.0.0.1:8092",
@@ -106,7 +110,15 @@ def run_case(covered, fixture, sha, output, binary, two_images=False):
                        if re.search(r"@sha256:[0-9a-f]{64}$", ref)]
         digest_gap = "image digests not resolved; tags only"
         gaps = deploy_result["fidelity"]["material_gaps"]
-        if covered:
+        coverage = deploy_result["fidelity"]["secret_coverage"]
+        expected_status = "missing_key" if missing_key else ("covered" if covered else "missing_object")
+        assert coverage["format_version"] == 1 and coverage["complete"] and not coverage["truncated"], coverage
+        assert len(coverage["references"]) == 1, coverage
+        reference = coverage["references"][0]
+        assert reference["status"] == expected_status and reference["optional"] == optional, reference
+        assert reference["namespace"] == namespace and reference["secret_name"] == "payments-db", reference
+        assert reference["key"] == ("UNAVAILABLE_KEY" if missing_key else "DATABASE_URL"), reference
+        if ready_expected:
             assert digest_refs, f"real kind deploy did not resolve an image digest: {deploy_result['image_refs']}"
             assert not any(gap.startswith(digest_gap) for gap in gaps), gaps
             if two_images:
@@ -122,7 +134,7 @@ def run_case(covered, fixture, sha, output, binary, two_images=False):
             snapshots.append(pods)
             for pod in pods["items"]:
                 statuses = pod.get("status", {}).get("containerStatuses", [])
-                if covered:
+                if ready_expected:
                     expected_count = 2 if two_images else 1
                     if len(statuses) == expected_count and all(c.get("ready") for c in statuses):
                         # Independently confirm every runtime imageID appears in
@@ -135,9 +147,10 @@ def run_case(covered, fixture, sha, output, binary, two_images=False):
                         return pod
                 for container in statuses:
                     waiting = container.get("state", {}).get("waiting", {})
-                    if not covered and waiting.get("reason") == "CreateContainerConfigError":
+                    if not ready_expected and waiting.get("reason") == "CreateContainerConfigError":
                         message = waiting.get("message", "")
-                        if "payments-db" in message and "not found" in message.lower():
+                        missing_detail = "UNAVAILABLE_KEY" if missing_key else "not found"
+                        if "payments-db" in message and missing_detail in message:
                             assert not container.get("ready")
                             assert not container.get("state", {}).get("running")
                             if two_images and not any(c.get("name") == "sidecar" and c.get("ready") for c in statuses):
@@ -151,15 +164,29 @@ def run_case(covered, fixture, sha, output, binary, two_images=False):
         # Read only fixture metadata, never Secret payloads. The readiness probe
         # itself verifies the consumed environment value, without printing it.
         secrets = kube("get", "secrets", "-n", namespace, "-o", "name")
-        assert ("secret/payments-db" in secrets.splitlines()) == covered
+        assert ("secret/payments-db" in secrets.splitlines()) == has_fixture
+        terminal = None
+        if not ready_expected:
+            gate.touch()
+            terminal = wait_for(lambda: find_terminal(trace_records(trace), job_id),
+                                "structural escalation through real agent hooks", timeout=150)
+            assert terminal["payload"]["final_status"] == "escalated", terminal
+            run_paths = list((out / "agent-data" / "runs").glob("*.json"))
+            assert len(run_paths) == 1, run_paths
+            state = json.loads(run_paths[0].read_text())
+            assert state["terminal_reason"] == "unresolved_secret_dependency", state.get("terminal_reason")
+            assert state["escalation_report"]["reason_code"] == "unresolved_secret_dependency"
+            assert not state.get("candidate_patches"), state.get("candidate_patches")
+            assert state["secret_coverage"] == coverage
         (out / "proof.json").write_text(json.dumps({
             "passed": True, "case": label, "job_id": job_id, "sandbox_id": result["sandbox_id"],
             "namespace": namespace, "fixture_commit": sha, "pod": pod,
             "secret_names": secrets.splitlines(),
             "image_refs": deploy_result["image_refs"], "fidelity_gaps": gaps,
+            "secret_coverage": coverage, "terminal": terminal,
         }, indent=2))
-        print(f"PASS {label}: " + ("Ready; synthetic value verified by readiness exec" if covered
-                                   else "CreateContainerConfigError: payments-db not found"), flush=True)
+        print(f"PASS {label}: " + ("Ready; independent readiness condition passed" if ready_expected
+                                   else "CreateContainerConfigError matches predicted missing dependency"), flush=True)
     finally:
         gate.touch()
         for process in reversed(processes):
@@ -196,6 +223,20 @@ def main():
             sha = command("git", "rev-parse", "HEAD", cwd=fixture).strip()
             for covered in (True, False):
                 run_case(covered, fixture, sha, output, binary, two_images)
+        for optional in (False, True):
+            fixture = Path(temp) / ("optional-key" if optional else "missing-key")
+            shutil.copytree(ROOT / "e2e/fixtures/secret-consumer", fixture)
+            manifest = fixture / "deploy/manifests/app.yaml"
+            content = manifest.read_text().replace("key: DATABASE_URL", "key: UNAVAILABLE_KEY")
+            if optional:
+                content = content.replace("key: UNAVAILABLE_KEY", "key: UNAVAILABLE_KEY\n                  optional: true")
+                content = content.replace("test \\\"$DATABASE_URL\\\" = 'postgres://payments:synthetic@db.sandbox.local:5432/payments'", "test -r /etc/hostname")
+            manifest.write_text(content)
+            command("git", "init", cwd=fixture)
+            command("git", "add", ".", cwd=fixture)
+            command("git", "-c", "user.name=Fixture CI", "-c", "user.email=fixture@example.invalid", "commit", "-m", "Secret key coverage control", cwd=fixture)
+            sha = command("git", "rev-parse", "HEAD", cwd=fixture).strip()
+            run_case(False, fixture, sha, output, binary, missing_key=True, optional=optional)
 
 
 if __name__ == "__main__":

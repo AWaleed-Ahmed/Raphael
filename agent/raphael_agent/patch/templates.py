@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
 from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
+
+from raphael_agent.patch.image_provenance import image_repository
 
 
 class TemplateRefusal(Exception):
@@ -211,7 +214,7 @@ def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
     return _replace_scalar(path, content, deployment, _at(container, "readinessProbe", "httpGet", "port"), str(pp), str(cp))
 
 
-def fix_bad_image(run: dict[str, Any], *, known_good: str = "hashicorp/http-echo:1.0") -> list[dict[str, Any]] | None:
+def fix_bad_image(run: dict[str, Any]) -> list[dict[str, Any]] | None:
     sig, norm, attrs = _signature_data(run)
     name, image = norm.get("resource_name"), attrs.get("image")
     if (
@@ -223,7 +226,32 @@ def fix_bad_image(run: dict[str, Any], *, known_good: str = "hashicorp/http-echo
     norm = _signature(run, "bad_image_reference", sig["key"])
     path, content, deployment = _resource(run, "Deployment", norm["resource_name"])
     container = _container(deployment, norm["container"])
-    return _replace_scalar(path, content, deployment, _field(container, "image"), image, known_good)
+    localization = run.get("localization_result") or {}
+    replacement = localization.get("approved_image_replacement") or {}
+    source = replacement.get("source") or {}
+    repo = run.get("repository") or {}
+    expected_repo = "/".join(part for part in (repo.get("owner"), repo.get("name")) if part)
+    if (
+        replacement.get("resource_name") != name
+        or replacement.get("container_name") != norm.get("container")
+        or not isinstance(replacement.get("image"), str)
+        or not replacement.get("image")
+        or image_repository(replacement["image"]) != image_repository(image)
+        or source.get("kind") != "verified_healthy_trace"
+        or not source.get("healthy_trace_id")
+        or not isinstance(source.get("source_commit_sha"), str)
+        or re.fullmatch(r"[0-9a-fA-F]{40}", source["source_commit_sha"]) is None
+        or source.get("repository") != expected_repo
+        or source.get("service_name") != localization.get("service_name")
+        or source.get("environment") != localization.get("environment")
+    ):
+        raise TemplateRefusal(
+            "patch_value_unavailable",
+            "No verified healthy image exists for this repository, Deployment, and container",
+        )
+    return _replace_scalar(
+        path, content, deployment, _field(container, "image"), image, replacement["image"]
+    )
 
 
 def fix_missing_configmap_key(run: dict[str, Any]) -> list[dict[str, Any]] | None:

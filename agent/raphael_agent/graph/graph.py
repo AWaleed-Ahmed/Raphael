@@ -12,6 +12,7 @@ from raphael_agent.graph.nodes import (
     node_patch,
     node_publish_or_escalate,
     node_reproduce,
+    node_secret_coverage_gate,
     node_validate,
     route_after_validate,
 )
@@ -29,6 +30,7 @@ def build_stub_graph():
     graph.add_node("evidence", node_evidence)
     graph.add_node("diagnose", node_diagnose)
     graph.add_node("reproduce", node_reproduce)
+    graph.add_node("secret_coverage", node_secret_coverage_gate)
     graph.add_node("localize", node_localize)
     graph.add_node("patch", node_patch)
     graph.add_node("validate", node_validate)
@@ -42,7 +44,12 @@ def build_stub_graph():
         lambda state: "publish_or_escalate" if state.get("diagnosis_only") else "reproduce",
         {"reproduce": "reproduce", "publish_or_escalate": "publish_or_escalate"},
     )
-    graph.add_edge("reproduce", "localize")
+    graph.add_edge("reproduce", "secret_coverage")
+    graph.add_conditional_edges(
+        "secret_coverage",
+        lambda state: "publish_or_escalate" if state.get("status") == "escalated" else "localize",
+        {"localize": "localize", "publish_or_escalate": "publish_or_escalate"},
+    )
     graph.add_edge("localize", "patch")
     graph.add_edge("patch", "validate")
     graph.add_conditional_edges(

@@ -21,10 +21,10 @@ class EvaluationHarnessTests(unittest.TestCase):
                 for name in ("probe_misconfiguration", "bad_image_reference", "invalid_missing_config"):
                     trace = root / f"{name}.jsonl"
                     scenarios.append({"scenario_id": name, "job_id": name, "passed": True,
-                                      "trace": str(trace), "actual": {"patch_changed_line_count": 2 if name != "invalid_missing_config" else None}})
+                                      "trace": str(trace), "actual": {"patch_changed_line_count": 2 if name == "probe_misconfiguration" else None}})
                     response = {"messages": [{"kind": "action", "payload": {
                         "job_id": name, "verb": "deploy_revision", "args": {"patch": {"files": files}}}}]}
-                    if name == "invalid_missing_config":
+                    if name != "probe_misconfiguration":
                         response = {"messages": [{"kind": "terminal", "payload": {"job_id": name, "final_status": "escalated"}}]}
                     record = {
                         "request": {"body": json.dumps({"kind": "result", "payload": {
@@ -62,6 +62,32 @@ class EvaluationHarnessTests(unittest.TestCase):
             if (scenario.get("implementation_status") or {}).get("state") == "blocked_pending_evidence_boundary"
         }
         self.assertEqual(blocked, set())
+
+    def test_bad_image_without_provenance_is_an_expected_refusal(self):
+        manifest = load_scenarios({"bad_image_reference"})[0]
+        report = {
+            field: [] for field in manifest["required_evidence"]["escalation_report"]["required_fields"]
+        }
+        report.update(reason_code="patch_value_unavailable", what_happened="No verified healthy image")
+        runner = {
+            "job_id": "image-job", "runner_exit_code": 0,
+            "run_state": {
+                "diagnosis": {"classification": {"failure_class": "bad_image_reference"}},
+                "terminal_reason": "patch_value_unavailable", "escalation_report": report,
+            },
+        }
+        records = [{
+            "request": {"body": json.dumps({"kind": "result", "payload": {
+                "job_id": "image-job", "verb": "observe_failure",
+                "result": {"signature": {"class": "bad_image_reference", "reproduced": True}},
+            }})},
+            "response": {"body": json.dumps({"messages": [{"kind": "terminal", "payload": {
+                "job_id": "image-job", "final_status": "escalated", "instructions": "discard_local_copy",
+            }}]})},
+        }]
+        self.assertTrue(score_scenario(manifest, runner, records)["passed"])
+        runner["run_state"]["terminal_reason"] = "budget_exhausted"
+        self.assertFalse(score_scenario(manifest, runner, records)["passed"])
 
     def _score(self, *, diagnosis_class: str = "probe_misconfiguration", terminal: str = "fix_finalized", patched: str | None = None, reproduced=True):
         manifest = load_scenarios({"probe_misconfiguration"})[0]
