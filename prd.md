@@ -6,6 +6,15 @@
 **Initial platform:** Kubernetes, GitHub, and GitHub Actions  
 **Delivery model:** Two-person engineering team
 
+> **Current implementation:** See [handoff.md](handoff.md) for verified status, proof limits, open work, and contributor setup (updated 2026-10-04). This document specifies intended product behavior; requirements and historical delivery notes are not blanket claims of completion. Two remediation classes have fixture proofs to `fix_finalized` (probe and pattern-matched bad image); missing-config is a proven refusal, not a third safe automated fix.
+
+**Known gaps against this spec:**
+
+- Structural Secret-dependency coverage: [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30); current refusal depends on an explicit textual signal.
+- Signature identity and trustworthy replacement-image provenance: [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33), [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34); registry-backed detection: [Ignis #11](https://github.com/AWaleed-Ahmed/Ignis/issues/11).
+- Trained-model runtime and empirical confidence/localization/learning proof: [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40), §§17.4, 17.6, 17.8. Forbidden-patch safety remains gated by §17.8.
+- General real-Kubernetes qualification, drift-input authorization, and the real partner pilot remain open; the hosted kind proof is limited to synthetic Secret consumption and image digests. See [handoff's scoped proof/work list](handoff.md#proven-today-with-limits).
+
 ## 1. Executive Summary
 
 Raphael is a self-healing deployment agent that observes failed CI/CD runs and unhealthy Kubernetes workloads, investigates the failure using deployment context and runtime evidence, reproduces it in an isolated sandbox, proposes a minimal code or configuration fix, validates the fix, and opens a pull request containing the change, evidence, risk assessment, and rationale.

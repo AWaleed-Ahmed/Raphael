@@ -31,7 +31,7 @@
 ## Decision log (newest first)
 
 ### D-20261003-01 — Make deterministic safety blocks immutable to model refinement
-- **Status:** implementation under review on `codex/immutable-blocked-diagnosis`; not merged.
+- **Status:** accepted; merged in [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) at `60c03cf` after [core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185366239) and [cross-repo E2E/kind/evals](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185366271) passed. Missing model-runtime plumbing/default policy is tracked separately in [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40).
 - **Date:** 2026-10-03
 - **Decision:** A blocked deterministic diagnosis is final for model refinement. `node_diagnose` skips the local classifier and merge entirely; `ModelGateway.merge_diagnosis` independently preserves blocked results regardless of selected hypothesis. The external LLM helper rejects blocked seeds before credentials or transport, and `node_patch` refuses blocked diagnoses and blocked/escalated/failed-closed runs before model selection or proposal generation. The existing learning block guard remains in place.
 - **Correction:** The earlier audit claim that `merge_diagnosis` already preserved blocked decisions was wrong for normal blocked results: they have no selected hypothesis, but the old guard required one. A real `node_diagnose` regression with a non-abstaining stub prediction replaced both `production_secret_required` and `privileged_or_host_access` with supported `probe_misconfiguration`; both tests failed before the fix. This supersedes that safety claim, not the historical deterministic-only fixture outcomes.
@@ -41,7 +41,7 @@
 - **Comparison:** A fresh second seven-scenario run with `RAPHAEL_MODEL_ENABLED=0` also passed (`evals/out/immutable-blocked-model-disabled/`). Machine comparison found identical classification, terminal status/reason, confidence, patch paths, ordered changed lines, changed-line count, and patch-content SHA256 for all seven scenarios. This is enabled-flag/fallback equivalence, not trained-model calibration or a live external-LLM proof.
 
 ### D-20261001-01 — Prove exact-target probe repair across two Deployments
-- **Status:** local real-process proof complete; scenario awaiting hosted CI review.
+- **Status:** accepted; merged in [PR #36](https://github.com/AWaleed-Ahmed/Raphael/pull/36) at `8766570`. The seven-scenario hosted suite is green, including [fresh run 37185366271](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185366271).
 - **Date:** 2026-10-01
 - **Decision:** Pin public fixture `AmazingDude/raphael-e2e-fixture@26192b891952fedd0478a2d8b8ba3d5878614722` with two Deployments in one manifest: the first healthy, the second with a readiness-probe port mismatch. Score only `deploy/manifests/app.yaml` with exactly two changed lines (`9090` to `8080`), `probe_misconfiguration`, and `fix_finalized`.
 - **Red/green proof:** Real dispatch and Ignis mock-backend processes on pre-PR #35 Raphael `db7ee90` escalated after three `.raphael-empty-patch` attempts (`budget_exhausted`, 21.3 seconds). On post-merge main `d88a6be`, the same immutable fixture finalized in 24.8 seconds with one patch changing only the second Deployment's port; the first remained unchanged. The full seven-scenario real-process suite and evaluator unit tests (9/9) then passed. All runs were dry-run publish, with no GitHub token.
@@ -56,7 +56,7 @@
 - **Proof:** WSL agent 236 passed/4 skipped, dispatch 72 passed, evaluator 9 passed. Wrong-target and duplicate-target tests include second-of-two resources; JSON and SQLite persistence tests confirm no candidate patch or pending action after refusal. Freshly built Ignis main `2f2841f` and real dispatch hooks passed all six active mock-backend evaluations: probe and image finalized; missing-config escalated before patch/validation with `patch_value_unavailable`. Wire LF verification found two single-file patches and zero ConfigMap patch files. Hardcoded expected keys and replacement-image provenance are tracked in Raphael [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33) and [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34).
 
 ### D-20260927-03 — Explicit fixture selection and versioned real-backend compatibility
-- **Status:** implemented on PR #31, not merged; hosted kind proof passed, not a structural-detection milestone.
+- **Status:** accepted; [PR #31](https://github.com/AWaleed-Ahmed/Raphael/pull/31) is merged. Hosted kind proof passed; this remains a fixture-consumption prerequisite, not a structural-detection milestone.
 - **Date:** 2026-09-27
 - **Decision:** Both reproduction paths use explicit deployment-level `RAPHAEL_SECRET_FIXTURE_SET`; unset means none. Dispatch snapshots the selection at intake for stable replay. This is not per-tenant fixture authorization. The prior direct-path hardcoded `payments-test` default is removed; operators wanting it must configure it.
 - **Contract:** Annotated Ignis `contracts-v1.2.0` at `26557908a1d3182de749a05a46de4252d8c08324` adds the documented `kubectl` identity to the create response enum, retaining existing values. Both runtime and snapshot pins match; connector-v1 envelopes are unchanged. No sibling backend enum was found.
