@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
+from jsonschema import ValidationError
+
 from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
@@ -34,7 +36,7 @@ from raphael_agent.localization import (
 from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.sandbox_config import secret_fixture_args
-from raphael_agent.schema_util import for_run_record_validation
+from raphael_agent.schema_util import for_run_record_validation, load_sandbox_schema, validate_against
 from raphael_agent.store import RunStore
 from raphael_agent.store.patch_content import without_patch_content
 from raphael_agent.telemetry_supabase import record_run_outcome
@@ -199,6 +201,14 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
     # A deterministic safety stop is final, not a seed for model refinement.
     # Enforce this at the caller even if a gateway implementation changes.
     if (diagnosis.get("classification") or {}).get("category") != "blocked":
+        coverage_halt = node_secret_coverage_gate({**state, **updates, "diagnosis": diagnosis})
+        if coverage_halt:
+            updates.update(coverage_halt)
+            updates["diagnosis"] = diagnosis
+            attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
+            attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
+            updates["attempt_count"] = attempts
+            return updates
         gateway = ModelGateway()
         model_prediction = gateway.classify_failure(state)
         diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
@@ -413,7 +423,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         )
         sandbox_id = created["sandbox_id"]
         updates["sandbox_id"] = sandbox_id
-        client.deploy_revision(
+        deployed = client.deploy_revision(
             sandbox_id,
             {
                 "repository_sha": state["commit_sha"],
@@ -425,6 +435,9 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
                 "wait_seconds": 5,
             },
         )
+        fidelity = deployed.get("fidelity") or {}
+        if isinstance(fidelity.get("secret_coverage"), dict):
+            updates["secret_coverage"] = fidelity["secret_coverage"]
         observed = client.observe_failure(sandbox_id, {})
         updates["failure_signature"] = observed["signature"]
         updates["runtime_observation"] = _runtime_observation_from_signature(
@@ -457,6 +470,58 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         updates["audit_events"] = append_audit(
             {**state, **updates}, "reproduce", "error", str(exc)
         )
+    return updates
+
+
+def node_secret_coverage_gate(state: RunState) -> dict[str, Any]:
+    """Stop before patching if the rendered workload has uncovered Secret refs."""
+    if state.get("status") in {"failed_closed", "escalated", "blocked"}:
+        return {}
+    if state.get("sandbox_mode") not in {"live", "connector"}:
+        return {}
+    report = state.get("secret_coverage")
+    if not isinstance(report, dict):
+        return {}
+    try:
+        validate_against(load_sandbox_schema("fidelity_report.json")["properties"]["secret_coverage"], report)
+        if len(json.dumps(report, ensure_ascii=False).encode("utf-8")) > 65_536:
+            return {}
+    except (ValidationError, TypeError, ValueError):
+        return {}
+    refs = report.get("references") if isinstance(report, dict) else None
+    if (
+        isinstance(report, dict)
+        and report.get("format_version") == 1
+        and report.get("complete") is True
+        and isinstance(refs, list)
+    ):
+        gaps = [
+            item for item in refs
+            if isinstance(item, dict)
+            and item.get("optional") is not True
+            and item.get("status") in {"missing_object", "missing_key"}
+        ]
+        if not gaps:
+            return {}
+        reason = "unresolved_secret_dependency"
+        summary = "Rendered workload requires Secret data that is not available in the sandbox fixtures"
+        detail = f"{len(gaps)} required Secret reference(s) are uncovered"
+    else:
+        # Unknown is not evidence of a missing dependency; only authoritative,
+        # complete coverage may trigger this new structural refusal.
+        return {}
+
+    updates: dict[str, Any] = {"status": "escalated", "terminal_reason": reason}
+    updates["escalation_report"] = _escalation(
+        {**state, **updates},
+        reason_code=reason,
+        summary=summary,
+        what_happened=detail,
+        why_no_fix="Patch generation is stopped until Secret dependencies are safely available and verified",
+        attempts=[{"kind": "other", "status": "blocked", "detail": detail}],
+        next_checks=["Provide approved synthetic Secret fixtures for the referenced names and keys", "Review the Secret coverage report and rerun reproduction"],
+    )
+    updates["audit_events"] = append_audit(state, "secret_coverage", "escalated", detail)
     return updates
 
 
@@ -748,6 +813,9 @@ def node_patch(state: RunState) -> dict[str, Any]:
         == "blocked"
     ):
         return {"updated_at": utc_now()}
+    coverage_halt = node_secret_coverage_gate(state)
+    if coverage_halt:
+        return coverage_halt
     halt = _budget_halt_updates(state, "patch")
     if halt:
         return halt

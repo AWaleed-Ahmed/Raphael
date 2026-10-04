@@ -41,6 +41,7 @@ class RunState(TypedDict, total=False):
     sandbox_id: str | None
     sandbox_mode: str
     reproduction_result: dict[str, Any] | None
+    secret_coverage: dict[str, Any] | None
     candidate_patches: list[dict[str, Any]]
     active_patch_id: str | None
     validation_results: list[dict[str, Any]]

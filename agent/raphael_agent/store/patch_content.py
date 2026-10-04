@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from raphael_agent.schema_util import validate_agent
+
 
 PATCH_CONTENT_KEYS = {"rendered_files", "content", "unified_diff", "unified_diff_hunk"}
 
@@ -28,6 +30,9 @@ def without_patch_content(value: Any) -> Any:
 def durable_run_record(run: dict[str, Any]) -> dict[str, Any]:
     """Project connector runs to metadata; never mutate the live execution state."""
     out = {key: value for key, value in run.items() if key != "rendered_files"}
+    escalation = out.get("escalation_report")
+    if escalation is not None:
+        validate_agent("escalation_report.json", escalation)
     if not isinstance(run.get("dispatch"), dict):
         return out
     out = without_patch_content(out)

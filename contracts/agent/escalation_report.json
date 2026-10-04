@@ -20,6 +20,10 @@
       "type": "string",
       "enum": [
         "insufficient_evidence",
+        "production_secret_required",
+        "privileged_or_host_access",
+        "diagnosis_only",
+        "unresolved_secret_dependency",
         "patch_target_unavailable",
         "patch_value_unavailable",
         "patch_unavailable",
@@ -74,7 +78,7 @@
           },
           "status": {
             "type": "string",
-            "enum": ["skipped", "failed", "blocked", "partial"]
+            "enum": ["skipped", "failed", "blocked", "partial", "completed"]
           },
           "detail": { "type": "string" },
           "patch_id": { "type": "string" }

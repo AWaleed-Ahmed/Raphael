@@ -7,9 +7,9 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation chain works and is continuously tested. This is operational hardening and coverage work, not an architecture rebuild. The remaining limits below are deliberate claims about what has actually been tested.
 
-**Latest completed work:** Raphael [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) merged at `60c03cf`. Deterministic safety blocks now survive every model-refinement/patch entry point. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40) separately tracks the missing local inference runtime; a flag-on fallback must not be described as trained-model proof. Both post-merge hosted runs linked in the proof table are green.
+**Latest completed work:** Raphael [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) merged at `60c03cf`. Deterministic safety blocks now survive every model-refinement/patch entry point. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40) separately tracks the missing local inference runtime; a flag-on fallback must not be described as trained-model proof. Both post-merge hosted runs linked in the proof table are green. Current #30 local results are in [the implementation review](docs/implementation-review-2026-10-04-issue-30.md).
 
-**Current task:** structural Secret-dependency detection, [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30), beginning with Ignis's reference-coverage reporting. Prompt B's preliminary investigation is complete and reported; implementation has **not** started. Review the findings below before coding. Prompt A was the safety prerequisite and is already merged; do not redo it.
+**Current task:** structural Secret-dependency detection, [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30). Prompt B investigation is complete. Candidate implementation is underway locally: Raphael changes are on `docs/contributor-handoff`; Ignis controller changes are isolated in `/tmp/ignis-secret-coverage-30` on `codex/secret-coverage-30`. The implementation review has corrected malformed-report handling, duplicate fixture names, and compatibility with current Ignis image fidelity. Local suites pass. Ignis release/pinning and hosted mock/kind proof are the remaining delivery gates; the user has authorized pushing and merging reviewed changes. Prompt A's safety prerequisite is merged.
 
 **Documentation checkpoint:** this contributor-map update is on `docs/contributor-handoff`, not main. It includes `handoff.md`, `CONTRIBUTING.md`, the PRD status note, and three decision-log status corrections. Until it is merged, a teammate must fetch and check out this branch to read the updates; pulling main alone is not sufficient.
 
@@ -70,8 +70,8 @@ GitHub / workload webhook
 - **Process 1:** [run.py](run.py) combines agent routes and dispatch routes around ONE orchestrator. The dispatch lifespan is explicitly attached: rehydration runs before traffic, and the automatic lease reaper runs afterward. Enable the ingest bridge explicitly.
 - **Process 2:** Ignis's `raphael-sandbox-controller` binary contains the controller AND connector. There is no separate connector binary. Requests are outbound HTTP; no customer inbound dispatch connection is needed.
 - External producers submit to `POST /v1/tenants/{tenant_id}/jobs`; connectors poll `GET /v1/tenants/{tenant_id}/jobs/next` and submit `POST /v1/results`. Tokens have a tenant and producer/connector role; results require authentication unconditionally. The bridge uses an internal Python call, not a public-envelope extension or an internal bearer token.
-- **Runtime pin:** workflow defaults use annotated Ignis `contracts-v1.2.1`, peeled commit `ece202986b9d3195c7d776cbb45b83a956b8c4e2`. Ignis-originated mock runs test the exact pushed SHA; kind uses the release pin.
-- **Schema snapshot:** [CONTRACTS_VERSION](CONTRACTS_VERSION) stays at `contracts-v1.2.0`. The v1.2.1 release changed implementation, not contract bytes. Sync/check with [tools/sync-sandbox-contracts.ps1](tools/sync-sandbox-contracts.ps1).
+- **Runtime pin:** workflow defaults use annotated Ignis `contracts-v1.3.0`, peeled commit `176a13e1a580f4699eba17800bfd2932e5fcaf1c`. Ignis-originated mock runs test the exact pushed SHA; kind uses the release pin.
+- **Schema snapshot:** [CONTRACTS_VERSION](CONTRACTS_VERSION) pins `contracts-v1.3.0`, including bounded reference-level Secret coverage. Sync/check with [tools/sync-sandbox-contracts.ps1](tools/sync-sandbox-contracts.ps1).
 - **Single-instance recovery, not horizontal scaling:** valid persisted pending actions resume unchanged; stale leases fail immediately. Before patch generation, missing ephemeral manifests are re-fetched in the same sandbox. After generated patch bytes are lost, dispatch fails closed with `patch_context_lost_on_restart`; failed re-fetch uses `patch_input_unavailable`. See [dispatch/README.md](dispatch/README.md).
 
 ## Proven today, with limits
@@ -96,7 +96,7 @@ The fresh [cross-repo run 37185648403](https://github.com/AWaleed-Ahmed/Raphael/
 
 ## Open work, in order
 
-**Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/implementation-review-2026-10-04.md); hosted proof and live Supabase baseline ingestion remain outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 remains untouched.
+**Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/implementation-review-2026-10-04.md); hosted proof and live Supabase baseline ingestion remain outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 is implemented and reviewed; Ignis PR #18 is merged and `contracts-v1.3.0` is released/pinned. Hosted Raphael mock/kind checks remain before merge; see its separate review note.
 
 **Next planned tasks:** Ignis #11 registry-backed detection and Ignis #13 clone line-ending policy. The [implementation plan](docs/next-three-implementation-plan.md) records scope, sequence, test cases, completion criteria, and coordination with #30. These Ignis tasks are not claimed here.
 
@@ -104,18 +104,18 @@ Claim status as of 2026-10-04. "Not claimed here" is not a claim that nobody els
 
 | Order / item | In progress | Coordination / conflict |
 |---|---|---|
-| 1. Raphael #30, Ignis-side Secret coverage first | **Yes — Codex, Prompt B claimed.** Step 0 investigation complete; findings reported before coding, implementation awaiting review. No coverage release exists yet. | Reserve fidelity schema, sandbox fixture inventory, contract version/release, `CONTRACTS_VERSION`, and `IGNIS_REF`. Coordinate all overlapping changes. |
+| 1. Raphael #30, Ignis-side Secret coverage first | **Yes — Codex, Prompt B claimed.** Implementation and local review complete; Ignis is merged/released and Raphael pins are updated; hosted integration is pending before merge. | Reserve fidelity schema, sandbox fixture inventory, contract version/release, `CONTRACTS_VERSION`, and `IGNIS_REF`. Coordinate all overlapping changes. |
 | 2. Raphael #33, observed signature identity | Local implementation/tests on this branch; pending review and hosted proof | Coordinate diagnosis/signature edits with #30. |
 | 3. Raphael #34, replacement-image provenance | Local implementation/tests on this branch; live baseline ingestion and hosted proof outstanding | Coordinate patch/diagnosis/eval changes; don't bundle into #30. |
 | 4. Raphael #37, gap presentation | Implemented locally on this branch; focused and full agent tests pass | Display-only change; no fidelity schema/data changes. |
-| 5. Ignis #11, registry detection | Not claimed here | Observe/backend edits may overlap #30; no independent contract bump. |
+| 5. Ignis #11, registry detection | Still open and unimplemented on current Ignis main; no local implementation to push | Observe/backend edits may overlap #30; no independent contract bump. |
 | 6. Ignis #13, clone policy | Not claimed here | Read-only investigation is parallel-safe; coordinate runtime/render changes. |
-| 7. Ignis #17, deploy duration | Not claimed here | Service/deploy changes overlap #30; coordinate before edits. |
+| 7. Ignis #17, deploy duration | Still open and unimplemented on current Ignis main; no local implementation to push | Service/deploy changes overlap #30; coordinate before edits. |
 | 8. Raphael #40, model plumbing | Not claimed here | Read-only audit is parallel-safe; graph/safety changes require separate review. |
 | 9. Drift detection | Parked, no implementation claim | Waiting on authorized production-spec source; no Ignis production access. |
 | 10. Forbidden-patch scenario | Gated, no implementation claim | PRD §17.8 precondition; not an instruction to invent an unsafe generator. |
 
-1. **[Raphael #30: structural Secret dependency](https://github.com/AWaleed-Ahmed/Raphael/issues/30).** Claimed workstream, Ignis side first. Ignis must report reference-level fixture coverage (names/keys, never values); optional references must not become missing requirements. Carry it through a versioned contract, then pin Raphael. Outcome evals use mock; kind cross-checks predicted coverage against actual Pod behavior, including a missing-key control. New `unresolved_secret_dependency` stays distinct from textual `production_secret_required`. The prerequisite safety fix is merged; the private escalation-schema/save validation gap is a step-0 design prerequisite, not silently solved by #39. No structural implementation is shipped yet.
+1. **[Raphael #30: structural Secret dependency](https://github.com/AWaleed-Ahmed/Raphael/issues/30).** Claimed workstream, Ignis side first. Ignis must report reference-level fixture coverage (names/keys, never values); optional references must not become missing requirements. Carry it through a versioned contract, then pin Raphael. Outcome evals use mock; kind cross-checks predicted coverage against actual Pod behavior, including a missing-key control. New `unresolved_secret_dependency` stays distinct from textual `production_secret_required`. The prerequisite safety fix is merged. Private report validation and structural coverage are implemented and reviewed locally; Ignis PR #18 is merged and `contracts-v1.3.0` is released/pinned; hosted mock/kind proof is pending before Raphael merge.
 2. **[Raphael #33: observed signature identity](https://github.com/AWaleed-Ahmed/Raphael/issues/33).** Implemented and tested locally: analyzers preserve exact observed keys and probe attributes; direct and dispatch validation target the observed resource, with missing identity failing closed. Review and hosted proof remain outstanding.
 3. **[Raphael #34: replacement-image provenance](https://github.com/AWaleed-Ahmed/Raphael/issues/34).** Implemented and tested locally: require a scoped verified last-known-good container image with trace ID and full commit SHA; absent/ambiguous provenance refuses the patch. Placeholder SHAs are rejected and malformed baseline rows are ignored. Review, live per-container baseline ingestion verification, and real-process/hosted proof remain outstanding.
 4. **[Raphael #37: readable image-gap presentation](https://github.com/AWaleed-Ahmed/Raphael/issues/37).** One prefix with an image list in the PR body; preserve per-image evidence and `full_validation = false` when any gap remains.
@@ -130,20 +130,15 @@ Other product gates are still open: measured confidence calibration, localizatio
 
 ### Next task checkpoint: Secret coverage (Prompt B)
 
-Read this before implementing #30; these are investigation findings, not shipped features:
+The detailed [#30 plan](docs/secret-coverage-30-plan.md) now tracks the candidate implementation and remaining review/release proof. Raphael persists the bounded report and gates patching only on complete evidence of a required missing Secret/key; absent, incomplete, or truncated coverage stays unknown and is not a structural refusal. Ignis contract rollout is complete and Raphael pins are updated. Hosted/kind proof remains before Raphael merge.
 
-1. **Fixture selection already works.** [sandbox_config.py](agent/raphael_agent/sandbox_config.py) reads explicit `RAPHAEL_SECRET_FIXTURE_SET`; unset means none. [orchestrator.py](dispatch/raphael_dispatch/orchestrator.py) snapshots that selection at intake and passes the saved choice in `_create_args()`, including after restart. Ignis applies the named synthetic fixture set. Do not restore an automatic/default fixture or infer authorization from a Secret name.
-2. **Applied coverage does not exist yet.** Ignis records the selected fixture set, but has no durable inventory of the names/keys actually applied. Its current `dependencies_available` flag is not proof of per-reference coverage. Compute coverage from final rendered references and successfully applied fixture metadata, never Secret values or value hashes.
-3. **Private report validation has a separate gap.** [escalation_report.json](contracts/agent/escalation_report.json) does not allow `production_secret_required` or `privileged_or_host_access`, although current graph code emits them. The diagnosis-only output also emits unlisted `diagnosis_only` and attempt status `completed`. `RunStore.save_run()` serializes records without validating this report schema. Thus passing runtime safety tests is not proof that every persisted report conforms. Review and explicitly scope this correction; it was not fixed by #39 or by this docs update.
+### Implemented locally; review and rollout still open
 
-The continuation procedure is:
-
-1. Review the preliminary findings and agree the scope of the private report-schema/validation correction. Keep it visible; do not silently widen a schema just to make tests green.
-2. Implement the Ignis half on its own reviewed branch: reference-level coverage for `secretKeyRef`, `envFrom.secretRef`, and Secret volumes, including init containers and optional references. Persist only the applied names/key inventory so restart does not recompute history from a changed fixture file.
-3. Carry bounded coverage as optional structured fidelity data. Distinguish covered, missing object, missing key and unknown. Unsupported references or truncation make coverage incomplete; missing/old data is unknown, not evidence of coverage or a reason to block. Optional references must never cause escalation.
-4. Test positive and negative controls, restart persistence, redaction, and absence of secret values. Kind must compare coverage against actual workload behavior, including a Secret that exists but lacks the required key. Static coverage/outcome evals can use mock; kind supplies the consumption cross-check.
-5. Report the Ignis diff and hosted results **before merge or tagging**. The proposed public addition needs a reviewed `contracts-v1.3.0` release, not a silent schema edit or a patch-only tag.
-6. Only after the approved Ignis release: update Raphael's snapshot/runtime pins and implement the separate analyzer integration. Required uncovered references produce `unresolved_secret_dependency`; keep it distinct from the existing textual `production_secret_required`, which retains precedence. A covered-reference control must proceed rather than blanket-escalating on all Secret references.
+1. **Fixture selection remains explicit.** [sandbox_config.py](agent/raphael_agent/sandbox_config.py) reads `RAPHAEL_SECRET_FIXTURE_SET`; unset means none. Dispatch snapshots that selection at intake. Never infer fixture authorization from a Secret name.
+2. **Candidate Ignis inventory/evaluator exists** in `/tmp/ignis-secret-coverage-30` on `codex/secret-coverage-30`. It stores applied names and keys only, and evaluates references from final rendered workloads. Controller tests and Ignis hosted Rust/secret-scan checks pass; PR #18 is merged. Raphael hosted kind proof is pending.
+3. **Candidate Raphael integration exists** on this branch. It retains the bounded report in run state and triggers `unresolved_secret_dependency` only for a complete v1 report proving a required missing object/key. Textual `production_secret_required` and other diagnosis blocks run first; missing, incomplete, truncated, or unsupported reports remain unknown and do not cause the new structural refusal.
+4. **Escalation schema/persistence correction exists** on this branch; schemas allow existing emitted reasons/status and report validation runs before durable writes. Agent and dispatch suites pass; see the linked #30 implementation review.
+5. **Public contract rollout is authorized and in progress.** Ignis PR #18 is merged, annotated `contracts-v1.3.0` is published, and the Raphael snapshot/runtime pins are updated together. Require green hosted mock/kind controls before merging Raphael. Ignis PR #15 is superseded by the existing #14 schema fix and contains no remaining necessary changes.
 
 Do not weaken redaction, restore raw manifests to durable run state, read production Secret payloads, or change unrelated image-provenance/model-policy work to finish this task. Coordinate any fidelity schema, release, or `IGNIS_REF` edit with this owner.
 
@@ -175,7 +170,7 @@ python3.12 -m venv ~/venvs/raphael-dispatch
 source ~/venvs/raphael-dispatch/bin/activate
 cd ~/src/raphael
 python -m pip install -e agent -e dispatch
-git -C ~/src/ignis checkout contracts-v1.2.1
+git -C ~/src/ignis checkout contracts-v1.3.0
 cargo build --release --locked --manifest-path ~/src/ignis/controller/Cargo.toml
 ```
 
@@ -286,3 +281,9 @@ This docs update changes only three existing decision **status lines** to identi
 - Ask before destructive or privileged actions, including deleting a cluster, removing material files, or using `sudo`. Stop/report real application bugs found by a harness rather than fixing them inline outside scope.
 - Live publication requires explicit human approval, a disposable/authorized target, narrow allowlist, and the reviewed confirmation-gate script. Historical `e2e/run_live_publish_v2.py` remains an **untracked local script**, not a clean-clone command; do not replace that gate with casual env toggles. CI stays dry-run with no publish credentials.
 - [decision.md](decision.md) is the durable decision log. Add newest-first `D-YYYYMMDD-NN` entries for meaningful choices, recording scope/proof/alternatives. Preserve historical results; mark incorrect claims superseded and link the replacement ID (as D-20260930-01 does), not an unqualified new claim beside them.
+
+### Review delivery checkpoint — 2026-10-04
+
+Reviewed #30 plus prior #33/#34/#37 integration and corrected schema/completeness, direct-entry gate, duplicate-fixture, and current-main integration issues. Results: **291 agent passed (4 skipped), 75 dispatch passed, 62 Ignis controller passed, 18 Ignis contract passed, 10 evaluator unit passed, 7 outcome evals passed, 3 wire scenarios passed, real-hooks smoke passed**. Local integration uses mock, not Kubernetes. See [#30 implementation review](docs/implementation-review-2026-10-04-issue-30.md) for commands, evidence and limitations. Hosted checks and PR links will be recorded before merge.
+
+Ignis #11 and #17 remain open/unimplemented. PR #15 was closed as superseded: PR #14 already fixed its contract problem; relabeling generic kubectl as kind was not a correct remaining change.

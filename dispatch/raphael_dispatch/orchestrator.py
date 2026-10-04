@@ -12,7 +12,13 @@ from urllib.parse import urlparse
 from raphael_agent.budgets import check_budgets, max_patch_attempts_budget, sandbox_http_timeout_seconds
 from raphael_agent.evidence.redaction import redact_evidence_item, redact_text
 from raphael_agent.evidence.boundary import bounded_evidence, redact_manifest, redact_value, MAX_ITEMS
-from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
+from raphael_agent.graph.nodes import (
+    node_diagnose,
+    node_localize,
+    node_patch,
+    node_publish_or_escalate,
+    node_secret_coverage_gate,
+)
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
 from raphael_agent.sandbox_config import secret_fixture_args
@@ -435,7 +441,12 @@ class Orchestrator:
         return {"plan": plan}
 
     def _record_rendered_files(self, state: dict[str, Any], payload: dict[str, Any]) -> None:
-        rendered = (payload.get("result") or {}).get("rendered_files")
+        result = payload.get("result") or {}
+        fidelity = result.get("fidelity") or {}
+        report = fidelity.get("secret_coverage") if isinstance(fidelity, dict) else None
+        if isinstance(report, dict) and state.get("dispatch", {}).get("stage") == "deploy_initial":
+            state["secret_coverage"] = report
+        rendered = result.get("rendered_files")
         if isinstance(rendered, list):
             assert self.patch_store is not None
             self.patch_store.save_manifests(state["run_id"], rendered)
@@ -551,6 +562,9 @@ class Orchestrator:
         self._run_node(self.hooks.diagnose, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
+        state.update(node_secret_coverage_gate(state))
+        if state.get("status") == "escalated":
+            return [self._terminal(state, "escalated")]
         self._run_node(self.hooks.localize, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
