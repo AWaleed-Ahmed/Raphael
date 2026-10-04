@@ -94,6 +94,31 @@ def _image_signature(name="target", container="app"):
                            "resource_name": name, "container": container, "attributes": {"image": image}}}
 
 
+def _image_run(signature, rendered_files):
+    return {
+        "failure_signature": signature,
+        "rendered_files": rendered_files,
+        "repository": {"owner": "acme", "name": "app"},
+        "localization_result": {
+            "service_name": "target",
+            "environment": "staging",
+            "approved_image_replacement": {
+                "image": "ghcr.io/acme/app@sha256:" + "a" * 64,
+                "resource_name": "target",
+                "container_name": "app",
+                "source": {
+                    "kind": "verified_healthy_trace",
+                    "healthy_trace_id": "healthy-1",
+                    "source_commit_sha": "b" * 40,
+                    "repository": "acme/app",
+                    "service_name": "target",
+                    "environment": "staging",
+                },
+            },
+        },
+    }
+
+
 def _config_signature(name="target", container="app"):
     return {"class": "invalid_missing_config", "key": "missing_configmap_key:target-config:DATABASE_URL",
             "normalized": {"reason": "CreateContainerConfigError", "resource_kind": "Deployment",
@@ -141,11 +166,31 @@ spec:
         image: ghcr.io/acme/app:does-not-exist
 """
     unrelated = target.replace("name: target", "name: unrelated")
-    files = fix_bad_image({"failure_signature": _image_signature(), "rendered_files": _rendered(unrelated + "---\n" + target)})
+    files = fix_bad_image(_image_run(_image_signature(), _rendered(unrelated + "---\n" + target)))
     assert files is not None and len(files) == 1
     assert files[0]["content"].split("---\n", 1)[0] == unrelated
     assert files[0]["content"].count("ghcr.io/acme/app:does-not-exist") == 1
-    assert files[0]["content"].count("hashicorp/http-echo:1.0") == 1
+    assert files[0]["content"].count("ghcr.io/acme/app@sha256:" + "a" * 64) == 1
+
+
+def test_image_patch_refuses_without_healthy_release_provenance():
+    target = """kind: Deployment
+metadata:
+  name: target
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: ghcr.io/acme/app:does-not-exist
+"""
+    run = _image_run(_image_signature(), _rendered(target))
+    run["localization_result"].pop("approved_image_replacement")
+
+    with pytest.raises(TemplateRefusal) as error:
+        fix_bad_image(run)
+
+    assert error.value.reason == "patch_value_unavailable"
 
 
 @pytest.mark.parametrize("template,signature", [
@@ -156,7 +201,10 @@ def test_ambiguous_duplicate_resource_refuses(template, signature):
     name = "payments-api" if template is fix_probe_port_mismatch else "target"
     content = f"kind: Deployment\nmetadata:\n  name: {name}\n---\nkind: Deployment\nmetadata:\n  name: {name}\n"
     with pytest.raises(TemplateRefusal, match="Expected one Deployment") as error:
-        template({"failure_signature": signature(), "rendered_files": _rendered(content)})
+        run = _image_run(signature(), _rendered(content)) if template is fix_bad_image else {
+            "failure_signature": signature(), "rendered_files": _rendered(content)
+        }
+        template(run)
     assert error.value.reason == "patch_target_unavailable"
 
 
@@ -198,7 +246,7 @@ spec:
         image: *bad
 """
     with pytest.raises(TemplateRefusal, match="shared by a YAML alias"):
-        fix_bad_image({"failure_signature": _image_signature(), "rendered_files": _rendered(content)})
+        fix_bad_image(_image_run(_image_signature(), _rendered(content)))
 
 
 def test_configmap_exact_target_still_refuses_unevidenced_value():

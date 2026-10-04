@@ -96,14 +96,18 @@ The fresh [cross-repo run 37185648403](https://github.com/AWaleed-Ahmed/Raphael/
 
 ## Open work, in order
 
+**Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/implementation-review-2026-10-04.md); hosted proof and live Supabase baseline ingestion remain outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 remains untouched.
+
+**Next planned tasks:** Ignis #11 registry-backed detection and Ignis #13 clone line-ending policy. The [implementation plan](docs/next-three-implementation-plan.md) records scope, sequence, test cases, completion criteria, and coordination with #30. These Ignis tasks are not claimed here.
+
 Claim status as of 2026-10-04. "Not claimed here" is not a claim that nobody elsewhere is working on it; check with the team before starting. Update this table when taking or releasing a task.
 
 | Order / item | In progress | Coordination / conflict |
 |---|---|---|
 | 1. Raphael #30, Ignis-side Secret coverage first | **Yes — Codex, Prompt B claimed.** Step 0 investigation complete; findings reported before coding, implementation awaiting review. No coverage release exists yet. | Reserve fidelity schema, sandbox fixture inventory, contract version/release, `CONTRACTS_VERSION`, and `IGNIS_REF`. Coordinate all overlapping changes. |
-| 2. Raphael #33, observed signature identity | Not claimed here | Coordinate diagnosis/signature edits with #30. |
-| 3. Raphael #34, replacement-image provenance | Not claimed here | Coordinate patch/diagnosis/eval changes; don't bundle into #30. |
-| 4. Raphael #37, gap presentation | Not claimed here | Display-only is parallel-safe; changing fidelity data/schema conflicts with #30. |
+| 2. Raphael #33, observed signature identity | Local implementation/tests on this branch; pending review and hosted proof | Coordinate diagnosis/signature edits with #30. |
+| 3. Raphael #34, replacement-image provenance | Local implementation/tests on this branch; live baseline ingestion and hosted proof outstanding | Coordinate patch/diagnosis/eval changes; don't bundle into #30. |
+| 4. Raphael #37, gap presentation | Implemented locally on this branch; focused and full agent tests pass | Display-only change; no fidelity schema/data changes. |
 | 5. Ignis #11, registry detection | Not claimed here | Observe/backend edits may overlap #30; no independent contract bump. |
 | 6. Ignis #13, clone policy | Not claimed here | Read-only investigation is parallel-safe; coordinate runtime/render changes. |
 | 7. Ignis #17, deploy duration | Not claimed here | Service/deploy changes overlap #30; coordinate before edits. |
@@ -112,8 +116,8 @@ Claim status as of 2026-10-04. "Not claimed here" is not a claim that nobody els
 | 10. Forbidden-patch scenario | Gated, no implementation claim | PRD §17.8 precondition; not an instruction to invent an unsafe generator. |
 
 1. **[Raphael #30: structural Secret dependency](https://github.com/AWaleed-Ahmed/Raphael/issues/30).** Claimed workstream, Ignis side first. Ignis must report reference-level fixture coverage (names/keys, never values); optional references must not become missing requirements. Carry it through a versioned contract, then pin Raphael. Outcome evals use mock; kind cross-checks predicted coverage against actual Pod behavior, including a missing-key control. New `unresolved_secret_dependency` stays distinct from textual `production_secret_required`. The prerequisite safety fix is merged; the private escalation-schema/save validation gap is a step-0 design prerequisite, not silently solved by #39. No structural implementation is shipped yet.
-2. **[Raphael #33: observed signature identity](https://github.com/AWaleed-Ahmed/Raphael/issues/33).** Replace hardcoded `payments-api` expected keys with observed identity. Strict templates already target `failure_signature`; this is the remaining analyzer/validation identity issue.
-3. **[Raphael #34: replacement-image provenance](https://github.com/AWaleed-Ahmed/Raphael/issues/34).** Decide which trusted source authorizes a known-good image. The current placeholder image is not proof of an appropriate application repair.
+2. **[Raphael #33: observed signature identity](https://github.com/AWaleed-Ahmed/Raphael/issues/33).** Implemented and tested locally: analyzers preserve exact observed keys and probe attributes; direct and dispatch validation target the observed resource, with missing identity failing closed. Review and hosted proof remain outstanding.
+3. **[Raphael #34: replacement-image provenance](https://github.com/AWaleed-Ahmed/Raphael/issues/34).** Implemented and tested locally: require a scoped verified last-known-good container image with trace ID and full commit SHA; absent/ambiguous provenance refuses the patch. Placeholder SHAs are rejected and malformed baseline rows are ignored. Review, live per-container baseline ingestion verification, and real-process/hosted proof remain outstanding.
 4. **[Raphael #37: readable image-gap presentation](https://github.com/AWaleed-Ahmed/Raphael/issues/37).** One prefix with an image list in the PR body; preserve per-image evidence and `full_validation = false` when any gap remains.
 5. **[Ignis #11: registry-backed detection](https://github.com/AWaleed-Ahmed/Ignis/issues/11).** Keep mock string-pattern claims narrow; real pull-failure detection needs its own proof.
 6. **[Ignis #13: clone line-ending policy](https://github.com/AWaleed-Ahmed/Ignis/issues/13).** Decide blob-byte versus normalized-worktree fidelity, including repository attributes. Render-boundary CRLF normalization is already fixed; do not alter global Git configuration.

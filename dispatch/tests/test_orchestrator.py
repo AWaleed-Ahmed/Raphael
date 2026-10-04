@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -416,3 +418,16 @@ def test_producer_retry_after_restart_reuses_persisted_progress(tmp_path: Path) 
     assert replay == {"messages": [expected], "idempotent_replay": True}
     assert persisted["sandbox_id"] == "sb-1"
     assert persisted["dispatch"]["pending_action"] == expected
+
+
+def test_validation_plan_targets_observed_resource():
+    state = {'failure_signature': {'key': 'before', 'normalized': {
+        'resource_kind': 'Deployment', 'resource_name': 'worker-api'}}}
+    plan = Orchestrator._validation_args(state)['plan']
+    assert plan['health_checks'][0]['resource'] == 'deployment/worker-api'
+    assert plan['compare_to_signature_key'] == 'before'
+
+
+def test_validation_plan_refuses_missing_resource_identity():
+    with pytest.raises(ValueError, match='Observed resource identity'):
+        Orchestrator._validation_args({'failure_signature': {'key': 'before'}})

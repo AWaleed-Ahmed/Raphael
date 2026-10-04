@@ -39,7 +39,7 @@ PRD §17.8, not silently counted as coverage.
 The original missing-ConfigMap fixture is now an expected escalation, not a
 positive fix: it identifies the missing key but supplies no trustworthy value
 to insert. The prior mock validation accepted an invented database URL. See
-D-20260930-01; probe and bad-image remain the two positive patch scenarios.
+D-20260930-01. The bad-image fixture also now expects escalation: it has no verified last-known-good container image provenance. Positive image replacement is covered by controlled agent tests; this harness does not claim a successful image repair.
 
 Future scenarios marked `blocked_pending_evidence_boundary` remain excluded
 from default and CI execution. An explicit `--verify-blocked --scenario <id>`
@@ -57,7 +57,7 @@ line endings. Use `ignis_ref` to pin the exact candidate commit.
 
 After the unchanged harness and evaluations run, `python -m evals.verify_rendered_lf`
 checks rendered content for all three pinned fixtures, patch content for the
-two positive fixes, and absence of a patch for missing-config. Missing or
+probe fix, and absence of patches for missing-config and unprovenanced bad-image. Missing or
 unexpected evidence or any CRLF content fails loudly; successful checks
 write `evals/out/line-endings.json`, included in the existing artifact upload.
 This complements, rather than weakens, the scorer's inflated-diff rejection test.

@@ -145,6 +145,7 @@ def test_validate_retry_routes_to_patch(monkeypatch):
     state = initial_run_state(_seed(), sandbox_mode="live")
     state["status"] = "running"
     state["sandbox_id"] = "sb-test"
+    state["failure_signature"] = {"normalized": {"resource_kind": "Deployment", "resource_name": "worker-api"}}
     state["attempt_count"] = {"diagnosis": 1, "patch": 1}
     state["active_patch_id"] = "patch-1"
     state["candidate_patches"] = [
@@ -202,6 +203,7 @@ def test_validate_retry_routes_to_patch(monkeypatch):
             }
 
         def run_validation(self, *a, **k):
+            assert a[1]["plan"]["health_checks"][0]["resource"] == "deployment/worker-api"
             return {
                 "sandbox_id": "sb-test",
                 "passed": False,
@@ -229,3 +231,37 @@ def test_validate_retry_routes_to_patch(monkeypatch):
         event.get("event") == "localized_candidate_patch_match"
         for event in updates.get("audit_events") or []
     )
+
+
+def test_live_validation_repeats_use_original_observed_resource(monkeypatch):
+    monkeypatch.setenv('RAPHAEL_VALIDATION_REPEATS', '3')
+    state = initial_run_state(_seed(), sandbox_mode='live')
+    state.update(status='running', sandbox_id='sb-test', active_patch_id='patch-1',
+                 candidate_patches=[{'patch_id': 'patch-1', 'policy_status': 'allowed',
+                                     'files': [{'path': 'deploy/manifests/app.yaml', 'content': 'x: 1\n'}]}],
+                 failure_signature={'key': 'before', 'normalized': {
+                     'resource_kind': 'Deployment', 'resource_name': 'worker-api'}})
+    resources = []
+
+    class FakeClient:
+        def deploy_revision(self, *args):
+            return {}
+
+        def observe_failure(self, *args):
+            return {'signature': {'key': 'healthy', 'normalized': {
+                'resource_kind': 'Pod', 'resource_name': 'worker-api-pod'}}}
+
+        def run_validation(self, sandbox_id, body):
+            resources.append(body['plan']['health_checks'][0]['resource'])
+            return {'passed': True, 'fail_closed': False}
+
+        def finalize_result(self, *args):
+            return {'result_id': 'result-1', 'record': {}}
+
+        def destroy_sandbox(self, *args):
+            return {}
+
+    monkeypatch.setattr('raphael_agent.graph.nodes.SandboxClient', FakeClient)
+    updates = node_validate(state)
+    assert resources == ['deployment/worker-api'] * 3
+    assert updates['result_id'] == 'result-1'

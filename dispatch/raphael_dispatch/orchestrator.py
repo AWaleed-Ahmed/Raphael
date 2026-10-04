@@ -16,6 +16,7 @@ from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, 
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
 from raphael_agent.sandbox_config import secret_fixture_args
+from raphael_agent.validation import rollout_resource
 from raphael_agent.store.patch_content import without_patch_content
 
 from .patch_store import EphemeralPatchStore
@@ -282,7 +283,14 @@ class Orchestrator:
             messages = self._after_observe(state, payload)
         elif stage == "deploy_patch":
             self._record_rendered_files(state, payload)
-            messages = [self._issue_action(state, "run_validation", self._validation_args(state))]
+            try:
+                validation_args = self._validation_args(state)
+            except ValueError:
+                state["status"] = "failed_closed"
+                state["terminal_reason"] = "validation_identity_unavailable"
+                messages = [self._terminal(state, "failed")]
+            else:
+                messages = [self._issue_action(state, "run_validation", validation_args)]
         elif stage == "run_validation":
             result = payload.get("result") or {}
             if result.get("passed") is False or result.get("fail_closed") is True:
@@ -418,7 +426,7 @@ class Orchestrator:
         plan: dict[str, Any] = {
             "commands": [],
             "health_checks": [
-                {"type": "rollout", "resource": "deployment/target", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
+                {"type": "rollout", "resource": rollout_resource(signature), "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
                 {"type": "signature_absent", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
             ],
         }

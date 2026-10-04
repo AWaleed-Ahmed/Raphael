@@ -41,6 +41,25 @@ def test_analyzer_probe_port_from_manifest():
     assert hits[0].confidence >= 0.9
 
 
+def test_analyzer_uses_observed_resource_identity():
+    run = _run(PROBE_WS, "deployment failed")
+    run["failure_signature"] = {
+        "class": "probe_misconfiguration",
+        "key": "probe_port_mismatch:worker-api:8080!=9090",
+        "normalized": {"resource_kind": "Deployment", "resource_name": "worker-api", "attributes": {"container_port": 8080, "probe_port": 9090}},
+    }
+
+    hit = analyze_run(run)[0]
+
+    assert hit.expected_signature_key == "probe_port_mismatch:worker-api:8080!=9090"
+
+
+def test_analyzer_does_not_invent_resource_identity():
+    hit = analyze_run(_run(PROBE_WS, "deployment failed"))[0]
+
+    assert hit.expected_signature_key is None
+
+
 def test_diagnose_probe_without_llm(monkeypatch):
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "0")
     result = diagnose(_run(PROBE_WS, "Readiness probe failed for payments-api"))
@@ -109,3 +128,42 @@ def test_diagnose_low_confidence_threshold(monkeypatch):
     )
     assert result["selected_hypothesis_id"] is None
     assert result["classification"]["category"] in {"unknown", "supported"}
+
+
+def test_probe_does_not_borrow_ports_from_another_resource(monkeypatch):
+    import raphael_agent.diagnosis.analyzers as analyzers
+    monkeypatch.setattr(analyzers, '_read_workspace_text', lambda run: '''kind: Deployment
+metadata:
+  name: unrelated
+spec:
+  containerPort: 8000
+  readinessProbe:
+    port: 9000
+---
+kind: Deployment
+metadata:
+  name: worker-api
+spec:
+  containerPort: 7000
+  readinessProbe:
+    port: 7001
+''')
+    run = {'failure_signature': {'class': 'probe_misconfiguration',
+           'key': 'probe_port_mismatch:worker-api:7000!=7001',
+           'normalized': {'resource_name': 'worker-api',
+                          'attributes': {'container_port': 7000, 'probe_port': 7001}}}}
+    hit = analyze_run(run)[0]
+    assert hit.expected_signature_key == run['failure_signature']['key']
+    assert hit.statement == 'Readiness probe port 7001 does not match containerPort 7000'
+
+
+def test_image_and_config_analyzers_preserve_observed_key():
+    for workspace, evidence, failure_class, key in (
+        (BAD_IMAGE_WS, 'ImagePullBackOff', 'bad_image_reference', 'bad_image:worker-api:acme/app:missing'),
+        (MISSING_CM_WS, 'CreateContainerConfigError', 'invalid_missing_config', 'missing_configmap_key:worker-config:DATABASE_URL'),
+    ):
+        run = _run(workspace, evidence)
+        run['failure_signature'] = {'class': failure_class, 'key': key,
+                                    'normalized': {'resource_name': 'worker-api'}}
+        hit = next(hit for hit in analyze_run(run) if hit.failure_class == failure_class)
+        assert hit.expected_signature_key == key

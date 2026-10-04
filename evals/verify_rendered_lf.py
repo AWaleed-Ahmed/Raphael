@@ -10,7 +10,7 @@ from evals.run_evals import body_as_json, parse_trace, trace_evidence
 def verify(report_path: Path) -> list[dict]:
     report = json.loads(report_path.read_text(encoding="utf-8"))
     required = {"probe_misconfiguration", "bad_image_reference", "invalid_missing_config"}
-    patch_expected = {"probe_misconfiguration", "bad_image_reference"}
+    patch_expected = {"probe_misconfiguration"}
     scenarios = {item["scenario_id"]: item for item in report["scenarios"]}
     if not required.issubset(scenarios):
         raise ValueError("all three pinned scenarios must have run")

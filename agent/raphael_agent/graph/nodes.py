@@ -13,6 +13,7 @@ from raphael_agent.evidence import collect_evidence
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
 from raphael_agent.patch.templates import TemplateRefusal
+from raphael_agent.patch.image_provenance import resolve_approved_image_replacement
 from raphael_agent.publish import publish
 from raphael_agent.rules import load_or_derive_fix_rules
 from raphael_agent.localization import (
@@ -37,7 +38,7 @@ from raphael_agent.schema_util import for_run_record_validation
 from raphael_agent.store import RunStore
 from raphael_agent.store.patch_content import without_patch_content
 from raphael_agent.telemetry_supabase import record_run_outcome
-from raphael_agent.validation import evaluate_validation_signals
+from raphael_agent.validation import evaluate_validation_signals, rollout_resource
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
@@ -703,6 +704,26 @@ def node_localize(state: RunState) -> dict[str, Any]:
             "comparison_count": len(comparisons),
             "candidate_count": len(candidates),
         }
+        repository_info = state.get("repository") or {}
+        repository_name = "/".join(
+            part for part in (repository_info.get("owner"), repository_info.get("name")) if part
+        )
+        approved_image = resolve_approved_image_replacement(
+            state.get("failure_signature") or {},
+            baselines,
+            repository=repository_name,
+            service_name=service_name,
+            environment=environment,
+        )
+        target_environment = state.get("target_environment")
+        if (
+            approved_image
+            and target_environment
+            and environment != str(target_environment)
+        ):
+            approved_image = None
+        if approved_image:
+            updates["localization_result"]["approved_image_replacement"] = approved_image
         updates["audit_events"] = append_audit(
             {**state, **updates},
             "localize",
@@ -1018,6 +1039,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
     client = SandboxClient()
     try:
         assert sandbox_id, "sandbox_id required for live validate"
+        resource = rollout_resource(state.get("failure_signature") or {})
         client.deploy_revision(sandbox_id, _deploy_body_for_patch(state, patch))
         after = client.observe_failure(sandbox_id, {})
         updates["failure_signature"] = after["signature"]
@@ -1029,7 +1051,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
                     "health_checks": [
                         {
                             "type": "rollout",
-                            "resource": "deployment/payments-api",
+                            "resource": resource,
                             "mandatory": True,
                         },
                         {"type": "signature_absent", "mandatory": True},
@@ -1081,7 +1103,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
                         "plan": {
                             "commands": [],
                             "health_checks": [
-                                {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True},
+                                {"type": "rollout", "resource": resource, "mandatory": True},
                                 {"type": "signature_absent", "mandatory": True},
                             ],
                             "compare_to_signature_key": before_key,

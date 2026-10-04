@@ -149,15 +149,47 @@ def test_publish_requires_result_id(monkeypatch):
     assert result["pull_request_url"] is None
 
 
-def test_pr_body_preserves_per_image_material_gap_messages():
+def test_pr_body_groups_image_material_gaps_without_changing_report():
     gaps = [
         "image digests not resolved; tags only: registry.example:5000/app:v1",
+        "license metadata unavailable",
         "image digests not resolved; tags only: busybox:1.37.0",
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+    ]
+    fidelity = {"score": 0.8, "material_gaps": gaps}
+    run = _base_run(validated_fix_record={"fidelity": fidelity})
+    run["validation_results"][0]["full_validation"] = False
+    validation_before = dict(run["validation_results"][0])
+    body = build_pr_body(run)
+    assert "image digests not resolved; tags only: registry.example:5000/app:v1, busybox:1.37.0, registry.example:5000/app:v1" in body
+    assert body.index("image digests not resolved") < body.index("license metadata unavailable")
+    assert gaps == [
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+        "license metadata unavailable",
+        "image digests not resolved; tags only: busybox:1.37.0",
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+    ]
+    assert run["validation_results"][0] == validation_before
+    assert run["validation_results"][0]["full_validation"] is False
+
+
+def test_pr_body_displays_single_image_gap_and_keeps_non_image_order():
+    gaps = [
+        "first unrelated gap",
+        "image digests not resolved; tags only: registry.example:5000/app:v1@sha256:abc",
+        "second unrelated gap",
     ]
     body = build_pr_body(_base_run(validated_fix_record={
         "fidelity": {"score": 0.8, "material_gaps": gaps},
     }))
-    assert "## Sandbox fidelity\n- Score: `0.8`\n- Material gaps: " + ", ".join(gaps) in body
+    assert "first unrelated gap, image digests not resolved; tags only: registry.example:5000/app:v1@sha256:abc, second unrelated gap" in body
+
+
+def test_pr_body_without_material_gaps_uses_fidelity_checklist_fallback():
+    body = build_pr_body(_base_run(validated_fix_record={
+        "fidelity": {"score": 1.0, "material_gaps": []},
+    }))
+    assert "Material gaps: See checklist on frozen validated_fix_record" in body
 
 
 def test_publish_skips_escalated(monkeypatch):
