@@ -17,7 +17,7 @@ The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation ch
 
 | Location | Purpose / caution |
 |---|---|
-| `C:\dev\raphael-pr27` | Current docs worktree, `docs/contributor-handoff`, based on `60c03cf`. The directory's historical name does not mean PR #27 is still open. |
+| `C:\dev\raphael-pr27` | Current docs worktree, `docs/project-handoff`, based on `60c03cf`. The directory's historical name does not mean PR #27 is still open. |
 | `C:\dev\ignis` | Ignis main checkout, verified at `ece2029`. |
 | `~/src/raphael` in WSL | Fresh Linux-native main clone used to execute the setup and tests below. |
 | `~/src/ignis` in WSL | Fresh Linux-native checkout at `contracts-v1.2.1`; release binary is `~/src/ignis/controller/target/release/raphael-sandbox-controller`. |
@@ -229,7 +229,7 @@ The wire harness uses mock AgentHooks; smoke/evals use real hooks. All three lau
 
 The separate contract drift script requires PowerShell 7 (`pwsh`), not ordinary Bash. It is installed in the hosted `core-ci / contracts` job; if absent in WSL, run `pwsh -File tools/sync-sandbox-contracts.ps1 -Check` from a Windows-native Raphael checkout in PowerShell 7, or use that hosted check. The literal review found `pwsh: command not found` in WSL and an unsigned-script policy rejection against the WSL UNC checkout; the same command passed in a fresh Windows-native worktree. Do not weaken execution policy or install with elevated privileges merely to get past that.
 
-For the real-cluster proof, open **Actions -> Cross-repository E2E -> Run workflow** on the reviewed branch/main. The kind job creates its own disposable cluster and runs four controls; artifacts are `secret-fixture-kind-<run-id>` and `cross-repo-e2e-<run-id>`. It runs on Raphael pushes/PRs, nightly, and repository-dispatch events. The manual `ignis_ref` override affects the mock job; **kind's pin is separately set in YAML**. Never point the job at a customer cluster. Ask before running local cluster creation/deletion or `sudo`.
+For the real-cluster proof, open **Actions -> Cross-repository E2E -> Run workflow** on the reviewed branch/main. The kind job creates its own disposable cluster and runs six controls; artifacts are `secret-fixture-kind-<run-id>` and `cross-repo-e2e-<run-id>`. It runs on Raphael pushes/PRs, nightly, and repository-dispatch events. The manual `ignis_ref` override affects the mock job; **kind's pin is separately set in YAML**. Never point the job at a customer cluster. Ask before running local cluster creation/deletion or `sudo`.
 
 ### Correct environment names
 
