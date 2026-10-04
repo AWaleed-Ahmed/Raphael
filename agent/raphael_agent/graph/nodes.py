@@ -12,6 +12,7 @@ from jsonschema import ValidationError
 from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
+from raphael_agent.escalation_reasons import EscalationReason
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
 from raphael_agent.patch.templates import TemplateRefusal
@@ -66,7 +67,7 @@ def _touch(state: RunState, node: str) -> dict[str, Any]:
 def _escalation(
     state: RunState,
     *,
-    reason_code: str,
+    reason_code: EscalationReason,
     summary: str,
     what_happened: str,
     why_no_fix: str,

@@ -5,6 +5,8 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 ## Start here: where we stopped
 
+**2026-10-05 review checkpoint:** PR #42 and Ignis PR #18 are merged, and post-merge main CI passed on Raphael `122d2d0`, pinned to annotated Ignis `contracts-v1.3.0` / `176a13e`. The old local Secret-coverage draft must not be merged over that release. A separate `test/escalation-reason-drift` branch adds complete report-vocabulary/source checks and reviews the report-validation gate that #42 enabled. Production persistence policy is unchanged on that branch and still requires review; see [the exact risks and remaining decisions](docs/escalation-persistence-review-2026-10-05.md). Older setup results below are historical snapshots, not the new branch's test counts.
+
 The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation chain works and is continuously tested. This is operational hardening and coverage work, not an architecture rebuild. The remaining limits below are deliberate claims about what has actually been tested.
 
 **Latest completed work:** Raphael [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) merged at `60c03cf`. Deterministic safety blocks now survive every model-refinement/patch entry point. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40) separately tracks the missing local inference runtime; a flag-on fallback must not be described as trained-model proof. Both post-merge hosted runs linked in the proof table are green. Current #30 local results are in [the implementation review](docs/implementation-review-2026-10-04-issue-30.md).
