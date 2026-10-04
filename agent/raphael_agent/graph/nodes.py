@@ -194,17 +194,20 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
         return halt
     updates = _touch(state, "diagnose")
     diagnosis = diagnose(state)
-    gateway = ModelGateway()
-    model_prediction = gateway.classify_failure(state)
-    diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
     model_results = dict(state.get("model_results") or {})
-    if model_prediction is not None:
-        model_results["failure_classifier"] = model_prediction
-    elif model_error(gateway):
-        model_results["failure_classifier"] = {
-            "available": False,
-            "reason": model_error(gateway),
-        }
+    # A deterministic safety stop is final, not a seed for model refinement.
+    # Enforce this at the caller even if a gateway implementation changes.
+    if (diagnosis.get("classification") or {}).get("category") != "blocked":
+        gateway = ModelGateway()
+        model_prediction = gateway.classify_failure(state)
+        diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
+        if model_prediction is not None:
+            model_results["failure_classifier"] = model_prediction
+        elif model_error(gateway):
+            model_results["failure_classifier"] = {
+                "available": False,
+                "reason": model_error(gateway),
+            }
     updates["model_results"] = model_results
     attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
     attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
@@ -719,7 +722,10 @@ def node_localize(state: RunState) -> dict[str, Any]:
 
 
 def node_patch(state: RunState) -> dict[str, Any]:
-    if state.get("status") in {"failed_closed", "escalated"}:
+    if state.get("status") in {"failed_closed", "escalated", "blocked"} or (
+        ((state.get("diagnosis") or {}).get("classification") or {}).get("category")
+        == "blocked"
+    ):
         return {"updated_at": utc_now()}
     halt = _budget_halt_updates(state, "patch")
     if halt:

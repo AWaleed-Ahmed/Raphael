@@ -709,7 +709,9 @@ Pinned [hosted run 37035326891](https://github.com/AWaleed-Ahmed/Raphael/actions
 passed all four kind cases, mock Scenarios 1–3, real-hooks smoke, and all seven
 evals. The partially covered two-image case resolved the Ready sidecar and
 named only the blocked app in the gap. The public schema snapshot stays at
-`contracts-v1.2.0`; the paired Raphael PR still needs human review.
+`contracts-v1.2.0`. Raphael PR #38 merged at `c439b4e` after review;
+fresh [main run 37107311940](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37107311940)
+passed both kind and mock/evaluation jobs against the pinned release.
 This does not qualify the backend generally. The separate ConfigMap
 fabrication finding is closed by PR #35: missing-config is now a correct
 refusal (`patch_value_unavailable`), not a third safe-fix class.
@@ -781,6 +783,8 @@ Prompt or prefix caching may be evaluated only if the optional LLM route is enab
 An LLM may assist with human-review material: explaining a validated PR, summarizing bounded evidence, or proposing clearly labeled novel hypotheses for the Issues/human-review route.
 
 An LLM must not be the causal or validation gate. Deterministic policy checks, sandbox reproduction, structured failure signatures, and validation evidence decide whether a cause is accepted and whether a fix can be published.
+
+Deterministic blocked decisions are immutable by probabilistic components: local models, external LLM refinement, and learning must not replace the blocked category or its specific reason. The diagnosis caller must skip model refinement for a blocked result, independently of helper safeguards; patch selection must not run on a blocked diagnosis or an escalated run. See D-20261003-01.
 
 D-20260810-15 remains in effect: `RAPHAEL_LEARNING=0` is the production default. Offline learning, priors, or feedback-driven behavior may only be enabled after this evaluation harness measures an explicit before/after score delta and demonstrates no safety regression.
 

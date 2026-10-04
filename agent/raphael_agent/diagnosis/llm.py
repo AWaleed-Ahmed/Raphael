@@ -34,6 +34,11 @@ def try_llm_diagnosis(
 
     Fail-closed: any transport/parse/schema error yields None (caller keeps deterministic).
     """
+    # Defense in depth for direct callers: do not even send a blocked seed
+    # to an external model, including one that keeps the category but changes
+    # the specific safety reason.
+    if (deterministic.get("classification") or {}).get("category") == "blocked":
+        return None
     if not llm_diagnosis_enabled():
         return None
     key = llm_api_key()
@@ -107,12 +112,6 @@ def try_llm_diagnosis(
             output_payload=parsed,
             success=True,
         )
-        # Policy in code: never let LLM flip blocked → supported without analyzer block.
-        det_class = (deterministic.get("classification") or {}).get("category")
-        llm_class = (parsed.get("classification") or {}).get("category")
-        if det_class == "blocked" and llm_class != "blocked":
-            logger.warning("LLM tried to unblock a blocked diagnosis; ignoring LLM")
-            return None
         parsed["analyzer"] = {
             "name": "hybrid_deterministic_llm",
             "mode": "hybrid",
