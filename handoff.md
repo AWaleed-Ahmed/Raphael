@@ -11,13 +11,13 @@ The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation ch
 
 **Current task:** structural Secret-dependency detection, [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30), beginning with Ignis's reference-coverage reporting. Prompt B's preliminary investigation is complete and reported; implementation has **not** started. Review the findings below before coding. Prompt A was the safety prerequisite and is already merged; do not redo it.
 
-**Documentation checkpoint:** this contributor-map update is on `docs/contributor-handoff`, not main. It includes `handoff.md`, `CONTRIBUTING.md`, the PRD status note, and three decision-log status corrections. Until it is merged, a teammate must fetch and check out this branch to read the updates; pulling main alone is not sufficient.
+**Documentation checkpoint:** this contributor-map update is in [PR #41](https://github.com/AWaleed-Ahmed/Raphael/pull/41), branch `docs/project-handoff`. It includes `handoff.md`, `CONTRIBUTING.md`, the PRD status note, and three decision-log status corrections. Until it is merged, a teammate must fetch and check out this branch to read the updates; pulling main alone is not sufficient. The earlier `docs/contributor-handoff` remote branch received separate code changes from another author and is intentionally excluded from this docs-only PR.
 
 ### Working locations on this machine
 
 | Location | Purpose / caution |
 |---|---|
-| `C:\dev\raphael-pr27` | Current docs worktree, `docs/contributor-handoff`, based on `60c03cf`. The directory's historical name does not mean PR #27 is still open. |
+| `C:\dev\raphael-pr27` | Current docs worktree, `docs/project-handoff`, based on `60c03cf`. The directory's historical name does not mean PR #27 is still open. |
 | `C:\dev\ignis` | Ignis main checkout, verified at `ece2029`. |
 | `~/src/raphael` in WSL | Fresh Linux-native main clone used to execute the setup and tests below. |
 | `~/src/ignis` in WSL | Fresh Linux-native checkout at `contracts-v1.2.1`; release binary is `~/src/ignis/controller/target/release/raphael-sandbox-controller`. |
