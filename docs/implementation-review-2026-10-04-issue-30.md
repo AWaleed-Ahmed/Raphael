@@ -62,3 +62,24 @@ Release/pinning and hosted results will be recorded after those checks complete.
 - [Ignis PR #15](https://github.com/AWaleed-Ahmed/Ignis/pull/15) was closed as superseded. #11 and #17 have no reviewed implementation to push and remain open.
 
 Remaining proof limits: no live Supabase baseline-ingestion test, general real-backend qualification, changed-fixture-source real-cluster restart proof, or broad Secret-log leak audit is claimed. The prior #33/#34/#37 review remains in `docs/implementation-review-2026-10-04.md`; image provenance continues to refuse without verified baseline data.
+
+## Hosted verification — reviewed implementation `e586aee`
+
+[Raphael PR #42](https://github.com/AWaleed-Ahmed/Raphael/pull/42) combines #30 with the previously reviewed #33/#34/#37 work. All implementation checks passed against the released Ignis tag:
+
+| Hosted check | Expected / actual result | Evidence |
+|---|---|---|
+| Agent / dispatch suites | 291 passed, 4 existing optional-integration skips / 75 passed | [Core CI 37217777993](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777993) |
+| Pinned contract drift | Entire sandbox snapshot matches annotated `contracts-v1.3.0` | Same core CI, `contracts` job |
+| Real controller/connector mock wire | All three scenarios pass, including persisted same-sandbox restart | [Cross-repo 37217777910](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777910) |
+| Real agent hooks + controlled outcomes | Smoke passes; 10 evaluator tests and seven scored scenarios pass | Same cross-repo run, mock job |
+| Covered fixture, one/two images | Exact covered ref, Pod Ready, independently consumed synthetic value, every expected image digest resolved | Same cross-repo run, kind job |
+| Required object absent, one/two images | Exact missing-object ref; independent CreateContainerConfigError; persisted `unresolved_secret_dependency`; no generated patch | Same kind job |
+| Required key absent in applied object | Exact missing-key ref; independent CreateContainerConfigError naming key; same persisted structural refusal and no patch | Same kind job |
+| Optional key absent | Optional missing-key ref; Pod Ready using an independent non-Secret readiness condition; resolved digest | Same kind job |
+
+The disposable cluster used `kindest/node:v1.35.0`. Kind fixture Git SHAs, coverage entries, namespace/Pod/events snapshots, terminal envelopes, real HTTP traces, and process logs are retained in the run's `secret-fixture-kind-37217777910` artifact. Mock traces, runner outcomes and machine-scored eval results are retained in its E2E artifact. Public run links plus committed case expectations/results provide the review record; generated local traces stay ignored.
+
+The optional kind control proves optional-key startup and report optionality; no structural-refusal claim is inferred from its readiness alone. Optional gate continuation is directly covered by agent/dispatch unit tests. These narrow cases do not establish all Secret forms on real Kubernetes, all crash windows, or general backend qualification.
+
+Review verdict: corrected findings are covered by passing regressions; the scoped implementation is ready to merge. Live Supabase baseline ingestion and the remaining handoff product gates are still outstanding. A documentation-only delivery commit records these results before the authorized merge; its required CI is also checked before merging.

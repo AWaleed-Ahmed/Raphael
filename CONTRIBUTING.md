@@ -26,7 +26,7 @@ python3.12 -m venv ~/venvs/raphael-dispatch
 source ~/venvs/raphael-dispatch/bin/activate
 cd ~/src/raphael
 python -m pip install -e agent -e dispatch
-git -C ~/src/ignis checkout contracts-v1.2.1
+git -C ~/src/ignis checkout contracts-v1.3.0
 cargo build --release --locked --manifest-path ~/src/ignis/controller/Cargo.toml
 ```
 

@@ -131,3 +131,7 @@ image digests not resolved; tags only: registry.example:5000/app:v1, busybox:1.3
 | Staging target with production observation/baseline; unknown provenance scope | **Regression asserts no image approval** | Fake catalog and resolver unit tests; no live services |
 
 The sandboxed dispatch run was interrupted after stalling; its replacement run with localhost access passed. Live Supabase ingestion, a real Ignis process, and hosted proof remain unverified.
+
+## Delivery review — 2026-10-04
+
+The prior #33/#34/#37 code was reviewed together with #30 and passed the current full suites: **291 agent passed (4 existing skips), 75 dispatch passed, 10 evaluator unit tests passed**. Hosted [core CI 37217777993](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777993) and [cross-repo 37217777910](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777910) passed. The latter includes seven scored real-hook/mock scenarios and six narrow real-kind Secret controls. The bad-image scenario correctly refuses without verified provenance; a live image replacement is still not claimed. See [#30 delivery review](implementation-review-2026-10-04-issue-30.md) for fixes, release SHA and detailed controls. Live Supabase ingestion remains outstanding.

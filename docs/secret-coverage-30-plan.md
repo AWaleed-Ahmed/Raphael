@@ -2,7 +2,7 @@
 
 Planning date: 2026-10-04. Raphael branch: `docs/contributor-handoff`.
 
-Status: implemented and reviewed on `docs/contributor-handoff`. Ignis [PR #18](https://github.com/AWaleed-Ahmed/Ignis/pull/18) is merged and annotated `contracts-v1.3.0` is published. Raphael pins and snapshot are updated together; hosted Raphael mock/kind verification remains before merge.
+Status: implemented and reviewed on `docs/contributor-handoff`. Ignis [PR #18](https://github.com/AWaleed-Ahmed/Ignis/pull/18) is merged and annotated `contracts-v1.3.0` is published. Raphael pins and snapshot are updated together; hosted Raphael mock/kind verification passed in run 37217777910; PR #42 is ready for the authorized merge after the documentation commit checks.
 
 ## Goal and assumptions
 
