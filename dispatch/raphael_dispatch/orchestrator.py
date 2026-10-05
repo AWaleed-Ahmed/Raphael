@@ -24,6 +24,7 @@ from raphael_agent.store import RunStore
 from raphael_agent.sandbox_config import secret_fixture_args
 from raphael_agent.validation import rollout_resource
 from raphael_agent.store.patch_content import without_patch_content
+from raphael_agent.escalation_validation import escalation_failure_updates
 
 from .patch_store import EphemeralPatchStore
 from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, get_schemas
@@ -153,6 +154,10 @@ class Orchestrator:
         return {"owner": owner, "name": name, "clone_url": clone_url}
 
     def _save(self, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            self._terminal(state, "failed")
         state["updated_at"] = self._now()
         assert self.store is not None
         durable = {k: v for k, v in state.items() if k != "rendered_files"}
@@ -270,7 +275,11 @@ class Orchestrator:
 
         dispatch["last_activity_at"] = self._now()
         stage = dispatch["stage"]
-        if payload["status"] != "ok":
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            messages = [self._terminal(state, "failed")]
+        elif payload["status"] != "ok":
             messages = self._handle_failed_result(state, stage, payload)
         elif stage == "create_sandbox":
             messages = self._after_create(state, payload)
@@ -343,6 +352,10 @@ class Orchestrator:
         return terminals
 
     def _issue_action(self, state: dict[str, Any], verb: str, args: dict[str, Any]) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return self._terminal(state, "failed")
         if verb not in ALLOWED_VERBS:
             raise OrchestrationError(f"unsupported action verb: {verb}")
         halt = check_budgets(state, node=verb)
@@ -366,6 +379,10 @@ class Orchestrator:
         return action
 
     def _terminal(self, state: dict[str, Any], final_status: str) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            final_status = "failed"
         payload = {
             "job_id": state["run_id"],
             "final_status": final_status,
@@ -645,6 +662,11 @@ class Orchestrator:
 
     @staticmethod
     def _run_node(node: Node, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return
         updates = node(state)
         if updates:
             state.update(updates)
+        state.update(escalation_failure_updates(state))

@@ -254,6 +254,7 @@ def test_patch_budget_exhaust(monkeypatch):
     updates = node_patch(state)
     assert updates["status"] == "escalated"
     assert updates["terminal_reason"] == "budget_exhausted"
+    assert "patch_id" not in updates["escalation_report"]["attempts"][0]
 
 
 def test_validate_retry_routes_to_patch(monkeypatch):

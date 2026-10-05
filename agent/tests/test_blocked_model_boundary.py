@@ -140,7 +140,11 @@ def test_node_patch_never_selects_model_after_safety_block(monkeypatch, reason, 
         diagnosis=diagnosis_module.diagnose(state),
         status=status,
         terminal_reason=reason,
-        escalation_report={"reason_code": reason, "summary": "original safety stop"},
+        escalation_report=nodes._escalation(
+            {}, reason_code=reason, summary="original safety stop",
+            what_happened="A deterministic safety signal blocked this run",
+            why_no_fix="Safety policy forbids automatic patching",
+        ),
     )
     before = deepcopy(state)
     gateway = Mock(side_effect=AssertionError("blocked run reached patch model"))
@@ -165,7 +169,11 @@ def test_node_patch_terminal_status_guard_is_independent_of_diagnosis(monkeypatc
         "status": status,
         "diagnosis": {"classification": {"category": "supported"}},
         "terminal_reason": "original_stop",
-        "escalation_report": {"reason_code": "original_stop"},
+        "escalation_report": nodes._escalation(
+            {}, reason_code="policy_blocked", summary="original safety stop",
+            what_happened="A pre-existing terminal state blocked this run",
+            why_no_fix="Terminal state forbids automatic patching",
+        ),
     }
     before = deepcopy(state)
     gateway = Mock(side_effect=AssertionError("terminal run reached patch model"))

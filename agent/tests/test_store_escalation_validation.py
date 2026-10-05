@@ -1,11 +1,10 @@
-"""Escalation reports are validated before either durable store writes."""
+"""Persistence stays permissive; execution boundaries validate reports instead."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 
 import pytest
-from jsonschema import ValidationError
 
 from raphael_agent.store import RunStore, SqliteRunStore
 
@@ -32,7 +31,7 @@ def _valid_report():
         {"attempts": [{"kind": "other", "status": "unknown_status"}]},
     ],
 )
-def test_invalid_report_does_not_overwrite_existing_record(
+def test_store_does_not_enforce_report_schema(
     tmp_path, store_type, invalid_change
 ):
     store = store_type(tmp_path / store_type.__name__)
@@ -41,7 +40,5 @@ def test_invalid_report_does_not_overwrite_existing_record(
 
     invalid = deepcopy(valid)
     invalid["escalation_report"].update(invalid_change)
-    with pytest.raises(ValidationError):
-        store.save_run(invalid)
-
-    assert store.get_run(valid["run_id"]) == valid
+    store.save_run(invalid)
+    assert store.get_run(valid["run_id"]) == invalid
