@@ -14,6 +14,7 @@ EscalationReason = Literal[
     "privileged_or_host_access",
     "diagnosis_only",
     "unresolved_secret_dependency",
+    "escalation_report_invalid",
     "patch_target_unavailable",
     "patch_value_unavailable",
     "patch_unavailable",

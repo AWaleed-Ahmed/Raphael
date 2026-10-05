@@ -696,6 +696,8 @@ The harness must compute the §17.2 scoring dimensions from machine-readable ass
 
 The existing cross-repository E2E workflow is the required regression gate for implemented scenarios. New evaluation scenarios extend that workflow and publish their traces as artifacts; they must not create a separate, parallel CI system with different runtime assumptions.
 
+**Report-validation policy — 2026-10-05 (D-20261005-02, implementation under review):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates.
+
 The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
 
 ### 17.4 Confidence calibration and escalation quality

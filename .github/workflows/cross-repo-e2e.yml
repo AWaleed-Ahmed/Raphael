@@ -88,6 +88,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      # Test-only audit follows real dispatch subprocesses across all seven evals.
+      PYTHONPATH: ${{ github.workspace }}/tools/report_audit
+      RAPHAEL_REPORT_AUDIT_FILE: ${{ github.workspace }}/evals/out/report-audit.jsonl
       # Scheduled and Raphael-originated runs use the pinned Ignis implementation release.
       # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
       IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.3.0' }}
@@ -186,6 +189,10 @@ jobs:
       - name: Verify LF wire content under CRLF checkout settings
         if: ${{ inputs.crlf_checkouts == true }}
         run: python -m evals.verify_rendered_lf
+
+      - name: Summarize persisted report audit
+        if: always()
+        run: python tools/report_audit/escalation_report_audit.py evals/out/report-audit.jsonl > evals/out/report-audit-summary.json
 
       - name: Upload E2E traces and process logs
         if: always()

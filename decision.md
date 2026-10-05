@@ -30,8 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20261005-02 — Validate reports at transitions and fail closed without leaking rejected values
+- **Status:** approved design; implementation under test on `fix/escalation-report-fail-closed`; not merged.
+- **Date:** 2026-10-05
+- **Decision:** Dispatch and graph use one report-validation helper. Invalid reports become `failed_closed` with `escalation_report_invalid`, a minimal replacement report, a schema-path-only audit event and error log. Validate before publication; keep JSON/SQLite persistence permissive and preserve the patch-content boundary.
+- **Finding:** #43's post-merge core and E2E/kind runs passed (37261846416 / 37261846426), but #43 did not rerun the validating-wrapper audit on its final head. Its earlier audit found `attempts[].status = completed` plus wider durable-run schema drift; PR #42 fixed the former. Fresh validation now also catches the real patch-budget producer emitting `attempts[].patch_id = null`, forbidden by the report schema. Eleven existing safety-test cases use incomplete report fixtures; those are distinct from the production producer defect.
+- **Consequences:** Following the user's continuation, omit the optional patch ID when absent and give safety fixtures complete valid reports without weakening their original refusal assertions. Whole-run schema/projection, storage I/O failure policy and universal redaction remain separately scoped. No public connector contract change; no merge before fresh CI and review.
+
 ### D-20261005-01 — Track escalation reason drift without changing persistence policy
-- **Status:** implementation under review on `test/escalation-reason-drift`; not merged.
+- **Status:** merged in PR #43 at `9e652d9`; persistence policy follow-up is D-20261005-02.
 - **Date:** 2026-10-05
 - **Decision:** Use one typed private report vocabulary, check schema equality, validate reports for every registered reason, and test source producers for unregistered literals. Keep free-form terminal details separate from report reason codes.
 - **Finding:** PR #42 enabled report validation inside `durable_run_record()`, despite the earlier request to leave persistence permissive pending broader audit. Store rejection preserves previous data; dispatch propagates the error, while a graph publication path can swallow it and return success without saving progress. This branch characterizes those boundaries without changing them.

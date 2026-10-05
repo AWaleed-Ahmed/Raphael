@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Literal
@@ -13,6 +14,7 @@ from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
 from raphael_agent.escalation_reasons import EscalationReason
+from raphael_agent.escalation_validation import escalation_failure_updates, escalation_report_boundary
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
 from raphael_agent.patch.templates import TemplateRefusal
@@ -138,6 +140,7 @@ def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
     return updates
 
 
+@escalation_report_boundary
 def node_ingest(state: RunState) -> dict[str, Any]:
     halt = _budget_halt_updates(state, "ingest")
     if halt:
@@ -154,6 +157,7 @@ def node_ingest(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_evidence(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -190,6 +194,7 @@ def node_evidence(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_diagnose(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -347,6 +352,7 @@ def _runtime_observation_from_signature(
     return observation
 
 
+@escalation_report_boundary
 def node_reproduce(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -474,6 +480,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_secret_coverage_gate(state: RunState) -> dict[str, Any]:
     """Stop before patching if the rendered workload has uncovered Secret refs."""
     if state.get("status") in {"failed_closed", "escalated", "blocked"}:
@@ -547,6 +554,7 @@ def _localization_observation(state: RunState) -> dict[str, Any]:
     return observation
 
 
+@escalation_report_boundary
 def node_localize(state: RunState) -> dict[str, Any]:
     """Resolve healthy baselines and rank runtime/source candidates before patching.
 
@@ -808,6 +816,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_patch(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated", "blocked"} or (
         ((state.get("diagnosis") or {}).get("classification") or {}).get("category")
@@ -865,7 +874,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
                     "kind": "patch",
                     "status": "failed",
                     "detail": "budget_exhausted",
-                    "patch_id": state.get("active_patch_id"),
+                    **({"patch_id": state["active_patch_id"]} if state.get("active_patch_id") is not None else {}),
                 }
             ],
         )
@@ -1019,6 +1028,7 @@ def _deploy_body_for_patch(
     return body
 
 
+@escalation_report_boundary
 def node_validate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now(), "validation_retryable": False}
@@ -1304,9 +1314,22 @@ def _maybe_terminal_comment(state: RunState, updates: dict[str, Any]) -> None:
         return
 
 
+def _persist_graph_outcome(state: RunState) -> None:
+    """Report storage failures without logging payloads or exception messages."""
+    try:
+        RunStore().save_run(for_run_record_validation(state))
+    except Exception:  # Storage failure policy is separate from report validation.
+        logging.getLogger(__name__).error("Run outcome persistence failed")
+
+
 def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
+    failure = escalation_failure_updates(state)
+    if failure:
+        _persist_graph_outcome({**state, **failure})
+        return failure
     if state.get("status") in {"failed_closed", "escalated"}:
         updates = {"current_node": None, "updated_at": utc_now()}
+        _persist_graph_outcome({**state, **updates})
         _maybe_terminal_comment(state, updates)
         record_run_outcome({**state, **updates})
         return updates
@@ -1314,8 +1337,10 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     halt = _budget_halt_updates(state, "publish_or_escalate")
     if halt:
         # Never publish after budget exhaust
+        halt.update(escalation_failure_updates({**state, **halt}))
         halt["current_node"] = None
         halt["pull_request_url"] = None
+        _persist_graph_outcome({**state, **halt})
 
         _maybe_terminal_comment(state, halt)
         record_run_outcome({**state, **halt})
@@ -1374,11 +1399,8 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     updates["updated_at"] = utc_now()
 
     # Persist inspectable run_record when a data dir is in use.
-    try:
-        merged = {**state, **updates}
-        RunStore().save_run(for_run_record_validation(merged))
-    except Exception:  # noqa: BLE001 â€” persistence must not crash the graph
-        pass
+    merged = {**state, **updates}
+    _persist_graph_outcome(merged)
     record_run_outcome(merged)
     _maybe_terminal_comment(state, updates)
     return updates
