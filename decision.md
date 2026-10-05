@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20261005-01 — Track escalation reason drift without changing persistence policy
+- **Status:** implementation under review on `test/escalation-reason-drift`; not merged.
+- **Date:** 2026-10-05
+- **Decision:** Use one typed private report vocabulary, check schema equality, validate reports for every registered reason, and test source producers for unregistered literals. Keep free-form terminal details separate from report reason codes.
+- **Finding:** PR #42 enabled report validation inside `durable_run_record()`, despite the earlier request to leave persistence permissive pending broader audit. Store rejection preserves previous data; dispatch propagates the error, while a graph publication path can swallow it and return success without saving progress. This branch characterizes those boundaries without changing them.
+- **Alternatives:** Silently reverting another author's enforcement or restoring raw patch content to satisfy whole-run schemas is rejected. Production failure policy and the wider durable-run schema require separate review.
+- **Consequences:** No public contract or runtime enforcement changes. See [the review](docs/escalation-persistence-review-2026-10-05.md) for scope and executable risk tests. Historical decision bodies remain unchanged.
+
 ### D-20261004-02 — Applied fixture Secret coverage gates patching
 - **Status:** accepted; reviewed in Raphael PR #42 and Ignis PR #18; delivery authorized by the user.
 - **Date:** 2026-10-04
