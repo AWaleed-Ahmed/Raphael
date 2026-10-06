@@ -89,6 +89,17 @@ def find_terminal(records, job_id):
     return None
 
 
+def cluster_settings():
+    """Real backends require explicit E2E configuration; ordinary smoke stays mock."""
+    backend = os.getenv("E2E_CLUSTER_BACKEND", "mock")
+    context = os.getenv("E2E_KUBE_CONTEXT")
+    if backend not in {"mock", "kind"}:
+        raise ValueError("E2E backend must be mock or kind")
+    if backend == "kind" and (not context or not context.startswith("kind-")):
+        raise ValueError("kind E2E requires an explicit kind context")
+    return backend, context if backend == "kind" else None
+
+
 def main():
     if not IGNIS_BIN:
         print("ERROR: set E2E_IGNIS_BIN")
@@ -107,7 +118,11 @@ def main():
     env["RAPHAEL_PARTNER_MODE"] = "dry_run"
     env["RAPHAEL_PUBLISH_MODE"] = "dry_run"
     env["RAPHAEL_LLM_DIAGNOSIS"] = "0"
-    env["RAPHAEL_CLUSTER_BACKEND"] = "mock"
+    backend, context = cluster_settings()
+    env["RAPHAEL_CLUSTER_BACKEND"] = backend
+    env.pop("RAPHAEL_KUBE_CONTEXT", None)
+    if context:
+        env["RAPHAEL_KUBE_CONTEXT"] = context
     env["RAPHAEL_LISTEN"] = "127.0.0.1:8090"
     env["RAPHAEL_CONNECTOR_DISPATCH_URL"] = DISPATCH
     env["RAPHAEL_CONNECTOR_CONTROLLER_URL"] = "http://127.0.0.1:8090"
@@ -136,7 +151,7 @@ def main():
         dispatch_log_path.parent.mkdir(parents=True, exist_ok=True)
         dispatch_log = open(dispatch_log_path, "w", encoding="utf-8")
         dispatch = subprocess.Popen(
-            [sys.executable, str(E2E / "real_dispatch_launcher.py")],
+            [sys.executable, str(E2E / ("fixture_dispatch_launcher.py" if os.getenv("E2E_INSPECT_GATE") else "real_dispatch_launcher.py"))],
             cwd=str(ROOT), env=env, stdout=dispatch_log, stderr=subprocess.STDOUT,
         )
         processes.append(dispatch)
@@ -172,7 +187,7 @@ def main():
                 "narrowed_location": {
                     "file_path": NARROWED_LOCATION,
                 },
-                "lease_ttl_seconds": 120,
+                "lease_ttl_seconds": int(os.getenv("E2E_REAL_LEASE_TTL_SECONDS", "120")),
             },
         }
 
@@ -183,7 +198,7 @@ def main():
 
         # Wait for terminal
         print("Waiting for terminal envelope...")
-        deadline = time.time() + 180
+        deadline = time.time() + int(os.getenv("E2E_REAL_TIMEOUT_SECONDS", "180"))
         terminal = None
         while time.time() < deadline:
             records = trace_records(trace)
