@@ -15,7 +15,7 @@ Branch: `test/real-kind-closed-loop-proof`, updating [PR #32](https://github.com
 
 | Control | Independent Kubernetes observation | Required agent outcome |
 |---|---|---|
-| Probe mismatch | Initially not Ready with readiness-probe failure event; Ready Pod independently observed after repair | `fix_finalized`; only two target probe-port replacements; real rollout validation passed and signature cleared; dry-run publication |
+| Probe mismatch | Initially not Ready with readiness-probe failure event; Ready Pod independently observed after repair | `fix_finalized`; only one observed readiness-port replacement (two diff lines); real rollout validation passed and signature cleared; dry-run publication |
 | Bad image, no provenance | Initially ErrImagePull/ImagePullBackOff; no Ready assumption from static signature | `escalated / patch_value_unavailable`; no candidate/deployed patch, validation or publication |
 | Bad image, verified fixture provenance | Separately deployed healthy source is actually Ready and has a runtime image ID before the baseline is marked verified; failed workload later observed Ready | `fix_finalized`; only one image-line replacement; actual scoped baseline trace and full source SHA recorded; real rollout/signature checks passed; dry-run publication |
 
@@ -41,3 +41,7 @@ The shared wall deadline is 600 seconds in these test scenarios; lease TTL is al
 ## Final base reconciliation before hosted proof
 
 BYOK PR #23 merged at `9b31e52`, including its test-audit lock correction. PR #32 merged that main base while preserving both handoff/decision entries. Rechecked locally: **386 agent passed (4 existing skips), 77 dispatch passed, 10 evaluator passed, 9 kind-proof tests passed**. Actual Kubernetes controls remain pending until the new hosted gate completes.
+
+## First hosted control correction
+
+[Run 37441802452](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37441802452) failed the new probe diff-count assertion: the production template changed one observed readiness port, not two replacements. The test fixture mistakenly combined readiness and liveness faults. Its liveness port is now healthy (8080), leaving a single observed readiness fault (9090); the assertion requires exactly its two removed/added diff lines. A regression checks the fixture's container/readiness/liveness ports. The other two controls did not run in that failed job and are not counted as passes. The initial result does not prove sustained health for manifests with multiple independent faults; general backend/validation qualification remains open.

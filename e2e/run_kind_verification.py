@@ -109,7 +109,7 @@ def verify_case(label, result, records, initial_pod, final_ready):
     assert evidence["patch_files"][0]["path"] == "deploy/manifests/app.yaml"
     count, changed = patch_line_changes(evidence["patch_files"], evidence["initial_rendered_files"])
     if label == "probe":
-        assert count == 4 and all("port:" in line for line in changed), changed
+        assert count == 2 and {line[1:].strip() for line in changed} == {"port: 9090", "port: 8080"}, changed
     else:
         assert count == 2 and all("image:" in line for line in changed), changed
         approved = state["localization_result"]["approved_image_replacement"]

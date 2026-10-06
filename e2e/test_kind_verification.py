@@ -12,7 +12,7 @@ import run_kind_verification as proof
 class KindProofTests(unittest.TestCase):
     def case(self, label):
         image = label != "probe"
-        original = "image: broken\n" if image else "port: 9090\nport: 9090\n"
+        original = "image: broken\n" if image else "port: 9090\nport: 8080\n"
         patched = "image: hashicorp/http-echo:1.0\n" if image else "port: 8080\nport: 8080\n"
         evidence = {"observed_signature": {"class": "bad_image_reference" if image else "probe_misconfiguration", "reproduced": True},
                     "validation": {"passed": True, "signature_cleared": True},
@@ -55,6 +55,14 @@ class KindProofTests(unittest.TestCase):
         evidence["patch_files"][0]["content"] += "privileged: true\n"
         with patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
             proof.verify_case("probe", result, [], {}, True)
+
+    def test_probe_fixture_has_one_observed_fault(self):
+        import yaml
+        source = Path(__file__).resolve().parent / "fixtures/kind-remediation/probe/deploy/manifests/app.yaml"
+        container = yaml.safe_load(source.read_text())["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["ports"][0]["containerPort"], 8080)
+        self.assertEqual(container["readinessProbe"]["httpGet"]["port"], 9090)
+        self.assertEqual(container["livenessProbe"]["httpGet"]["port"], 8080)
 
     def test_live_pr_url_is_rejected(self):
         result, evidence = self.case("probe")
