@@ -30,6 +30,21 @@
 
 ## Decision log (newest first)
 
+### D-20261006-02 — Scope real-kind repair proof to owned resources and verified baseline fixtures
+- **Status:** reviewed implementation; three controls passed in hosted run 37442412528; final-head checks required before the authorized merge.
+- **Date:** 2026-10-06
+- **Decision:** Retain current observed-target, provenance and safety gates; prove probe repair, no-provenance image refusal and image repair from a scoped baseline independently observed Ready. Use a hosted disposable cluster, exact owned namespace cleanup and tracked synthetic fixture bytes with recorded Git SHAs. Production hooks call a loopback catalog fixture through the real REST adapter.
+- **Why:** The old PR's targeting/backend fixes were superseded, its decision ID collided with existing history, and its image success claim predated enforced provenance. Shared-cluster sweeps and implicit service startup are unnecessary for hosted proof.
+- **Consequences:** Existing mock fixtures stay unchanged. A seeded catalog is not live Supabase ingestion; known-bad-image heuristic and test duration settings do not close Ignis #11/#17. See `docs/kind-remediation-review-2026-10-06.md`.
+
+### D-20261006-01 — Key-scoped BYOK discovery with pinned-model precedence
+- **Status:** accepted; delivery in PR #23, hosted implementation checks passed.
+- **Date:** 2026-10-06
+- **Decision:** Support Gemini, OpenAI and compatible gateways first. Per user instruction, automatic mode discovers text candidates for the selected key, randomly orders them, and rotates only on quota/rate limits. Explicit models remain pinned. At most eight attempts use a shared deadline; credentials stay outside RunState and telemetry.
+- **Why:** Keys can expose different models; a fixed default or unrelated-provider key fallback does not meet the requested behavior. Bounded rotation cannot guarantee recovery from account-wide/shared quotas.
+- **Consequences:** Shared external diagnosis/patch transport preserves schema/policy gates. Known structural Secret gaps stop external refinement before key/network work. Native Anthropic/Azure, tenant-key management and local classifier #40 remain separate. Live-provider connectivity is unverified without a supplied key.
+- **Proof:** 385 agent passed (4 skips), 77 dispatch, 58 BYOK and 10 evaluator tests. Core 37438867760 and cross-repo 37438867823 passed; see `docs/byok-implementation-review-2026-10-06.md`.
+
 ### D-20261005-02 — Validate reports at transitions and fail closed without leaking rejected values
 - **Status:** approved design; implementation under test on `fix/escalation-report-fail-closed`; not merged.
 - **Date:** 2026-10-05
