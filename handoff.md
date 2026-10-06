@@ -292,6 +292,12 @@ Reviewed #30 plus prior #33/#34/#37 integration and corrected schema/completenes
 
 Ignis #11 and #17 remain open/unimplemented. PR #15 was closed as superseded: PR #14 already fixed its contract problem; relabeling generic kubectl as kind was not a correct remaining change.
 
+### BYOK delivery checkpoint — 2026-10-06
+
+[PR #23](https://github.com/AWaleed-Ahmed/Raphael/pull/23) merged at `9b31e52` and implements environment-based Gemini/OpenAI/compatible-gateway calls for external diagnosis and patching. Per user instruction, an unspecified model is discovered and randomly selected for the configured key; HTTP 429 rotates to another candidate within eight attempts and a shared deadline. Explicit models remain pinned. Credentials stay outside durable run state. The shared structural Secret gate also stops external refinement before a provider call.
+
+Local results: 386 agent passed (4 existing skips), 77 dispatch passed, 58 focused BYOK passed, 10 evaluator passed. See [BYOK implementation review](docs/byok-implementation-review-2026-10-06.md) for cases, limits and sources. Final hosted core CI 37440594134 (plus push audit 37440587490) and cross-repo run 37440594100 passed; live Gemini connectivity is unverified because no key is configured. Native Anthropic/Azure and tenant key management remain outside this delivery. Local classifier #40 remains open. Real-kind remediation PR #32 will be reconciled separately.
+
 ### Real-kind remediation checkpoint — 2026-10-06
 
 PR #32 is reconciled with current main: obsolete rollout/backend fixes and shared mock-fixture edits are discarded. A hosted disposable proof now checks probe repair, no-provenance image refusal and image repair with a scoped catalog fixture verified from an actually Ready baseline Pod. Production AgentHooks remain in use. Local assertion/cleanup tests pass (9), evaluator tests pass (10); fresh hosted proof is required before merge. See [kind implementation review](docs/kind-remediation-review-2026-10-06.md). This does not prove live Supabase ingestion or resolve Ignis #11/#17.
