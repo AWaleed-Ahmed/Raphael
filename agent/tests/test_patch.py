@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -89,9 +90,9 @@ def _probe_signature(name="payments-api", container="app"):
 
 def _image_signature(name="target", container="app"):
     image = "ghcr.io/acme/app:does-not-exist"
-    return {"class": "bad_image_reference", "key": f"bad_image:{name}:{image}",
+    return {"class": "bad_image_reference", "key": "image_pull:" + json.dumps(["Deployment", name, "regular", container, image, "not_found"], separators=(",", ":")),
             "normalized": {"reason": "ImagePullBackOff", "resource_kind": "Deployment",
-                           "resource_name": name, "container": container, "attributes": {"image": image}}}
+                           "resource_name": name, "container": container, "attributes": {"image": image, "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"}}}
 
 
 def _image_run(signature, rendered_files):
