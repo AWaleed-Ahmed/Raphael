@@ -5,6 +5,7 @@ document.documentElement.classList.add("js");
 
 const menu = document.querySelector(".menu-toggle");
 const navigation = document.querySelector("#site-nav");
+document.querySelector('.site-header').classList.add('js-ready');
 menu.hidden = false;
 function closeMenu(returnFocus = false) {
   navigation.classList.remove("is-open");
@@ -212,7 +213,18 @@ function updateNavigation() {
     if (current && link.hash === `#${current.id}`) link.setAttribute('aria-current', 'location');
     else link.removeAttribute('aria-current');
   });
-  header.classList.toggle('is-scrolled', window.scrollY > 30);
+  const isScrolled = window.scrollY > 30;
+  header.classList.toggle('is-scrolled', isScrolled);
+
+  // Follow the surface passing beneath the nav so links stay legible across
+  // the landing page's alternating light and dark chapters.
+  const lightChapter = isScrolled && (() => {
+    const y = Math.min(window.innerHeight - 1, header.getBoundingClientRect().bottom + 8);
+    const beneathHeader = document.elementFromPoint(window.innerWidth / 2, y);
+    return beneathHeader?.closest('[data-nav-theme="light"]');
+  })();
+  header.classList.toggle('is-light', Boolean(lightChapter));
+  header.classList.toggle('is-ink', isScrolled && !lightChapter);
 }
 new ResizeObserver(scheduleProgress).observe(document.body);
 updateNavigation();

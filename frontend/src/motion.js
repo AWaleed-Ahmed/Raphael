@@ -40,7 +40,7 @@ applyPreference();
 export function setupEntrances() {
   const groups = [
     ['.hero-copy > .eyebrow, .hero-line, .hero-description, .actions', 70],
-    ['.scene-top, .signal-artifact, .diagnosis-artifact, .review-artifact', 95],
+    ['.handoff-copy, .handoff-draft', 95],
     ['.workflow-intro, .walkthrough, .section-heading, .evidence-panel, .diff-panel, .validation-panel, .architecture-copy, .permission-map, .draft-ground, .safety-statements, .closing-inner', 0],
   ];
   const observer = new IntersectionObserver(entries => {

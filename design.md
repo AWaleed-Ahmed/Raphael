@@ -1,5 +1,70 @@
 # Raphael brand and web design direction
 
+## Cloud typography study — October 5, 2026
+
+The latest `/direction/` concept uses the user's supplied illustrated night
+clouds. The user selected the detailed `image.png` hero with reduced opacity.
+Render it at 76% opacity over the night canvas, with extra shading on the text
+side and a stronger mobile overlay. The original artwork retains its colors;
+readability is controlled through CSS rather than editing the source image.
+
+Use **Sentient 400** for large statements, **Switzer 400–500** for reading and
+controls, and **IBM Plex Mono 400** for exact evidence. This takes the serif/sans
+hierarchy from the Railway reference and interprets it with Fontshare families.
+The user approved Sentient headings; the artwork/type comparison controls
+have been removed. The sky is static; native scrolling and reduced-motion
+preferences remain intact.
+
+The lowercase Raphael wordmark uses **Telma 500**, whose sharp calligraphic
+terminals and flowing strokes relate to the supplied winged logo. Keep this
+expressive face in the wordmark; the product UI continues to use Switzer.
+Explore Raphael uses smoked-violet glass with a quiet highlight, readable pearl
+type, keyboard focus, and an opaque fallback when backdrop blur is unavailable.
+
+The public landing page now uses this direction. Its navigation borrows Oryns'
+surface-aware pill behavior: it begins transparent over the cloud hero, settles
+into a centered frosted capsule on scroll, and crossfades between ink and pearl
+surfaces as light and dark chapters pass beneath it. The movement uses native
+CSS and section-aware scroll state; it does not replace or intercept scrolling.
+
+The palette is night `#11121A`, cloud `#242335`, pearl `#EEEDF3`, and restrained
+violet `#BDA4FF`. Responsive artwork fades into the canvas; evidence stays on
+flat surfaces, with a light handoff chapter providing a change of pace. The
+The console retains its existing implementation. This is the active landing
+direction, following the accepted Pixel Sentinel study below. Details and
+verification: `docs/design/cloud-study.md`.
+
+## Earlier accepted pixel direction — October 5, 2026
+
+The user rejected Signal & Splendor's blue/brass colors and preferred Tester's
+pixel art, while also liking Railway's color and layout. **Pixel Sentinel** is
+the earlier study: neutral charcoal `#151515`, chalk `#F1F1ED`,
+graphite `#252525`, and soft violet `#BDA4FF`. Violet is a restrained accent,
+not a requirement to copy Tester's orange. The pixel treatment of the supplied
+winged mark is the hero's artwork; technical surfaces remain flat and readable.
+
+Use Fontshare's Cabinet Grotesk 700–800 for compact display headings, Switzer
+400–500 for reading/UI, and IBM Plex Mono for evidence. The flow is an asymmetric
+hero, three concise repair stages, a light draft/evidence chapter, and the
+design board. The original landing/console have not been migrated. This section
+supersedes the proposal immediately below. Details: `docs/design/pixel-sentinel.md`.
+
+## Proposed next direction — October 5, 2026
+
+**Recommendation: Signal & Splendor.** A midnight-blue/silver foundation,
+glacier blue, and restrained brass, with original abstract ascending ribbon
+artwork that relates to the user's winged logo. Boska 500 from Fontshare carries
+large statements; Switzer 400–500 carries reading and UI; IBM Plex Mono carries
+exact evidence. This supersedes the earlier restriction to green/paper as a
+design recommendation. The existing landing page still uses that earlier theme.
+
+The browsable concept at `/direction/` compares sculptural, pixel, and ASCII
+background treatments. Full research, references, typography, palette, and
+section plan: `docs/design/signal-and-splendor.md`. Railway informs atmosphere;
+Inngest informs technical clarity. Gabriel's silver/gold/blue qualities are an
+abstract material reference. Keep the supplied Raphael logo and the documented
+product/permission model. The main page has not yet been migrated to this study.
+
 ## Landing refinement — October 3, 2026
 
 The public landing page now leads with a more compact hero and one unified

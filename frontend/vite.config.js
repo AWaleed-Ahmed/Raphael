@@ -6,6 +6,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         landing: fileURLToPath(new URL("./index.html", import.meta.url)),
+        direction: fileURLToPath(new URL("./direction/index.html", import.meta.url)),
         console: fileURLToPath(new URL("./console/index.html", import.meta.url)),
       },
     },
