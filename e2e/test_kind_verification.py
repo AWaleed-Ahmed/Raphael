@@ -7,6 +7,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cluster
 import run_kind_verification as proof
+from run_real_job import cluster_settings
 
 
 class KindProofTests(unittest.TestCase):
@@ -88,6 +89,24 @@ class KindProofTests(unittest.TestCase):
             kube.assert_not_called()
             cluster.cleanup_namespace("owned", {"owned"})
             kube.assert_called_once_with("delete", "namespace", "owned", "--ignore-not-found=true", "--wait=false")
+
+    def test_default_smoke_ignores_inherited_real_backend(self):
+        with patch.dict(proof.os.environ, {"RAPHAEL_CLUSTER_BACKEND": "kubectl", "RAPHAEL_KUBE_CONTEXT": "customer"}, clear=True):
+            self.assertEqual(cluster_settings(), ("mock", None))
+
+    def test_explicit_kind_settings(self):
+        with patch.dict(proof.os.environ, {"E2E_CLUSTER_BACKEND": "kind", "E2E_KUBE_CONTEXT": cluster.CONTEXT}, clear=True):
+            self.assertEqual(cluster_settings(), ("kind", cluster.CONTEXT))
+
+    def test_real_backend_requires_explicit_context(self):
+        with patch.dict(proof.os.environ, {"E2E_CLUSTER_BACKEND": "kind", "RAPHAEL_KUBE_CONTEXT": "customer"}, clear=True):
+            with self.assertRaises(ValueError):
+                cluster_settings()
+
+    def test_unsupported_backend_is_rejected(self):
+        with patch.dict(proof.os.environ, {"E2E_CLUSTER_BACKEND": "kubectl"}, clear=True):
+            with self.assertRaises(ValueError):
+                cluster_settings()
 
     def test_hosted_guard_precedes_cluster_operations(self):
         with patch.dict(proof.os.environ, {"GITHUB_ACTIONS": "false"}), patch.object(proof, "kube") as kube:

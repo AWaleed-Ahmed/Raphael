@@ -45,3 +45,19 @@ BYOK PR #23 merged at `9b31e52`, including its test-audit lock correction. PR #3
 ## First hosted control correction
 
 [Run 37441802452](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37441802452) failed the new probe diff-count assertion: the production template changed one observed readiness port, not two replacements. The test fixture mistakenly combined readiness and liveness faults. Its liveness port is now healthy (8080), leaving a single observed readiness fault (9090); the assertion requires exactly its two removed/added diff lines. A regression checks the fixture's container/readiness/liveness ports. The other two controls did not run in that failed job and are not counted as passes. The initial result does not prove sustained health for manifests with multiple independent faults; general backend/validation qualification remains open.
+
+## Hosted implementation proof — `58b6b97`
+
+[Core CI 37442412446](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37442412446) passed Python and exact contract snapshot checks. [Cross-repo 37442412528](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37442412528) passed mock integration, all six Secret-kind controls and all three new remediation controls on `kindest/node:v1.35.0`.
+
+| Actual case | Result | Source fixture SHA |
+|---|---|---|
+| Probe | `fix_finalized / draft_pr_dry_run`, independent Ready, one readiness replacement | `b72b2e320ff2e300169faa6b1658fdbb916ad5e1` |
+| Image without provenance | `escalated / patch_value_unavailable`, no Ready/patch/publication | `fcd3e5d323dca3b199ca3d875f5c1bdbdc518a21` |
+| Image with verified fixture provenance | `fix_finalized / draft_pr_dry_run`, independent Ready, one image replacement | same bad-image fixture |
+
+The independently observed healthy baseline source was `e99883e5b7441b635e8710e633dd8caccea017ad`. The uploaded runner record's approved image source SHA was checked against that exact baseline SHA. The no-provenance escalation report validates against the private report schema. Actual Pod/events and source/scoped-catalog evidence are retained in `kind-remediation-37442412528`; mock and Secret controls have separate artifacts in the same run.
+
+Final review also corrected backend inheritance: ordinary smoke execution stays mock even when the shell has a real `RAPHAEL_CLUSTER_BACKEND`/context. Kind requires explicit `E2E_CLUSTER_BACKEND=kind` and an explicit kind context; unsupported real backends are rejected. Four tests cover this boundary, bringing the proof suite to **14 passed** (plus 10 evaluator tests). This change and the hosted evidence are committed before merge; all exact final-head CI gates must also pass.
+
+Delivered scope remains narrow: two seeded-fixture repair successes and one correct image refusal. Live Supabase ingestion, arbitrary registry detection, sustained/general backend validation, timeout/lease coordination and partner qualification remain unproven. Live BYOK provider calls remain unverified without a supplied key.

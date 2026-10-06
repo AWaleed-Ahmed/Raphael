@@ -89,6 +89,17 @@ def find_terminal(records, job_id):
     return None
 
 
+def cluster_settings():
+    """Real backends require explicit E2E configuration; ordinary smoke stays mock."""
+    backend = os.getenv("E2E_CLUSTER_BACKEND", "mock")
+    context = os.getenv("E2E_KUBE_CONTEXT")
+    if backend not in {"mock", "kind"}:
+        raise ValueError("E2E backend must be mock or kind")
+    if backend == "kind" and (not context or not context.startswith("kind-")):
+        raise ValueError("kind E2E requires an explicit kind context")
+    return backend, context if backend == "kind" else None
+
+
 def main():
     if not IGNIS_BIN:
         print("ERROR: set E2E_IGNIS_BIN")
@@ -107,12 +118,11 @@ def main():
     env["RAPHAEL_PARTNER_MODE"] = "dry_run"
     env["RAPHAEL_PUBLISH_MODE"] = "dry_run"
     env["RAPHAEL_LLM_DIAGNOSIS"] = "0"
-    backend = os.getenv("E2E_CLUSTER_BACKEND", os.getenv("RAPHAEL_CLUSTER_BACKEND", "mock"))
+    backend, context = cluster_settings()
     env["RAPHAEL_CLUSTER_BACKEND"] = backend
-    if os.getenv("E2E_KUBE_CONTEXT"):
-        env["RAPHAEL_KUBE_CONTEXT"] = os.getenv("E2E_KUBE_CONTEXT")
-    elif os.getenv("RAPHAEL_KUBE_CONTEXT"):
-        env["RAPHAEL_KUBE_CONTEXT"] = os.getenv("RAPHAEL_KUBE_CONTEXT")
+    env.pop("RAPHAEL_KUBE_CONTEXT", None)
+    if context:
+        env["RAPHAEL_KUBE_CONTEXT"] = context
     env["RAPHAEL_LISTEN"] = "127.0.0.1:8090"
     env["RAPHAEL_CONNECTOR_DISPATCH_URL"] = DISPATCH
     env["RAPHAEL_CONNECTOR_CONTROLLER_URL"] = "http://127.0.0.1:8090"
