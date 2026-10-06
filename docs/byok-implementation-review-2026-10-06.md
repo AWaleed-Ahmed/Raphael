@@ -60,3 +60,7 @@ Development failures were fixed before the passing runs: reused fake HTTP client
 No live Gemini key is configured in this process, so the opt-in live smoke was not run. `python -m raphael_agent.scripts.byok_smoke --live` sends only a synthetic connectivity request and reports the actual selected model. It must not be described as a successful real diagnosis or repair proof. Native provider adapters and tenant-key management remain unimplemented.
 
 Hosted core, contract and cross-repo gates are required on the updated PR head before merge. Their status/results will be linked in the delivery record. The separate real-kind remediation PR #32 is the next workstream; BYOK does not replace that proof or claim #40 is complete.
+
+## Hosted verification of implementation `fa3d024`
+
+All checks passed: [core CI 37438867760](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37438867760) (Python and exact contract snapshot) and [cross-repo 37438867823](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37438867823) (three wire scenarios, real-hook smoke, seven scored outcomes, six Secret-kind controls). A second core run also passed. External-provider success remains a mocked-transport claim; these hosted integrations keep external models disabled. No live Gemini smoke is claimed. The documentation delivery commit records this evidence before merge and its exact-head checks are also required.
