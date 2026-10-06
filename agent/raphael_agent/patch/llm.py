@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from typing import Any
 
-import httpx
+from raphael_agent.byok.client import BYOKError, complete_json
+from raphael_agent.byok.models import BYOKConfig
 
 from raphael_agent.diagnosis.config import (
-    llm_api_key,
-    llm_base_url,
     llm_diagnosis_enabled,
-    llm_model,
 )
 from raphael_agent.patch.config import allowlist_prefixes
 from raphael_agent.patch.policy import apply_policy
 from raphael_agent.schema_util import validate_agent
+from raphael_agent.secret_coverage import required_secret_gaps
 from raphael_agent.timeutil import utc_now
 
 logger = logging.getLogger(__name__)
@@ -43,10 +41,18 @@ def llm_patch_enabled() -> bool:
 
 def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
     """Optionally propose a patch via LLM. Returns policy-gated proposal or None."""
+    if run.get("status") in {"blocked", "escalated", "failed_closed"} or ((run.get("diagnosis") or {}).get("classification") or {}).get("category") == "blocked":
+        return None
+    if required_secret_gaps(run):
+        return None
     if not llm_patch_enabled():
         return None
-    key = llm_api_key()
-    if not key:
+    try:
+        config = BYOKConfig.from_env()
+    except ValueError as exc:
+        logger.warning("LLM patch configuration rejected: %s", exc)
+        return None
+    if config is None:
         logger.info("RAPHAEL_LLM_PATCH enabled but no API key; skipping LLM patch")
         return None
 
@@ -88,29 +94,8 @@ def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
         ],
         "global_allowlist": list(allowlist_prefixes()),
     }
-    body = {
-        "model": llm_model(),
-        "temperature": 0,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": _SYSTEM},
-            {"role": "user", "content": json.dumps(user_payload)},
-        ],
-    }
     try:
-        with httpx.Client(timeout=60.0) as client:
-            response = client.post(
-                f"{llm_base_url()}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                },
-                json=body,
-            )
-            response.raise_for_status()
-            data = response.json()
-        content = data["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
+        parsed = complete_json(config, system=_SYSTEM, payload=user_payload).parsed_json
         files_in = parsed.get("files") or []
         files: list[dict[str, Any]] = []
         for entry in files_in:
@@ -186,5 +171,5 @@ def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
         validate_agent("patch_proposal.json", proposal)
         return proposal
     except Exception as exc:  # noqa: BLE001 — fail closed
-        logger.warning("LLM patch failed closed: %s", exc)
+        logger.warning("LLM patch failed closed: %s", str(exc) if isinstance(exc, BYOKError) else type(exc).__name__)
         return None

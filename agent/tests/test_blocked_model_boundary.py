@@ -120,9 +120,9 @@ def test_external_llm_helper_rejects_blocked_seed_without_transport(monkeypatch,
     deterministic = diagnosis_module.diagnose(state)
     before = deepcopy(deterministic)
     transport = Mock(side_effect=AssertionError("blocked evidence sent to external LLM"))
-    monkeypatch.setattr(llm_module.httpx, "Client", transport)
+    monkeypatch.setattr(llm_module, "complete_json", transport)
     key_lookup = Mock(return_value="unit-test-only-key")
-    monkeypatch.setattr(llm_module, "llm_api_key", key_lookup)
+    monkeypatch.setattr(llm_module.BYOKConfig, "from_env", key_lookup)
     assert llm_module.try_llm_diagnosis(state, deterministic) is None
     assert deterministic == before
     key_lookup.assert_not_called()
