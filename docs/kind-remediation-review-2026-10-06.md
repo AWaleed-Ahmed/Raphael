@@ -37,3 +37,7 @@ No local kind cluster was created or destroyed. Fresh hosted controls are requir
 The `kind-remediation-<run-id>` artifact contains initial Pod/events, subsequent Pod snapshots, real dispatch/connector HTTP traces, runner outcomes, process logs, source fixture SHAs, scoped baseline metadata, catalog queries and cluster version. The existing mock and six Secret-kind controls remain separate gates.
 
 The shared wall deadline is 600 seconds in these test scenarios; lease TTL is also 600 seconds, and connector HTTP budget is extended. This is a deliberate test setting, not an implementation of Ignis #17's runtime timeout/lease coordination. Native BYOK providers, local model #40, real Supabase ingestion and broader partner-pilot gates remain separate work.
+
+## Final base reconciliation before hosted proof
+
+BYOK PR #23 merged at `9b31e52`, including its test-audit lock correction. PR #32 merged that main base while preserving both handoff/decision entries. Rechecked locally: **386 agent passed (4 existing skips), 77 dispatch passed, 10 evaluator passed, 9 kind-proof tests passed**. Actual Kubernetes controls remain pending until the new hosted gate completes.
