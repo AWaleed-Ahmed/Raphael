@@ -141,7 +141,7 @@ def main():
         dispatch_log_path.parent.mkdir(parents=True, exist_ok=True)
         dispatch_log = open(dispatch_log_path, "w", encoding="utf-8")
         dispatch = subprocess.Popen(
-            [sys.executable, str(E2E / "real_dispatch_launcher.py")],
+            [sys.executable, str(E2E / ("fixture_dispatch_launcher.py" if os.getenv("E2E_INSPECT_GATE") else "real_dispatch_launcher.py"))],
             cwd=str(ROOT), env=env, stdout=dispatch_log, stderr=subprocess.STDOUT,
         )
         processes.append(dispatch)
@@ -177,7 +177,7 @@ def main():
                 "narrowed_location": {
                     "file_path": NARROWED_LOCATION,
                 },
-                "lease_ttl_seconds": 120,
+                "lease_ttl_seconds": int(os.getenv("E2E_REAL_LEASE_TTL_SECONDS", "120")),
             },
         }
 
@@ -188,7 +188,7 @@ def main():
 
         # Wait for terminal
         print("Waiting for terminal envelope...")
-        deadline = time.time() + 180
+        deadline = time.time() + int(os.getenv("E2E_REAL_TIMEOUT_SECONDS", "180"))
         terminal = None
         while time.time() < deadline:
             records = trace_records(trace)

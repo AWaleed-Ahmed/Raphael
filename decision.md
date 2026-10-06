@@ -30,6 +30,13 @@
 
 ## Decision log (newest first)
 
+### D-20261006-02 — Scope real-kind repair proof to owned resources and verified baseline fixtures
+- **Status:** implementation under review in PR #32; fresh hosted proof required before merge.
+- **Date:** 2026-10-06
+- **Decision:** Retain current observed-target, provenance and safety gates; prove probe repair, no-provenance image refusal and image repair from a scoped baseline independently observed Ready. Use a hosted disposable cluster, exact owned namespace cleanup and tracked synthetic fixture bytes with recorded Git SHAs. Production hooks call a loopback catalog fixture through the real REST adapter.
+- **Why:** The old PR's targeting/backend fixes were superseded, its decision ID collided with existing history, and its image success claim predated enforced provenance. Shared-cluster sweeps and implicit service startup are unnecessary for hosted proof.
+- **Consequences:** Existing mock fixtures stay unchanged. A seeded catalog is not live Supabase ingestion; known-bad-image heuristic and test duration settings do not close Ignis #11/#17. See `docs/kind-remediation-review-2026-10-06.md`.
+
 ### D-20261005-02 — Validate reports at transitions and fail closed without leaking rejected values
 - **Status:** approved design; implementation under test on `fix/escalation-report-fail-closed`; not merged.
 - **Date:** 2026-10-05
