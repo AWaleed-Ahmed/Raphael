@@ -208,6 +208,11 @@ def diagnose(run: dict[str, Any]) -> dict[str, Any]:
     # Final gate also covers issue hints, learning and model-assisted results.
     from raphael_agent.image_pull import image_pull_block_reason
     image_block = image_pull_block_reason(run)
+    from raphael_agent.image_pull import image_pull_repair_allowed
+    if (result.get("classification") or {}).get("failure_class") == "bad_image_reference" and not image_pull_repair_allowed(
+        run.get("failure_signature") or {}, run.get("sandbox_backend")
+    ):
+        image_block = image_block or "image_pull_evidence_unverified"
     if image_block and result["classification"]["category"] != "blocked":
         result = _unknown_result(evidence_ids, threshold=threshold, notes=image_block)
         result["classification"].update(category="blocked", blocked_reason=image_block)

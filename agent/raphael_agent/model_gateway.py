@@ -285,6 +285,11 @@ class ModelGateway:
             return diagnosis
         raw_class = str(prediction.get("failure_class") or "")
         mapped_class = DIAGNOSIS_CLASS_MAP.get(raw_class, raw_class)
+        from raphael_agent.image_pull import image_pull_repair_allowed
+        if mapped_class == "bad_image_reference" and not image_pull_repair_allowed(
+            state.get("failure_signature") or {}, state.get("sandbox_backend")
+        ):
+            return diagnosis
         allowed = {
             "invalid_missing_config", "bad_image_reference", "probe_misconfiguration",
             "resource_constraint", "service_port_mismatch", "helm_kustomize_render_error",

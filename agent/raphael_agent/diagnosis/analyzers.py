@@ -216,6 +216,13 @@ def analyze_run(run: dict[str, Any]) -> list[AnalyzerHit]:
             hypothesis_id="hyp-image-pull-refusal", blocked_reason=image_block,
             supporting_evidence_ids=evidence_ids, analyzer_name="observed_image_pull",
         ))
+    elif (_IMAGE_RE.search(combined) or "raphael.scenario: bad-image" in manifest_text.lower()) and not (run.get("failure_signature") or {}):
+        hits.append(AnalyzerHit(
+            failure_class="unknown", category="blocked", confidence=0.99,
+            statement="Image pull text lacks verified controller evidence",
+            hypothesis_id="hyp-image-pull-unverified", blocked_reason="image_pull_evidence_unverified",
+            supporting_evidence_ids=evidence_ids, analyzer_name="observed_image_pull",
+        ))
     elif _IMAGE_RE.search(combined) or "raphael.scenario: bad-image" in manifest_text.lower():
         hits.append(
             AnalyzerHit(
