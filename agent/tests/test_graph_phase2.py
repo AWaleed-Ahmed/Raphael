@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import pytest
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 from raphael_agent.graph import initial_run_state, run_stub_graph
-from raphael_agent.graph.nodes import node_diagnose, node_patch, node_validate
+from raphael_agent.graph.nodes import node_diagnose, node_patch, node_reproduce, node_secret_coverage_gate, node_validate
 from raphael_agent.ingest import normalize_failed_run_event
 from raphael_agent.schema_util import for_run_record_validation, validate_agent
 
@@ -69,7 +70,7 @@ def test_low_confidence_escalates(monkeypatch):
     assert updates.get("escalation_report")
 
 
-def test_blocked_class_escalates(monkeypatch):
+def test_secret_required_block_preserves_specific_terminal_reason(monkeypatch):
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "0")
     state = initial_run_state(_seed(), sandbox_mode="recorded_stub")
     state["workspace_path"] = None
@@ -87,7 +88,123 @@ def test_blocked_class_escalates(monkeypatch):
     ]
     updates = node_diagnose(state)
     assert updates["status"] == "escalated"
-    assert updates["terminal_reason"] == "blocked_category"
+    assert updates["terminal_reason"] == "production_secret_required"
+    assert updates["escalation_report"]["reason_code"] == "production_secret_required"
+
+
+def test_secret_coverage_gate_escalates_before_patch_for_required_gap():
+    state = initial_run_state(_seed(), sandbox_mode="live")
+    state["secret_coverage"] = {
+        "format_version": 1,
+        "complete": True,
+        "truncated": False,
+        "references": [{"workload_kind": "Deployment", "workload_name": "api", "namespace": "sandbox", "source": "secretKeyRef", "secret_name": "payments-db", "key": "PASSWORD", "optional": False, "status": "missing_key"}],
+    }
+
+    updates = node_secret_coverage_gate(state)
+
+    assert updates["status"] == "escalated"
+    assert updates["terminal_reason"] == "unresolved_secret_dependency"
+    assert updates["escalation_report"]["reason_code"] == "unresolved_secret_dependency"
+    validate_agent("escalation_report.json", updates["escalation_report"])
+
+
+def test_secret_coverage_gate_allows_covered_and_optional_missing_references():
+    state = initial_run_state(_seed(), sandbox_mode="live")
+    state["secret_coverage"] = {
+        "format_version": 1,
+        "complete": True,
+        "truncated": False,
+        "references": [
+            {"workload_kind": "Deployment", "workload_name": "api", "namespace": "sandbox", "source": "secretKeyRef", "secret_name": "payments-db", "key": "DATABASE_URL", "optional": False, "status": "covered"},
+            {"workload_kind": "Deployment", "workload_name": "api", "namespace": "sandbox", "source": "envFrom.secretRef", "secret_name": "optional-db", "optional": True, "status": "missing_object"},
+        ],
+    }
+
+    assert node_secret_coverage_gate(state) == {}
+
+
+def test_secret_coverage_gate_does_not_treat_unknown_as_a_missing_dependency():
+    state = initial_run_state(_seed(), sandbox_mode="live")
+
+    updates = node_secret_coverage_gate(state)
+
+    assert updates == {}
+
+    state["secret_coverage"] = {
+        "format_version": 1,
+        "complete": False,
+        "truncated": True,
+        "references": [{"namespace": "sandbox", "source": "secretKeyRef", "optional": False, "status": "unknown"}],
+    }
+    assert node_secret_coverage_gate(state) == {}
+
+    state["secret_coverage"]["format_version"] = 2
+    assert node_secret_coverage_gate(state) == {}
+
+
+def test_live_reproduction_preserves_secret_coverage_report(monkeypatch):
+    report = {"format_version": 1, "complete": True, "truncated": False, "references": []}
+
+    class FakeClient:
+        def create_sandbox(self, _body):
+            return {"sandbox_id": "sb-secret"}
+
+        def deploy_revision(self, _sandbox_id, _body):
+            return {"fidelity": {"secret_coverage": report}}
+
+        def observe_failure(self, _sandbox_id, _body):
+            return {"signature": {"reproduced": True, "key": "fixture"}}
+
+    monkeypatch.setattr("raphael_agent.graph.nodes.SandboxClient", FakeClient)
+    monkeypatch.setattr("raphael_agent.graph.nodes.secret_fixture_args", lambda: {})
+    state = initial_run_state(_seed(), sandbox_mode="live")
+
+    updates = node_reproduce(state)
+
+    assert updates["secret_coverage"] == report
+
+
+@pytest.mark.parametrize("change", [
+    {"truncated": True},
+    {"format_version": True},
+    {"references": [{"status": "missing_key"}]},
+    {"references": [{"workload_kind": "Pod", "workload_name": "app", "namespace": "sandbox", "source": "secretKeyRef", "optional": False, "status": "unknown"}]},
+])
+def test_contradictory_or_malformed_coverage_cannot_trigger_refusal(change):
+    state = initial_run_state(_seed(), sandbox_mode="live")
+    state["secret_coverage"] = {
+        "format_version": 1, "complete": True, "truncated": False,
+        "references": [{"workload_kind": "Pod", "workload_name": "app", "namespace": "sandbox", "source": "secretKeyRef", "secret_name": "db", "key": "URL", "optional": False, "status": "missing_key"}],
+        **change,
+    }
+    assert node_secret_coverage_gate(state) == {}
+
+
+def test_direct_patch_entry_respects_secret_coverage_before_model_calls():
+    state = initial_run_state(_seed(), sandbox_mode="live")
+    state["secret_coverage"] = {
+        "format_version": 1, "complete": True, "truncated": False,
+        "references": [{"workload_kind": "Pod", "workload_name": "app", "namespace": "sandbox", "source": "secretKeyRef", "secret_name": "db", "key": "URL", "optional": False, "status": "missing_key"}],
+    }
+    with patch("raphael_agent.graph.nodes.ModelGateway") as gateway:
+        updates = node_patch(state)
+    assert updates["terminal_reason"] == "unresolved_secret_dependency"
+    gateway.assert_not_called()
+    assert state["attempt_count"]["patch"] == 0
+
+
+def test_available_structural_coverage_precedes_classifier_and_low_confidence():
+    state = initial_run_state(_seed(), sandbox_mode="connector")
+    state["secret_coverage"] = {
+        "format_version": 1, "complete": True, "truncated": False,
+        "references": [{"workload_kind": "Pod", "workload_name": "app", "namespace": "sandbox", "source": "secretKeyRef", "secret_name": "db", "key": "URL", "optional": False, "status": "missing_key"}],
+    }
+    diagnosis = {"classification": {"category": "unsupported"}, "hypotheses": [], "confidence": 0.1}
+    with patch("raphael_agent.graph.nodes.diagnose", return_value=diagnosis), patch("raphael_agent.graph.nodes.ModelGateway") as gateway:
+        updates = node_diagnose(state)
+    assert updates["terminal_reason"] == "unresolved_secret_dependency"
+    gateway.assert_not_called()
 
 
 def test_patch_budget_exhaust(monkeypatch):
@@ -137,6 +254,7 @@ def test_patch_budget_exhaust(monkeypatch):
     updates = node_patch(state)
     assert updates["status"] == "escalated"
     assert updates["terminal_reason"] == "budget_exhausted"
+    assert "patch_id" not in updates["escalation_report"]["attempts"][0]
 
 
 def test_validate_retry_routes_to_patch(monkeypatch):
@@ -144,6 +262,7 @@ def test_validate_retry_routes_to_patch(monkeypatch):
     state = initial_run_state(_seed(), sandbox_mode="live")
     state["status"] = "running"
     state["sandbox_id"] = "sb-test"
+    state["failure_signature"] = {"normalized": {"resource_kind": "Deployment", "resource_name": "worker-api"}}
     state["attempt_count"] = {"diagnosis": 1, "patch": 1}
     state["active_patch_id"] = "patch-1"
     state["candidate_patches"] = [
@@ -201,6 +320,7 @@ def test_validate_retry_routes_to_patch(monkeypatch):
             }
 
         def run_validation(self, *a, **k):
+            assert a[1]["plan"]["health_checks"][0]["resource"] == "deployment/worker-api"
             return {
                 "sandbox_id": "sb-test",
                 "passed": False,
@@ -228,3 +348,37 @@ def test_validate_retry_routes_to_patch(monkeypatch):
         event.get("event") == "localized_candidate_patch_match"
         for event in updates.get("audit_events") or []
     )
+
+
+def test_live_validation_repeats_use_original_observed_resource(monkeypatch):
+    monkeypatch.setenv('RAPHAEL_VALIDATION_REPEATS', '3')
+    state = initial_run_state(_seed(), sandbox_mode='live')
+    state.update(status='running', sandbox_id='sb-test', active_patch_id='patch-1',
+                 candidate_patches=[{'patch_id': 'patch-1', 'policy_status': 'allowed',
+                                     'files': [{'path': 'deploy/manifests/app.yaml', 'content': 'x: 1\n'}]}],
+                 failure_signature={'key': 'before', 'normalized': {
+                     'resource_kind': 'Deployment', 'resource_name': 'worker-api'}})
+    resources = []
+
+    class FakeClient:
+        def deploy_revision(self, *args):
+            return {}
+
+        def observe_failure(self, *args):
+            return {'signature': {'key': 'healthy', 'normalized': {
+                'resource_kind': 'Pod', 'resource_name': 'worker-api-pod'}}}
+
+        def run_validation(self, sandbox_id, body):
+            resources.append(body['plan']['health_checks'][0]['resource'])
+            return {'passed': True, 'fail_closed': False}
+
+        def finalize_result(self, *args):
+            return {'result_id': 'result-1', 'record': {}}
+
+        def destroy_sandbox(self, *args):
+            return {}
+
+    monkeypatch.setattr('raphael_agent.graph.nodes.SandboxClient', FakeClient)
+    updates = node_validate(state)
+    assert resources == ['deployment/worker-api'] * 3
+    assert updates['result_id'] == 'result-1'

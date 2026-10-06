@@ -101,27 +101,43 @@ _PRIV_BLOCK_RE = re.compile(
 )
 
 
-def _probe_from_manifest(manifest_text: str) -> AnalyzerHit | None:
-    # Find containerPort then readinessProbe.port in same container-ish window.
+def _observed_signature_key(run: dict[str, Any], failure_class: str) -> str | None:
+    signature = run.get("failure_signature") or {}
+    key = signature.get("key")
+    return key if signature.get("class") == failure_class and isinstance(key, str) and key else None
+
+
+def _probe_hit(cport: int | str, pport: int | str, expected_key: str | None) -> AnalyzerHit:
+    return AnalyzerHit(
+        failure_class="probe_misconfiguration",
+        category="supported",
+        confidence=0.93,
+        statement=f"Readiness probe port {pport} does not match containerPort {cport}",
+        hypothesis_id="hyp-probe-port",
+        expected_signature_key=expected_key,
+        candidate_fix_hint="align readinessProbe.httpGet.port with containerPort",
+        analyzer_name="manifest_probe_port",
+    )
+
+
+def _probe_from_manifest(manifest_text: str, run: dict[str, Any]) -> AnalyzerHit | None:
+    signature = run.get("failure_signature") or {}
+    if signature:
+        normalized = signature.get("normalized") or {}
+        attributes = normalized.get("attributes") or {}
+        cport, pport = attributes.get("container_port"), attributes.get("probe_port")
+        key = _observed_signature_key(run, "probe_misconfiguration")
+        if key and isinstance(cport, int) and isinstance(pport, int) and cport != pport:
+            return _probe_hit(cport, pport, key)
+        # Untargeted manifest text cannot supply attributes for an observed resource.
+        return None
     for match in re.finditer(
         r"containerPort:\s*(\d+)([\s\S]{0,500}?)readinessProbe:([\s\S]{0,200}?)port:\s*(\d+)",
-        manifest_text,
-        re.I,
+        manifest_text, re.I,
     ):
         cport, _, _, pport = match.groups()
         if cport != pport:
-            return AnalyzerHit(
-                failure_class="probe_misconfiguration",
-                category="supported",
-                confidence=0.93,
-                statement=(
-                    f"Readiness probe port {pport} does not match containerPort {cport}"
-                ),
-                hypothesis_id="hyp-probe-port",
-                expected_signature_key=f"probe_port_mismatch:payments-api:{cport}!={pport}",
-                candidate_fix_hint="align readinessProbe.httpGet.port with containerPort",
-                analyzer_name="manifest_probe_port",
-            )
+            return _probe_hit(cport, pport, None)
     return None
 
 
@@ -162,22 +178,19 @@ def analyze_run(run: dict[str, Any]) -> list[AnalyzerHit]:
             )
         )
 
-    probe_hit = _probe_from_manifest(manifest_text)
+    probe_hit = _probe_from_manifest(manifest_text, run)
     if probe_hit:
         probe_hit.supporting_evidence_ids = evidence_ids
         hits.append(probe_hit)
     elif _PROBE_RE.search(blob) or "probe_port_mismatch" in combined:
-        port_match = _PROBE_PORT_MISMATCH_RE.search(manifest_text) or _PROBE_PORT_MISMATCH_RE.search(
-            blob
-        )
+        port_match = _PROBE_PORT_MISMATCH_RE.search(blob) if not run.get("failure_signature") else None
         stmt = "Readiness/liveness probe misconfiguration indicated by evidence"
-        expected = "probe_port_mismatch:payments-api"
+        expected = _observed_signature_key(run, "probe_misconfiguration")
         conf = 0.86
         if port_match:
             groups = [g for g in port_match.groups() if g]
             if len(groups) >= 2:
                 stmt = f"Probe port mismatch involving ports {groups[0]} and {groups[1]}"
-                expected = f"probe_port_mismatch:payments-api:{groups[0]}!={groups[1]}"
                 conf = 0.9
         hits.append(
             AnalyzerHit(
@@ -201,7 +214,7 @@ def analyze_run(run: dict[str, Any]) -> list[AnalyzerHit]:
                 confidence=0.9,
                 statement="Container image reference is missing or pull failed",
                 hypothesis_id="hyp-bad-image",
-                expected_signature_key="bad_image_reference:payments-api",
+                expected_signature_key=_observed_signature_key(run, "bad_image_reference"),
                 candidate_fix_hint="restore known-good image tag",
                 supporting_evidence_ids=evidence_ids,
                 analyzer_name="evidence_image",
@@ -216,7 +229,7 @@ def analyze_run(run: dict[str, Any]) -> list[AnalyzerHit]:
                 confidence=0.88,
                 statement="ConfigMap key referenced by the workload is missing",
                 hypothesis_id="hyp-missing-configmap-key",
-                expected_signature_key="invalid_missing_config:payments-api",
+                expected_signature_key=_observed_signature_key(run, "invalid_missing_config"),
                 candidate_fix_hint="add missing ConfigMap key or fix key reference",
                 supporting_evidence_ids=evidence_ids,
                 analyzer_name="evidence_configmap",

@@ -9,6 +9,9 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/tools/report_audit
+      RAPHAEL_REPORT_AUDIT_FILE: ${{ github.workspace }}/report-audit.jsonl
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,6 +27,15 @@ jobs:
       - name: Test dispatch
         working-directory: dispatch
         run: python -m pytest -q
+      - name: Summarize persistence schema audit
+        if: always()
+        run: python tools/report_audit/escalation_report_audit.py report-audit.jsonl > report-audit-summary.json
+      - name: Upload persistence schema audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persistence-audit-${{ github.run_id }}
+          path: report-audit*.json*
 
   contracts:
     runs-on: ubuntu-latest

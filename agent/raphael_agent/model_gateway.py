@@ -273,7 +273,9 @@ class ModelGateway:
         if not prediction or prediction.get("abstained"):
             return diagnosis
         classification = diagnosis.get("classification") or {}
-        if classification.get("category") in {"supported", "blocked"} and diagnosis.get("selected_hypothesis_id"):
+        if classification.get("category") == "blocked":
+            return diagnosis
+        if classification.get("category") == "supported" and diagnosis.get("selected_hypothesis_id"):
             return diagnosis
         raw_class = str(prediction.get("failure_class") or "")
         mapped_class = DIAGNOSIS_CLASS_MAP.get(raw_class, raw_class)

@@ -17,22 +17,83 @@ on:
   workflow_dispatch:
     inputs:
       ignis_ref:
-        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.1.1)"
+        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.3.0)"
         required: false
         type: string
+      crlf_checkouts:
+        description: "Exercise Windows-style fixture checkout line endings"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
+  secret-fixture-kind:
+    name: Secret fixture propagation (disposable kind)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Narrow proof only. Never load a customer kubeconfig or publish to GitHub.
+      # Immutable implementation and public schema release.
+      IGNIS_REF: contracts-v1.3.0
+      E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
+      RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
+      RAPHAEL_PARTNER_MODE: dry_run
+      RAPHAEL_PUBLISH_MODE: dry_run
+      GITHUB_TOKEN: ""
+      RAPHAEL_GITHUB_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Raphael
+        run: python -m pip install -e agent -e dispatch
+      - uses: actions/checkout@v4
+        with:
+          repository: AWaleed-Ahmed/Ignis
+          ref: ${{ env.IGNIS_REF }}
+          path: ignis
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build real Ignis
+        run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
+      - name: Create disposable kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: raphael-fixture-proof
+          wait: 120s
+      - name: Preload test workload image
+        run: |
+          docker pull busybox:1.37.0
+          kind load docker-image busybox:1.37.0 --name raphael-fixture-proof
+          docker pull busybox:1.36.1
+          kind load docker-image busybox:1.36.1 --name raphael-fixture-proof
+      - name: Prove fixture consumption and missing-fixture control
+        run: python -u e2e/run_secret_fixture_kind.py
+      - name: Upload fixture proof and real HTTP traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-fixture-kind-${{ github.run_id }}
+          path: e2e/kind-fixture-out/
+          if-no-files-found: warn
+      - name: Destroy disposable cluster
+        if: always()
+        run: kind delete cluster --name raphael-fixture-proof
+
   e2e:
     name: Ignis mock backend + Raphael dispatch
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # Scheduled and Raphael-originated runs use the currently pinned public contract.
+      # Test-only audit follows real dispatch subprocesses across all seven evals.
+      PYTHONPATH: ${{ github.workspace }}/tools/report_audit
+      RAPHAEL_REPORT_AUDIT_FILE: ${{ github.workspace }}/evals/out/report-audit.jsonl
+      # Scheduled and Raphael-originated runs use the pinned Ignis implementation release.
       # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
-      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.1.1' }}
+      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.3.0' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -93,6 +154,14 @@ jobs:
       - name: Build Ignis controller and embedded connector
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
 
+      # Disposable hosted runner only; production/user Git settings are untouched.
+      # Set after source checkout so only harness fixture clones exercise CRLF.
+      - name: Force CRLF fixture checkouts
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: |
+          git config --global core.autocrlf true
+          git config --global --get core.autocrlf
+
       - name: Run three-scenario wire-protocol harness
         shell: bash
         run: |
@@ -116,6 +185,14 @@ jobs:
           set -o pipefail
           python -m unittest evals.test_run_evals
           python evals/run_evals.py 2>&1 | tee evals/evaluation.log
+
+      - name: Verify LF wire content under CRLF checkout settings
+        if: ${{ inputs.crlf_checkouts == true }}
+        run: python -m evals.verify_rendered_lf
+
+      - name: Summarize persisted report audit
+        if: always()
+        run: python tools/report_audit/escalation_report_audit.py evals/out/report-audit.jsonl > evals/out/report-audit-summary.json
 
       - name: Upload E2E traces and process logs
         if: always()

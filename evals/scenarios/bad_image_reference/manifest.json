@@ -2,26 +2,43 @@
   "schema_version": "1.0",
   "scenario_id": "bad_image_reference",
   "fixture": {
-    "repository": "AWaleed-Ahmed/raphael-bad-image-fixture",
-    "clone_url": "https://github.com/AWaleed-Ahmed/raphael-bad-image-fixture.git",
-    "commit_sha": "ea4c898f0a66d7c98a8cad956793d54ede223cfb"
+    "repository": "AmazingDude/raphael-e2e-fixture",
+    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
+    "commit_sha": "fafa6bcb0f758b7fdf082770151e2752f8f15d00"
   },
-  "trigger": { "kind": "connector_job", "source": "evals/run_evals.py" },
-  "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },
+  "trigger": {
+    "kind": "connector_job",
+    "source": "evals/run_evals.py"
+  },
+  "narrowed_location": {
+    "file_path": "deploy/manifests/app.yaml"
+  },
   "expected": {
     "failure_class": "bad_image_reference",
-    "terminal_status": "fix_finalized",
-    "patch_scope": {
-      "allowed_file_paths": ["deploy/manifests/app.yaml"],
-      "required_content": ["image: hashicorp/http-echo:1.0"],
-      "required_changed_line_fragments": ["-          image: ghcr.io/acme/payments-api:does-not-exist", "+          image: hashicorp/http-echo:1.0"],
-      "max_changed_lines": 2
-    }
+    "terminal_status": "escalated",
+    "terminal_reason": "patch_value_unavailable"
   },
   "required_evidence": {
     "pre_fix_signature": true,
-    "validation": { "passed": true, "signature_cleared": true },
-    "terminal_instruction": "discard_local_copy"
+    "validation": {
+      "attempted": false
+    },
+    "terminal_instruction": "discard_local_copy",
+    "no_candidate_patch": true,
+    "no_publish": true,
+    "escalation_report": {
+      "reason_code": "patch_value_unavailable",
+      "required_fields": [
+        "what_happened",
+        "evidence_ids",
+        "hypotheses_considered",
+        "why_no_fix",
+        "recommended_next_checks"
+      ],
+      "contains": [
+        "No verified healthy image"
+      ]
+    }
   },
-  "category": "positive_remediation"
+  "category": "expected_escalation"
 }

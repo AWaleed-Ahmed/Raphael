@@ -20,6 +20,14 @@
       "type": "string",
       "enum": [
         "insufficient_evidence",
+        "production_secret_required",
+        "privileged_or_host_access",
+        "diagnosis_only",
+        "unresolved_secret_dependency",
+        "escalation_report_invalid",
+        "patch_target_unavailable",
+        "patch_value_unavailable",
+        "patch_unavailable",
         "low_confidence",
         "blocked_category",
         "reproduction_failed",
@@ -71,7 +79,7 @@
           },
           "status": {
             "type": "string",
-            "enum": ["skipped", "failed", "blocked", "partial"]
+            "enum": ["skipped", "failed", "blocked", "partial", "completed"]
           },
           "detail": { "type": "string" },
           "patch_id": { "type": "string" }
