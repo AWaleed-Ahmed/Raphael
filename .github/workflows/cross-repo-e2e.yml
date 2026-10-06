@@ -37,7 +37,8 @@ jobs:
     env:
       # Narrow proof only. Never load a customer kubeconfig or publish to GitHub.
       # Immutable implementation and public schema release.
-      IGNIS_REF: contracts-v1.3.0
+      # Review this paired feature against its exact Ignis candidate; other runs retain the release.
+      IGNIS_REF: ${{ (github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662' || 'contracts-v1.3.0' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
       RAPHAEL_PARTNER_MODE: dry_run
@@ -88,7 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      IGNIS_REF: contracts-v1.3.0
+      # Review this paired feature against its exact Ignis candidate; other runs retain the release.
+      IGNIS_REF: ${{ (github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662' || 'contracts-v1.3.0' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -143,7 +145,7 @@ jobs:
       RAPHAEL_REPORT_AUDIT_FILE: ${{ github.workspace }}/evals/out/report-audit.jsonl
       # Scheduled and Raphael-originated runs use the pinned Ignis implementation release.
       # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
-      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || 'contracts-v1.3.0' }}
+      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || (github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662' || 'contracts-v1.3.0' }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
