@@ -45,3 +45,16 @@ These are Python syntax checks only, not dependency/import or behavioral checks.
 
 All cases are planned, not executed. Do not call #11 complete until the paired runtime/consumer proofs pass and rollout is documented.
 
+
+## Follow-up review fixes and CI qualification
+
+- `0c99428`: verified structured image evidence selects the supported hypothesis even with no matching evidence text.
+- `ed19ed7`: durable RunRecord now admits the controller-reported backend; schema/code escalation vocabularies include the four image-pull refusal reasons.
+- `47bb7d7`: update positive provenance/template fixtures for verified runtime evidence; add six direct-gate regressions for non-absence causes, legacy signatures and mock backend impersonation.
+- `6d5dfee`: this paired feature's three integration jobs use exact Ignis candidate `b71e781b7f93246f271bb15df8efa2c0fda8e662`; other runs retain the released runtime. Published Ignis contract snapshots/pins are unchanged.
+
+Final local agent suite: **396 passed, 4 skipped**. Dispatch: **77 passed**. Rust candidate: **66 passed**. All suites used this feature's code; loopback fixtures required execution outside the restricted sandbox. An initial combined Python invocation had conflicting `tests.conftest` packages, so suites were run independently. Initial agent failures exposed the missing durable backend schema, refusal vocabulary and legacy image fixtures; these were fixed, then the complete agent suite passed. No failures were disabled.
+
+These results do not establish live provider, registry, Supabase or kind behavior. Existing hosted mock/Secret-kind/image-provenance-kind jobs are the next proof. A registry-denial live control and production short-lease heartbeat controls are still pending. The Ignis candidate inherits incomplete #17; do not close #17 or claim that heartbeat coordination is implemented.
+
+Merge-tree comparison against fetched Raphael main is conflict-free. The paired PR is for review only at this stage; no automatic merge, release or issue closure. The PR-scoped runtime override must be replaced with an authorized rollout/pin update before relying on post-merge runs, which otherwise retain the older release.
