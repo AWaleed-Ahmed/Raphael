@@ -10,10 +10,23 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from raphael_agent.budgets import check_budgets, max_patch_attempts_budget, sandbox_http_timeout_seconds
-from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
+from raphael_agent.evidence.redaction import redact_evidence_item, redact_text
+from raphael_agent.evidence.boundary import bounded_evidence, redact_manifest, redact_value, MAX_ITEMS
+from raphael_agent.graph.nodes import (
+    node_diagnose,
+    node_localize,
+    node_patch,
+    node_publish_or_escalate,
+    node_secret_coverage_gate,
+)
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
+from raphael_agent.sandbox_config import secret_fixture_args
+from raphael_agent.validation import rollout_resource
+from raphael_agent.store.patch_content import without_patch_content
+from raphael_agent.escalation_validation import escalation_failure_updates
 
+from .patch_store import EphemeralPatchStore
 from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, get_schemas
 
 
@@ -45,11 +58,13 @@ class Orchestrator:
     store: RunStore | None = None
     hooks: AgentHooks | None = None
     clock: Callable[[], datetime] | None = None
+    patch_store: EphemeralPatchStore | None = None
 
     def __post_init__(self) -> None:
         self.store = self.store or RunStore()
         self.hooks = self.hooks or AgentHooks()
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
+        self.patch_store = self.patch_store or EphemeralPatchStore()
         self.jobs: dict[str, dict[str, Any]] = {}
 
     @staticmethod
@@ -93,8 +108,19 @@ class Orchestrator:
             if self._lease_is_expired(state, current):
                 terminals.append(self._expire_lease(state))
                 continue
+            if state["dispatch"].get("patch_payloads_omitted"):
+                terminals.append(self._lost_patch_context(state))
+                continue
             self.jobs.setdefault(state["run_id"], state)
         return terminals
+
+    def _lost_patch_context(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Never replay metadata as though it were the original executable patch."""
+        state["status"] = "failed_closed"
+        state["terminal_reason"] = "patch_context_lost_on_restart"
+        terminal = self._terminal(state, "failed")
+        self._save(state)
+        return terminal
 
     def _now(self) -> str:
         return self.clock().astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -128,11 +154,16 @@ class Orchestrator:
         return {"owner": owner, "name": name, "clone_url": clone_url}
 
     def _save(self, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            self._terminal(state, "failed")
         state["updated_at"] = self._now()
         assert self.store is not None
-        self.store.save_run(dict(state))
+        durable = {k: v for k, v in state.items() if k != "rendered_files"}
+        self.store.save_run(durable)
 
-    def _state_for_job(self, job: dict[str, Any]) -> dict[str, Any]:
+    def _state_for_job(self, job: dict[str, Any], *, initial_evidence: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         job_id = job["job_id"]
         repository = self._repository(job)
         narrowed = dict(job["narrowed_location"])
@@ -148,14 +179,23 @@ class Orchestrator:
         state = dict(initial_run_state(seed, sandbox_mode="connector"))
         state["narrowed_location"] = narrowed
         state["evidence"] = [
-            {
-                "evidence_id": f"job-context:{job_id}",
-                "kind": "other",
-                "summary": "narrowed_location=" + json.dumps(narrowed, sort_keys=True),
-                "redacted": True,
-            }
+            redact_evidence_item(
+                {
+                    "evidence_id": f"job-context:{job_id}",
+                    "kind": "other",
+                    "source": {"system": "other", "ref": job_id},
+                    "summary": "narrowed_location=" + json.dumps(narrowed, sort_keys=True),
+                    "redacted": False,
+                    "provenance": {"collector": "dispatch", "query": "connector job context"},
+                    "collected_at": self._now(),
+                }
+            ),
+            *self._sanitize_initial_evidence(initial_evidence or []),
         ]
         state["dispatch"] = {
+            # Snapshot operator selection at intake so retries/restarts cannot
+            # silently switch fixture sets when process configuration changes.
+            **secret_fixture_args(),
             "stage": "create_sandbox",
             "pending_action": None,
             "processed_actions": {},
@@ -164,7 +204,13 @@ class Orchestrator:
         }
         return state
 
-    def intake(self, job_envelope: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+    def intake(
+        self,
+        job_envelope: dict[str, Any],
+        *,
+        tenant_id: str | None = None,
+        initial_evidence: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         get_schemas().validate_envelope(job_envelope)
         if job_envelope.get("kind") != "job":
             raise OrchestrationError("job intake requires a job envelope")
@@ -180,11 +226,13 @@ class Orchestrator:
         if existing is not None:
             if tenant_id and existing.get("tenant_id") != tenant_id:
                 raise OrchestrationError("job_id belongs to a different tenant")
+            if existing.get("dispatch", {}).get("patch_payloads_omitted"):
+                return {"messages": [self._lost_patch_context(existing)], "idempotent_replay": True}
             pending = existing.get("dispatch", {}).get("pending_action")
             messages = [pending] if pending else []
             return {"messages": messages, "idempotent_replay": True}
 
-        state = self._state_for_job(job)
+        state = self._state_for_job(job, initial_evidence=initial_evidence)
         if tenant_id:
             state["tenant_id"] = tenant_id
         self.jobs[job_id] = state
@@ -227,18 +275,37 @@ class Orchestrator:
 
         dispatch["last_activity_at"] = self._now()
         stage = dispatch["stage"]
-        if payload["status"] != "ok":
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            messages = [self._terminal(state, "failed")]
+        elif payload["status"] != "ok":
             messages = self._handle_failed_result(state, stage, payload)
         elif stage == "create_sandbox":
             messages = self._after_create(state, payload)
         elif stage == "deploy_initial":
             self._record_rendered_files(state, payload)
             messages = [self._issue_action(state, "observe_failure", {"timeout_seconds": self._capped_timeout(90)})]
+        elif stage == "refresh_patch_input":
+            self._record_rendered_files(state, payload)
+            if not self.patch_store.get_manifests(job_id):
+                state["status"] = "escalated"
+                state["terminal_reason"] = "patch_input_unavailable"
+                messages = [self._terminal(state, "escalated")]
+            else:
+                messages = self._prepare_patch(state)
         elif stage == "observe_failure":
             messages = self._after_observe(state, payload)
         elif stage == "deploy_patch":
             self._record_rendered_files(state, payload)
-            messages = [self._issue_action(state, "run_validation", self._validation_args(state))]
+            try:
+                validation_args = self._validation_args(state)
+            except ValueError:
+                state["status"] = "failed_closed"
+                state["terminal_reason"] = "validation_identity_unavailable"
+                messages = [self._terminal(state, "failed")]
+            else:
+                messages = [self._issue_action(state, "run_validation", validation_args)]
         elif stage == "run_validation":
             result = payload.get("result") or {}
             if result.get("passed") is False or result.get("fail_closed") is True:
@@ -285,6 +352,10 @@ class Orchestrator:
         return terminals
 
     def _issue_action(self, state: dict[str, Any], verb: str, args: dict[str, Any]) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return self._terminal(state, "failed")
         if verb not in ALLOWED_VERBS:
             raise OrchestrationError(f"unsupported action verb: {verb}")
         halt = check_budgets(state, node=verb)
@@ -308,6 +379,10 @@ class Orchestrator:
         return action
 
     def _terminal(self, state: dict[str, Any], final_status: str) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            final_status = "failed"
         payload = {
             "job_id": state["run_id"],
             "final_status": final_status,
@@ -316,13 +391,23 @@ class Orchestrator:
         terminal = self._envelope(job_id=state["run_id"], kind="terminal", payload=payload)
         state["dispatch"]["pending_action"] = None
         state["dispatch"]["stage"] = "terminal"
+        state["dispatch"].pop("patch_payloads_omitted", None)
         state["status"] = "success_draft_pr_ready" if final_status == "fix_finalized" else state.get("status", "failed_closed")
         if final_status != "fix_finalized" and state.get("terminal_reason") is None:
             state["terminal_reason"] = "dispatch_terminal"
+        if self.patch_store is not None:
+            self.patch_store.purge(state["run_id"])
+        # Publication has finished (or the job has stopped). Drop raw output
+        # copies too, including rejected proposals and finalized patch records.
+        for key in ("candidate_patches", "validated_fix_record"):
+            if key in state:
+                state[key] = without_patch_content(state[key])
         return terminal
 
     def _create_args(self, state: dict[str, Any]) -> dict[str, Any]:
         return {
+            **({"secret_fixture_set": state["dispatch"]["secret_fixture_set"]}
+               if state["dispatch"].get("secret_fixture_set") else {}),
             "run_id": state["run_id"],
             "tenant_id": state["tenant_id"],
             "repository": state["repository"],
@@ -364,7 +449,7 @@ class Orchestrator:
         plan: dict[str, Any] = {
             "commands": [],
             "health_checks": [
-                {"type": "rollout", "resource": "deployment/target", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
+                {"type": "rollout", "resource": rollout_resource(signature), "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
                 {"type": "signature_absent", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
             ],
         }
@@ -372,32 +457,131 @@ class Orchestrator:
             plan["compare_to_signature_key"] = signature["key"]
         return {"plan": plan}
 
-    @staticmethod
-    def _record_rendered_files(state: dict[str, Any], payload: dict[str, Any]) -> None:
-        rendered = (payload.get("result") or {}).get("rendered_files")
+    def _record_rendered_files(self, state: dict[str, Any], payload: dict[str, Any]) -> None:
+        result = payload.get("result") or {}
+        fidelity = result.get("fidelity") or {}
+        report = fidelity.get("secret_coverage") if isinstance(fidelity, dict) else None
+        if isinstance(report, dict) and state.get("dispatch", {}).get("stage") == "deploy_initial":
+            state["secret_coverage"] = report
+        rendered = result.get("rendered_files")
         if isinstance(rendered, list):
-            state["rendered_files"] = rendered
+            assert self.patch_store is not None
+            self.patch_store.save_manifests(state["run_id"], rendered)
+            state["dispatch"]["requires_patch_input"] = True
+            if state["dispatch"].get("stage") == "deploy_initial":
+                # Save only this bounded, redacted copy before observation.
+                # Restart may lose patch bytes, but must not lose safety context.
+                state["evidence"] = list(state.get("evidence") or []) + self._rendered_diagnosis_evidence(state)
+
+    @staticmethod
+    def _redact_value(value: Any) -> Any:
+        """Redact string leaves before connector observations reach run state."""
+        if isinstance(value, str):
+            return redact_text(value)[0]
+        if isinstance(value, list):
+            return [Orchestrator._redact_value(item) for item in value]
+        if isinstance(value, dict):
+            return redact_value(value)
+        return value
+
+    def _sanitize_initial_evidence(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Accept bridge-only evidence defensively; it never enters the public job envelope."""
+        sanitized: list[dict[str, Any]] = []
+        for index, item in enumerate(items[:MAX_ITEMS]):
+            if not isinstance(item, dict):
+                continue
+            source = item.get("source") if isinstance(item.get("source"), dict) else {}
+            provenance = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
+            candidate: dict[str, Any] = {
+                "evidence_id": str(item.get("evidence_id") or f"bridge-evidence:{index}"),
+                "kind": str(item.get("kind") or "other"),
+                "source": {"system": str(source.get("system") or "other")},
+                "redacted": False,
+                "provenance": {
+                    "collector": str(provenance.get("collector") or "ingest-bridge"),
+                    "query": str(provenance.get("query") or "same-process ingest evidence"),
+                },
+                "collected_at": str(item.get("collected_at") or self._now()),
+            }
+            if isinstance(source.get("ref"), str):
+                candidate["source"]["ref"] = source["ref"]
+            for key in ("summary", "content_excerpt"):
+                if isinstance(item.get(key), str):
+                    candidate[key] = item[key]
+            sanitized.append(redact_evidence_item(candidate))
+        return bounded_evidence(sanitized)
+
+    @staticmethod
+    def _path_is_in_scope(path: str, narrowed_path: str) -> bool:
+        narrowed = narrowed_path.strip("/") or "."
+        candidate = path.strip("/")
+        if ".." in path.replace("\\", "/").split("/") or path.startswith(("/", "\\")):
+            return False
+        return narrowed == "." or candidate == narrowed or candidate.startswith(narrowed + "/")
+
+    def _rendered_diagnosis_evidence(self, state: dict[str, Any]) -> list[dict[str, Any]]:
+        """Expose only bounded, redacted manifest excerpts to diagnosis."""
+        narrowed = str((state.get("narrowed_location") or {}).get("file_path") or ".")
+        evidence: list[dict[str, Any]] = []
+        assert self.patch_store is not None
+        for index, item in enumerate(self.patch_store.get_manifests(state["run_id"])):
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path")
+            content = item.get("content")
+            if not isinstance(path, str) or not isinstance(content, str) or not self._path_is_in_scope(path, narrowed):
+                continue
+            safe_content = redact_manifest(content)
+            evidence.append(
+                redact_evidence_item(
+                    {
+                        "evidence_id": f"rendered-file:{state['run_id']}:{index}",
+                        "kind": "manifest",
+                        "source": {"system": "sandbox", "ref": path},
+                        "summary": f"Rendered manifest: {path}",
+                        "content_excerpt": safe_content,
+                        "redacted": safe_content != content,
+                        "provenance": {"collector": "dispatch", "query": "deploy_revision rendered_files"},
+                        "collected_at": self._now(),
+                    }
+                )
+            )
+            if len(evidence) >= MAX_ITEMS:
+                break
+        return bounded_evidence(evidence)
+
+    @staticmethod
+    def _observation_evidence(action_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        """Create connector observation evidence with an honest redaction marker."""
+        evidence = redact_evidence_item(
+            {
+                "evidence_id": f"connector-result:{action_id}",
+                "kind": "artifact",
+                "summary": json.dumps(result, sort_keys=True),
+                # The redaction helper changes this only when it actually redacts text.
+                "redacted": redact_value(result) != result,
+            }
+        )
+        evidence["summary"] = json.dumps(redact_value(result), sort_keys=True)
+        return bounded_evidence([evidence])[0]
 
     def _after_observe(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}
-        signature = result.get("signature")
-        state["failure_signature"] = signature or {}
+        signature = redact_value(result.get("signature"))
+        state["failure_signature"] = self._redact_value(signature or {})
         state["reproduction_result"] = {
-            "reproduced": bool(signature),
+            "reproduced": bool(signature and signature.get("reproduced")),
             "signature_key": (signature or {}).get("key"),
-            "message": "connector observation received",
+            "message": "connector observation received" if signature else "failure not reproduced in sandbox",
         }
-        state["evidence"] = list(state.get("evidence") or []) + [
-            {
-                "evidence_id": f"connector-result:{payload['action_id']}",
-                "kind": "artifact",
-                "summary": json.dumps(result, sort_keys=True),
-                "redacted": True,
-            }
-        ]
+        observation_evidence = self._observation_evidence(payload["action_id"], result)
+        state["evidence"] = list(state.get("evidence") or []) + [observation_evidence]
         self._run_node(self.hooks.diagnose, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
+        state.update(node_secret_coverage_gate(state))
+        if state.get("status") == "escalated":
+            return [self._terminal(state, "escalated")]
         self._run_node(self.hooks.localize, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
@@ -409,7 +593,21 @@ class Orchestrator:
             state["status"] = halt["terminal"]
             state["terminal_reason"] = halt["reason_code"]
             return [self._terminal(state, "escalated")]
-        self._run_node(self.hooks.patch, state)
+        patch_context = dict(state)
+        assert self.patch_store is not None
+        manifests = self.patch_store.get_manifests(state["run_id"])
+        if state["dispatch"].get("requires_patch_input") and not manifests:
+            # Rehydration preserves the observation action. Once it completes,
+            # reacquire the original revision in the same sandbox before patching.
+            action = self._issue_action(state, "deploy_revision", self._deploy_args(state))
+            if action["kind"] == "action":
+                state["dispatch"]["stage"] = "refresh_patch_input"
+            return [action]
+        if manifests:
+            patch_context["rendered_files"] = manifests
+        self._run_node(self.hooks.patch, patch_context)
+        patch_context.pop("rendered_files", None)
+        state.update(patch_context)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
         active = state.get("active_patch_id")
@@ -464,6 +662,11 @@ class Orchestrator:
 
     @staticmethod
     def _run_node(node: Node, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return
         updates = node(state)
         if updates:
             state.update(updates)
+        state.update(escalation_failure_updates(state))

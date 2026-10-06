@@ -88,3 +88,23 @@ def test_escalation_report_schema():
             "escalated_at": now,
         },
     )
+
+
+def test_escalation_report_schema_accepts_existing_block_reasons_and_completed_attempts():
+    from raphael_agent.graph.nodes import _escalation
+
+    for reason in (
+        "production_secret_required",
+        "privileged_or_host_access",
+        "diagnosis_only",
+        "unresolved_secret_dependency",
+    ):
+        report = _escalation(
+            {},
+            reason_code=reason,
+            summary="review required",
+            what_happened="A safe automatic fix is unavailable",
+            why_no_fix="Required evidence is incomplete",
+            attempts=[{"kind": "other", "status": "completed", "detail": reason}],
+        )
+        validate_agent("escalation_report.json", report)

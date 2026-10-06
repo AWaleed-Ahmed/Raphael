@@ -1,0 +1,63 @@
+# Raphael Evaluation Harness
+
+`evals/` turns the known scenarios from `prd.md` §17 into versioned,
+machine-scored runs. It invokes `e2e/run_real_job.py` for each manifest, so
+dispatch and the external Ignis binary remain real subprocesses and retain the
+same dry-run-only safety controls as the cross-repository E2E workflow.
+
+## Run
+
+```bash
+export E2E_IGNIS_BIN=/absolute/path/to/raphael-sandbox-controller
+python evals/run_evals.py
+```
+
+Results, runner logs, and ordered HTTP traces are written under `evals/out/`
+by default. Set `EVAL_OUTPUT_DIR` to choose another artifact directory, or use
+`--scenario <id>` to run one versioned scenario.
+
+The manifests pin an external fixture repository and a full commit SHA; no
+fixture source is copied into this private repository.
+
+Refusal scenarios are first-class evaluations. They can assert a precise
+terminal reason, escalation-report fields, no patch/publish outcome, forbidden
+patch content, and absence of named secret payloads. An adversarial manifest
+may declare `equivalent_to_scenario`; the runner then executes its baseline and
+requires identical classification, confidence, generated patch delta, and
+terminal outcome.
+
+All seven current scenarios are active after real-hook/mock-backend verification.
+The seventh pins a two-Deployment fixture: the first is healthy and the second
+has a readiness-probe port mismatch. Its patch scope requires exactly the
+second Deployment's `9090` to `8080` change in the single manifest file.
+The pre-strict-targeting runner (`db7ee90`) escalated after three empty-marker
+patch attempts against this same fixture SHA; main after PR #35 finalized with
+only those two changed lines. This is a local real-process red/green proof,
+not yet a hosted CI result. Forbidden-patch rejection remains deferred under
+PRD §17.8, not silently counted as coverage.
+
+The original missing-ConfigMap fixture is now an expected escalation, not a
+positive fix: it identifies the missing key but supplies no trustworthy value
+to insert. The prior mock validation accepted an invented database URL. See
+D-20260930-01. The bad-image fixture also now expects escalation: it has no verified last-known-good container image provenance. Positive image replacement is covered by controlled agent tests; this harness does not claim a successful image repair.
+
+Future scenarios marked `blocked_pending_evidence_boundary` remain excluded
+from default and CI execution. An explicit `--verify-blocked --scenario <id>`
+can gather proof before activation; its report is marked verification-only.
+Ordinary explicit selection of a blocked case fails loudly. Reproduction
+assertions inspect the signature's boolean `reproduced` flag, not merely the
+presence of a signature object (healthy observations also have signatures).
+
+## CRLF render regression
+
+The existing cross-repository workflow accepts `crlf_checkouts=true` on manual
+runs. On that disposable runner only, it sets global Git `core.autocrlf=true`
+after source checkout, so the real harness fixture clones exercise Windows-style
+line endings. Use `ignis_ref` to pin the exact candidate commit.
+
+After the unchanged harness and evaluations run, `python -m evals.verify_rendered_lf`
+checks rendered content for all three pinned fixtures, patch content for the
+probe fix, and absence of patches for missing-config and unprovenanced bad-image. Missing or
+unexpected evidence or any CRLF content fails loudly; successful checks
+write `evals/out/line-endings.json`, included in the existing artifact upload.
+This complements, rather than weakens, the scorer's inflated-diff rejection test.

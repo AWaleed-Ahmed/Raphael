@@ -112,7 +112,20 @@ class TestSubmitToDispatch:
         bridge_mod.set_orchestrator(orch)
 
         seed = _make_seed()
-        run = {"run_id": seed["run_id"], "status": "pending"}
+        run = {
+            "run_id": seed["run_id"],
+            "status": "pending",
+            "evidence": [
+                {
+                    "evidence_id": "webhook-log",
+                    "kind": "ci_log",
+                    "summary": "token: BRIDGESECRET123",
+                    "source": {"system": "github_actions", "ref": "run/1"},
+                    "provenance": {"collector": "webhook", "query": "workflow_run"},
+                    "collected_at": "2026-09-21T00:00:00Z",
+                }
+            ],
+        }
         result = submit_to_dispatch(seed, run)
 
         assert result["submitted"] is True
@@ -125,6 +138,9 @@ class TestSubmitToDispatch:
         jobs = orch.tenant_jobs("test-tenant")
         assert len(jobs) == 1
         assert jobs[0]["run_id"] == result["dispatch_job_id"]
+        bridged_evidence = next(item for item in jobs[0]["evidence"] if item["evidence_id"] == "webhook-log")
+        assert bridged_evidence["redacted"] is True
+        assert "BRIDGESECRET123" not in bridged_evidence["summary"]
 
     def test_missing_clone_url_skips_gracefully(self):
         seed = _make_seed(clone_url=None)

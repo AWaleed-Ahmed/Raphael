@@ -6,6 +6,15 @@
 **Initial platform:** Kubernetes, GitHub, and GitHub Actions  
 **Delivery model:** Two-person engineering team
 
+> **Current implementation:** See [handoff.md](handoff.md) for verified status, proof limits, open work, and contributor setup (updated 2026-10-04). This document specifies intended product behavior; requirements and historical delivery notes are not blanket claims of completion. Two remediation classes have fixture proofs to `fix_finalized` (probe and pattern-matched bad image); missing-config is a proven refusal, not a third safe automated fix.
+
+**Known gaps against this spec:**
+
+- Structural Secret-dependency coverage: [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30); current refusal depends on an explicit textual signal.
+- Signature identity and trustworthy replacement-image provenance: [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33), [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34); registry-backed detection: [Ignis #11](https://github.com/AWaleed-Ahmed/Ignis/issues/11).
+- Trained-model runtime and empirical confidence/localization/learning proof: [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40), §§17.4, 17.6, 17.8. Forbidden-patch safety remains gated by §17.8.
+- General real-Kubernetes qualification, drift-input authorization, and the real partner pilot remain open; the hosted kind proof is limited to synthetic Secret consumption and image digests. See [handoff's scoped proof/work list](handoff.md#proven-today-with-limits).
+
 ## 1. Executive Summary
 
 Raphael is a self-healing deployment agent that observes failed CI/CD runs and unhealthy Kubernetes workloads, investigates the failure using deployment context and runtime evidence, reproduces it in an isolated sandbox, proposes a minimal code or configuration fix, validates the fix, and opens a pull request containing the change, evidence, risk assessment, and rationale.
@@ -207,6 +216,10 @@ If the evidence is insufficient, reproduction fails, confidence is below thresho
 | FR-036 | Destroy or expire the sandbox after the run according to retention policy. | P0 |
 
 ### 8.5 Fix generation
+
+**Release alignment — 2026-09-27:** PR #28 merged at `bd95ca2`, pinning runtime and contract snapshot to Ignis `contracts-v1.1.2` (`ded0dbd`). Fresh main default run 36255524251 and forced-CRLF run 36255526533 passed. See D-20260927-01.
+
+**Render fidelity checkpoint — 2026-09-26 (historical):** Ignis #4's YAML CRLF normalization merged in PR #12 (`ded0dbd`); #4 closed after merge. Under forced Windows-style checkout settings, cross-repo run [36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) verified LF-only render/patch payloads and minimal real fixture diffs (probe/image: one removed plus one added line; ConfigMap: one added line). The ConfigMap line was later found to fabricate an unevidenced value, so this is render-fidelity evidence, **not** a third safe remediation proof; see D-20260930-01. Preserve the evaluator's rejection of inflated output. Checkout-level byte fidelity (Ignis #13) and other renderers are not claimed fixed; see D-20260926-02.
 
 | ID | Requirement | Priority |
 |---|---|---|
@@ -545,6 +558,10 @@ Use separate identities for separate capabilities:
 - Use references to managed credentials, not credentials embedded in graph state or prompts.
 - Prevent secrets from appearing in commits, PR bodies, model traces, or exported audit logs.
 
+**Implementation and verification — 2026-09-26 (PR #27, historical):** Connector patch inputs remain ephemeral. Durable JSON/SQLite run records must also exclude generated file bodies and diffs from candidate proposals, pending actions, and finalized records; removing only `rendered_files` is insufficient. Policy-rejected proposals must be stripped before append. Tests must search the entire persisted record for a seeded secret after real patch generation, including SQLite payloads and JSON mirrors. Cross-repo [run 36236583521](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36236583521) passed on `111f42a`, including Scenario 3's whole-Ignis restart, real hooks, and what were then counted as three positive evaluations. The missing-config result was later found unsafe (D-20260930-01); only probe and bad-image remain proven safe fixes. Scenario 3 does not substitute for the local dispatch-reconstruction tests of patch-input recovery.
+
+Restart behavior is explicit: before patch generation, re-fetch manifests through an unpatched `deploy_revision` on the same sandbox without consuming a patch attempt; missing refreshed input escalates as `patch_input_unavailable`. After generated patch bytes are lost, fail closed as `patch_context_lost_on_restart`, never replay a stripped action. This is not a guarantee of post-patch dispatch restart resumability or comprehensive redaction of arbitrary metadata/logs. See D-20260926-01.
+
 ### 14.3 Prompt-injection and untrusted-input defense
 
 Logs, source files, comments, commit messages, and runbooks are untrusted data, not instructions. Tool permissions and graph transitions must be enforced in code rather than by model prompts. Model output must be parsed into a strict schema and independently validated before any tool executes.
@@ -651,6 +668,138 @@ Build a versioned scenario suite with known root causes and expected safe outcom
 - Runtime and cost.
 
 All prompt, model, analyzer, and sandbox changes should run against this suite before release.
+
+### 17.3 Evaluation harness and regression gate
+
+**Changelog — 2026-09-19:** Define a versioned, evidence-producing evaluation harness so deterministic analyzer, patch, sandbox, and optional-model changes are measured against known scenarios before release.
+
+The §17.1 scenarios remain the source list. Each implemented evaluation case must live in a versioned directory:
+
+```text
+evals/scenarios/<scenario-id>/
+  manifest.json
+  fixture/
+  expected-evidence.json
+```
+
+`manifest.json` must declare, at minimum:
+
+- Fixture repository and immutable commit SHA.
+- Trigger and narrowed location.
+- Expected failure class.
+- Expected terminal result: `fix_finalized`, `escalated`, or another explicitly safe terminal state.
+- Expected patch scope where a patch is permitted.
+- Required evidence assertions, including pre-fix signature, post-fix validation result, policy decision, and cleanup result.
+- Whether the scenario is positive remediation, expected escalation, expected policy block, or adversarial safety coverage.
+
+The harness must compute the §17.2 scoring dimensions from machine-readable assertions, rather than relying on a prose pass/fail summary. Every scenario must emit an ordered trace, evidence references, final terminal state, patch/validation artifacts when applicable, and explicit assertion failures.
+
+The existing cross-repository E2E workflow is the required regression gate for implemented scenarios. New evaluation scenarios extend that workflow and publish their traces as artifacts; they must not create a separate, parallel CI system with different runtime assumptions.
+
+**Report-validation policy — 2026-10-05 (D-20261005-02, implementation under review):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates.
+
+The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
+
+### 17.4 Confidence calibration and escalation quality
+
+**Structural-secret prerequisite — 2026-09-27:** PR #31 adds a narrow hosted-kind
+fixture-consumption proof and missing-fixture control before designing #30.
+The first attempt was blocked before deployment by a backend enum mismatch,
+now corrected in `contracts-v1.2.0`. Hosted run [36334290256](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36334290256)
+proves Ready with the synthetic value consumed, and a never-started container
+with `CreateContainerConfigError` naming the missing Secret without coverage,
+using the same fixture SHA. PR #31 merged at `db7ee90`. Mock successes alone do
+not prove consumption; this real proof does not establish structural detection
+or qualify the full Kubernetes backend. See D-20260927-03.
+
+**Image-fidelity checkpoint — 2026-10-02:** Ignis PR #16 merged at `ece2029`,
+tagged as annotated `contracts-v1.2.1`. It polls real Kubernetes image IDs
+within existing deploy `wait_seconds`, requires completeness per image, and
+discloses each unresolved image. Mock behavior and public schemas are unchanged.
+Pinned [hosted run 37035326891](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37035326891)
+passed all four kind cases, mock Scenarios 1–3, real-hooks smoke, and all seven
+evals. The partially covered two-image case resolved the Ready sidecar and
+named only the blocked app in the gap. The public schema snapshot stays at
+`contracts-v1.2.0`. Raphael PR #38 merged at `c439b4e` after review;
+fresh [main run 37107311940](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37107311940)
+passed both kind and mock/evaluation jobs against the pinned release.
+This does not qualify the backend generally. The separate ConfigMap
+fabrication finding is closed by PR #35: missing-config is now a correct
+refusal (`patch_value_unavailable`), not a third safe-fix class.
+
+**Safety-proof scope (D-20260927-02):** Secret-required refusal is proven after
+an explicit textual dependency signal, not structural inference from an
+undecorated `secretKeyRef` (Raphael #30). Named-value absence and seeded
+JSON/SQLite regressions cover inspected surfaces, not universal leak prevention.
+Injection equivalence is exact equality of classification, numeric confidence,
+terminal status/reason, paths, and added/removed-line strings for a manifest
+comment with LLM disabled. Whole-file bytes, hunk coordinates, other evidence
+channels, and enabled-LLM behavior are not covered by that comparison.
+
+**Delivery status — 2026-09-27 (historical):** The evidence-boundary branch passed six real-hook/mock-backend fixture evaluations and activated the injection, secret-required, and unreproducible cases after proof. At the time, the three remediation fixtures were counted as positive fixes; the missing-config fixture's purported fix was later found to fabricate a value and is superseded by D-20260930-01. Only probe and bad-image are proven to reach `fix_finalized` safely; missing-config is now proven to refuse correctly. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
+
+**Correction merged — 2026-10-01:** The earlier three-positive-fixture count included an unsafe ConfigMap patch that invented a `DATABASE_URL` value. PR #35 now makes the same immutable missing-config fixture correctly expect `escalated`/`patch_value_unavailable` with no candidate patch or validation attempt. Probe and bad-image still finalize after exact structural resource matching. Its final-head hosted Python, contracts, cross-repo E2E/evals, and disposable-kind checks passed. See D-20260930-01. The bad-image replacement-image provenance question remains separately tracked.
+
+**Multi-resource evaluation under review — 2026-10-01:** A new immutable two-Deployment fixture places a healthy Deployment first and the probe-port defect second. Pre-PR #35 Raphael escalated after three empty-marker attempts; post-merge main produced one two-line change in the second Deployment and reached `fix_finalized`. The full seven-scenario local real-process evaluation passed. This adds an exact-target E2E regression case, not general Kubernetes multi-resource qualification; see D-20261001-01.
+
+For each evaluated run, record:
+
+- `asserted_confidence`: the confidence reported by diagnosis.
+- `was_diagnosis_correct`: determined from the scenario’s expected root cause and evidence assertions.
+- `was_fix_correct`: determined from validation and the expected terminal state when remediation is permitted.
+- `escalation_expected` and `escalation_observed`.
+
+Confidence must be evaluated empirically by bucket and overall: an approximately 80% confidence cohort should be correct at approximately 80%, subject to a documented sample-size tolerance. The project must not treat confidence as calibrated merely because it is present in a response.
+
+Escalation quality is a separate metric. Report both:
+
+- **Correct escalation:** a blocked, unsupported, unsafe, or insufficient-evidence scenario escalated as expected.
+- **Unnecessary escalation:** a scenario with adequate deterministic evidence and an allowed validated fix escalated instead.
+
+This prevents a superficially safe system from appearing successful merely by escalating every difficult case.
+
+### 17.5 Detection-coverage roadmap
+
+Extend coverage in order of expected real-world value, and require every newly supported class to ship with at least one versioned evaluation scenario before being claimed as supported:
+
+1. Resource constraints, including deterministic OOM and bounded requests/limits cases.
+2. Service/port mismatch.
+3. Helm/Kustomize render errors.
+4. Deployment regression tied to a relevant deployment commit.
+
+Probe misconfiguration and bad image reference provide two deterministic `fix_finalized` baselines. The missing ConfigMap-key fixture is a correct-refusal baseline (`escalated`/`patch_value_unavailable`), not a third proven automated fix. `bad_image_reference` coverage must remain accurately scoped: the current mock detector recognizes known-bad image patterns; it is not registry-verified arbitrary image-reference detection.
+
+Service/port mismatch must remain marked blocked from end-to-end remediation until the known schema issue in D-20260830-01 is resolved: the current scalar-port assumptions conflict with `container_ports` array-shaped evidence. An evaluation scenario may document the expected escalation before that fix, but it must not claim `fix_finalized`.
+
+### 17.6 Localization prove-or-cut gate
+
+`node_localize` has not yet been demonstrated with real Supabase credentials and currently fails open. Before treating it as a production capability:
+
+1. Run the same versioned evaluation subset with localization disabled and enabled.
+2. Compare detection correctness, root-cause correctness, patch correctness, unnecessary escalation, runtime, and cost.
+3. Retain it only if the measured improvement is material and does not weaken safety or evidence provenance.
+
+If no measurable improvement is shown, remove it from the production path rather than retaining an unproven optional dependency.
+
+### 17.7 Inference optimization boundaries
+
+The present default path is deterministic first, with LLM diagnosis disabled by default. Therefore KV-cache infrastructure, speculative decoding, request batching, and dedicated inference-serving infrastructure are not current optimization work.
+
+Bounded evidence input is applicable now and remains required by FR-010 and FR-011: collect only relevant CI steps, bounded log windows, bounded Kubernetes events, and source-linked manifest/diff context.
+
+Prompt or prefix caching may be evaluated only if the optional LLM route is enabled and measured as a real hot path. Do not introduce model-serving infrastructure before evaluation shows that model inference is a material runtime or cost bottleneck.
+
+### 17.8 LLM role and learning-loop gate
+
+An LLM may assist with human-review material: explaining a validated PR, summarizing bounded evidence, or proposing clearly labeled novel hypotheses for the Issues/human-review route.
+
+An LLM must not be the causal or validation gate. Deterministic policy checks, sandbox reproduction, structured failure signatures, and validation evidence decide whether a cause is accepted and whether a fix can be published.
+
+Deterministic blocked decisions are immutable by probabilistic components: local models, external LLM refinement, and learning must not replace the blocked category or its specific reason. The diagnosis caller must skip model refinement for a blocked result, independently of helper safeguards; patch selection must not run on a blocked diagnosis or an escalated run. See D-20261003-01.
+
+D-20260810-15 remains in effect: `RAPHAEL_LEARNING=0` is the production default. Offline learning, priors, or feedback-driven behavior may only be enabled after this evaluation harness measures an explicit before/after score delta and demonstrates no safety regression.
+
+Before any generative patch path ships (LLM-assisted or an expanded template set), an end-to-end forbidden-patch-rejection evaluation must exist and pass. The current deterministic templates cannot generate privileged, host-access, or control-disabling patches; their policy rejection is unit-tested, but an E2E scenario would be synthetic until a production-capable generator can plausibly produce such output.
 
 ## 18. Observability and Operations
 

@@ -41,3 +41,7 @@ agent/.raphael-agent-data-*/
 
 # Local generated training data
 /raphael/
+
+# Generated evaluation traces and score reports
+/evals/out/
+e2e/kind-fixture-out/

@@ -20,9 +20,23 @@ TENANT = "real-test"
 PRODUCER_TOKEN = "real-producer-token"
 CONNECTOR_TOKEN = "real-connector-token"
 IGNIS_BIN = os.getenv("E2E_IGNIS_BIN", "")
+RESULT_FILE = os.getenv("E2E_REAL_RESULT_FILE", "")
 
-CLONE_URL = "https://github.com/AmazingDude/raphael-e2e-fixture.git"
-COMMIT_SHA = "268d7b781f3849dab5694a8161789099555ebc76"
+# Defaults preserve the existing service-port fixture invocation; environment
+# overrides allow the same real-hooks harness to validate another immutable
+# fixture commit without duplicating orchestration logic.
+CLONE_URL = os.getenv("E2E_REAL_CLONE_URL", "https://github.com/AmazingDude/raphael-e2e-fixture.git")
+COMMIT_SHA = os.getenv("E2E_REAL_COMMIT_SHA", "268d7b781f3849dab5694a8161789099555ebc76")
+NARROWED_LOCATION = os.getenv("E2E_REAL_NARROWED_LOCATION", "deploy/manifests/service-port-mismatch.yaml")
+
+
+def write_result(payload):
+    """Optionally expose machine-readable evidence to a caller such as evals/."""
+    if not RESULT_FILE:
+        return
+    path = Path(RESULT_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def http_post(url, body, token):
@@ -101,18 +115,26 @@ def main():
     env["RAPHAEL_CONNECTOR_TENANT_ID"] = TENANT
     env["RAPHAEL_CONNECTOR_TOKEN"] = CONNECTOR_TOKEN
 
-    trace = E2E / "real-job-trace.jsonl"
+    trace = Path(os.getenv("E2E_TRACE_FILE", str(E2E / "real-job-trace.jsonl")))
+    trace.parent.mkdir(parents=True, exist_ok=True)
     if trace.exists():
         trace.unlink()
     env["E2E_TRACE_FILE"] = str(trace)
 
     data_dir = Path(tempfile.mkdtemp(prefix="raphael-real-"))
     env["RAPHAEL_DATA_DIR"] = str(data_dir)
+    # The original smoke runner keeps its existing RunStore default. Evaluation
+    # callers opt into an isolated store only when requesting a structured result.
+    agent_data_dir = data_dir / "agent-data" if RESULT_FILE else None
+    if agent_data_dir is not None:
+        env["RAPHAEL_AGENT_DATA_DIR"] = str(agent_data_dir)
 
     processes = []
     try:
         # Start dispatch with REAL hooks (production entrypoint, no overrides)
-        dispatch_log = open(E2E / "real-dispatch.log", "w")
+        dispatch_log_path = Path(os.getenv("E2E_REAL_DISPATCH_LOG", str(E2E / "real-dispatch.log")))
+        dispatch_log_path.parent.mkdir(parents=True, exist_ok=True)
+        dispatch_log = open(dispatch_log_path, "w", encoding="utf-8")
         dispatch = subprocess.Popen(
             [sys.executable, str(E2E / "real_dispatch_launcher.py")],
             cwd=str(ROOT), env=env, stdout=dispatch_log, stderr=subprocess.STDOUT,
@@ -122,7 +144,9 @@ def main():
         print(f"Dispatch ready (REAL hooks), pid={dispatch.pid}")
 
         # Start Ignis
-        ignis_log = open(E2E / "real-ignis.log", "w")
+        ignis_log_path = Path(os.getenv("E2E_REAL_IGNIS_LOG", str(E2E / "real-ignis.log")))
+        ignis_log_path.parent.mkdir(parents=True, exist_ok=True)
+        ignis_log = open(ignis_log_path, "w", encoding="utf-8")
         ignis = subprocess.Popen(
             [IGNIS_BIN], env=env, stdout=ignis_log, stderr=subprocess.STDOUT,
         )
@@ -146,7 +170,7 @@ def main():
                 },
                 "commit_sha": COMMIT_SHA,
                 "narrowed_location": {
-                    "file_path": "deploy/manifests/service-port-mismatch.yaml",
+                    "file_path": NARROWED_LOCATION,
                 },
                 "lease_ttl_seconds": 120,
             },
@@ -179,6 +203,12 @@ def main():
                 body = req.get("body", "") + resp.get("body", "")
                 if job_id in body:
                     print(f"  [{i}] {req.get('method','?')} {req.get('path','?')} -> {resp.get('status','?')}")
+            write_result({
+                "job_id": job_id,
+                "status": "timeout",
+                "elapsed_seconds": elapsed,
+                "trace_file": str(trace),
+            })
             return 1
 
         final_status = terminal.get("payload", {}).get("final_status", "")
@@ -252,10 +282,24 @@ def main():
         # Check dispatch log for agent node output
         dispatch_log.flush()
         dispatch_log.close()
-        log_content = Path(E2E / "real-dispatch.log").read_text(errors="replace")
+        log_content = dispatch_log_path.read_text(errors="replace")
         if log_content.strip():
             print(f"\n=== Dispatch log ({len(log_content)} chars) ===")
             print(log_content[-3000:] if len(log_content) > 3000 else log_content)
+
+        run_path = (agent_data_dir / "runs" / f"{job_id}.json") if agent_data_dir is not None else None
+        run_state = json.loads(run_path.read_text(encoding="utf-8")) if run_path and run_path.is_file() else None
+        write_result({
+            "job_id": job_id,
+            "status": "terminal",
+            "final_status": final_status,
+            "terminal": terminal,
+            "elapsed_seconds": elapsed,
+            "trace_file": str(trace),
+            "dispatch_log": str(dispatch_log_path),
+            "ignis_log": str(ignis_log_path),
+            "run_state": run_state,
+        })
 
         return 0
 

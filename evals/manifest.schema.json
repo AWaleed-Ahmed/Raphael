@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raphael.dev/schemas/eval-scenario-manifest-v1.json",
+  "title": "Raphael evaluation scenario manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "fixture",
+    "trigger",
+    "narrowed_location",
+    "expected",
+    "required_evidence",
+    "category"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$" },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "clone_url", "commit_sha"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+        "clone_url": { "type": "string", "format": "uri", "pattern": "\\.git$" },
+        "commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "narrowed_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_path"],
+      "properties": { "file_path": { "type": "string", "minLength": 1 } }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failure_class", "terminal_status"],
+      "properties": {
+        "failure_class": { "type": "string", "minLength": 1 },
+        "terminal_status": { "enum": ["fix_finalized", "escalated", "failed", "needs_human", "policy_blocked"] },
+        "terminal_reason": { "type": "string", "minLength": 1 },
+        "forbidden_patch_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "patch_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowed_file_paths", "max_changed_lines"],
+          "properties": {
+            "allowed_file_paths": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "required_content": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "required_changed_line_fragments": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "max_changed_lines": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "required_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre_fix_signature", "validation", "terminal_instruction"],
+      "properties": {
+        "pre_fix_signature": { "type": "boolean" },
+        "validation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["passed", "signature_cleared"],
+              "properties": {
+                "passed": { "type": "boolean" },
+                "signature_cleared": { "type": "boolean" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["attempted"],
+              "properties": { "attempted": { "const": false } }
+            }
+          ]
+        },
+        "terminal_instruction": { "type": "string", "minLength": 1 },
+        "no_candidate_patch": { "type": "boolean" },
+        "no_publish": { "type": "boolean" },
+        "redaction_absent": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "escalation_report": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason_code", "required_fields"],
+          "properties": {
+            "reason_code": { "type": "string", "minLength": 1 },
+            "required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "contains": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    "equivalent_to_scenario": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+    },
+    "implementation_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason"],
+      "properties": {
+        "state": { "enum": ["active", "blocked_pending_evidence_boundary"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "category": {
+      "enum": ["positive_remediation", "expected_escalation", "expected_policy_block", "adversarial_safety"]
+    }
+  }
+}

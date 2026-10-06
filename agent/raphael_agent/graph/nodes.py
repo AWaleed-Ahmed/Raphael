@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Literal
 
+from jsonschema import ValidationError
+
 from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
 from raphael_agent.evidence import collect_evidence
+from raphael_agent.escalation_reasons import EscalationReason
+from raphael_agent.escalation_validation import escalation_failure_updates, escalation_report_boundary
 from raphael_agent.graph.state import RunState, append_audit, utc_now
 from raphael_agent.patch import max_patch_attempts, propose_patch
+from raphael_agent.patch.templates import TemplateRefusal
+from raphael_agent.patch.image_provenance import resolve_approved_image_replacement
 from raphael_agent.publish import publish
 from raphael_agent.rules import load_or_derive_fix_rules
 from raphael_agent.localization import (
@@ -31,10 +38,12 @@ from raphael_agent.localization import (
 )
 from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
-from raphael_agent.schema_util import for_run_record_validation
+from raphael_agent.sandbox_config import secret_fixture_args
+from raphael_agent.schema_util import for_run_record_validation, load_sandbox_schema, validate_against
 from raphael_agent.store import RunStore
+from raphael_agent.store.patch_content import without_patch_content
 from raphael_agent.telemetry_supabase import record_run_outcome
-from raphael_agent.validation import evaluate_validation_signals
+from raphael_agent.validation import evaluate_validation_signals, rollout_resource
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 RECORDED = FIXTURES / "recorded_sandbox_responses.json"
@@ -60,7 +69,7 @@ def _touch(state: RunState, node: str) -> dict[str, Any]:
 def _escalation(
     state: RunState,
     *,
-    reason_code: str,
+    reason_code: EscalationReason,
     summary: str,
     what_happened: str,
     why_no_fix: str,
@@ -131,6 +140,7 @@ def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
     return updates
 
 
+@escalation_report_boundary
 def node_ingest(state: RunState) -> dict[str, Any]:
     halt = _budget_halt_updates(state, "ingest")
     if halt:
@@ -147,6 +157,7 @@ def node_ingest(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_evidence(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -183,6 +194,7 @@ def node_evidence(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_diagnose(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -191,17 +203,28 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
         return halt
     updates = _touch(state, "diagnose")
     diagnosis = diagnose(state)
-    gateway = ModelGateway()
-    model_prediction = gateway.classify_failure(state)
-    diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
     model_results = dict(state.get("model_results") or {})
-    if model_prediction is not None:
-        model_results["failure_classifier"] = model_prediction
-    elif model_error(gateway):
-        model_results["failure_classifier"] = {
-            "available": False,
-            "reason": model_error(gateway),
-        }
+    # A deterministic safety stop is final, not a seed for model refinement.
+    # Enforce this at the caller even if a gateway implementation changes.
+    if (diagnosis.get("classification") or {}).get("category") != "blocked":
+        coverage_halt = node_secret_coverage_gate({**state, **updates, "diagnosis": diagnosis})
+        if coverage_halt:
+            updates.update(coverage_halt)
+            updates["diagnosis"] = diagnosis
+            attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
+            attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
+            updates["attempt_count"] = attempts
+            return updates
+        gateway = ModelGateway()
+        model_prediction = gateway.classify_failure(state)
+        diagnosis = gateway.merge_diagnosis(diagnosis, model_prediction, state)
+        if model_prediction is not None:
+            model_results["failure_classifier"] = model_prediction
+        elif model_error(gateway):
+            model_results["failure_classifier"] = {
+                "available": False,
+                "reason": model_error(gateway),
+            }
     updates["model_results"] = model_results
     attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
     attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
@@ -234,15 +257,19 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
     conf = float(diagnosis.get("confidence") or 0)
     threshold = float(diagnosis.get("confidence_threshold") or 0.7)
     if classification.get("category") == "blocked":
+        blocked_reason = str(classification.get("blocked_reason") or "blocked_category")
         updates["status"] = "escalated"
-        updates["terminal_reason"] = "blocked_category"
+        # Keep the reason that caused the safety stop durable and operator-visible.
+        # A generic terminal loses the distinction between a production-secret
+        # dependency and privileged host access.
+        updates["terminal_reason"] = blocked_reason
         updates["escalation_report"] = _escalation(
             {**state, **updates},
-            reason_code="blocked_category",
+            reason_code=blocked_reason,
             summary="Diagnosis classified as blocked",
             what_happened=diagnosis.get("notes") or "blocked category",
             why_no_fix="Automatic fix not proposed for blocked failure classes",
-            attempts=[{"kind": "other", "status": "blocked", "detail": "blocked_category"}],
+            attempts=[{"kind": "other", "status": "blocked", "detail": blocked_reason}],
         )
     elif diagnosis.get("selected_hypothesis_id") is None or conf < threshold:
         updates["status"] = "escalated"
@@ -325,6 +352,7 @@ def _runtime_observation_from_signature(
     return observation
 
 
+@escalation_report_boundary
 def node_reproduce(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now()}
@@ -397,12 +425,12 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
                 },
                 "commit_sha": state["commit_sha"],
                 "timeout_minutes": 20,
-                "secret_fixture_set": "payments-test",
+                **secret_fixture_args(),
             }
         )
         sandbox_id = created["sandbox_id"]
         updates["sandbox_id"] = sandbox_id
-        client.deploy_revision(
+        deployed = client.deploy_revision(
             sandbox_id,
             {
                 "repository_sha": state["commit_sha"],
@@ -414,6 +442,9 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
                 "wait_seconds": 5,
             },
         )
+        fidelity = deployed.get("fidelity") or {}
+        if isinstance(fidelity.get("secret_coverage"), dict):
+            updates["secret_coverage"] = fidelity["secret_coverage"]
         observed = client.observe_failure(sandbox_id, {})
         updates["failure_signature"] = observed["signature"]
         updates["runtime_observation"] = _runtime_observation_from_signature(
@@ -449,6 +480,59 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
+def node_secret_coverage_gate(state: RunState) -> dict[str, Any]:
+    """Stop before patching if the rendered workload has uncovered Secret refs."""
+    if state.get("status") in {"failed_closed", "escalated", "blocked"}:
+        return {}
+    if state.get("sandbox_mode") not in {"live", "connector"}:
+        return {}
+    report = state.get("secret_coverage")
+    if not isinstance(report, dict):
+        return {}
+    try:
+        validate_against(load_sandbox_schema("fidelity_report.json")["properties"]["secret_coverage"], report)
+        if len(json.dumps(report, ensure_ascii=False).encode("utf-8")) > 65_536:
+            return {}
+    except (ValidationError, TypeError, ValueError):
+        return {}
+    refs = report.get("references") if isinstance(report, dict) else None
+    if (
+        isinstance(report, dict)
+        and report.get("format_version") == 1
+        and report.get("complete") is True
+        and isinstance(refs, list)
+    ):
+        gaps = [
+            item for item in refs
+            if isinstance(item, dict)
+            and item.get("optional") is not True
+            and item.get("status") in {"missing_object", "missing_key"}
+        ]
+        if not gaps:
+            return {}
+        reason = "unresolved_secret_dependency"
+        summary = "Rendered workload requires Secret data that is not available in the sandbox fixtures"
+        detail = f"{len(gaps)} required Secret reference(s) are uncovered"
+    else:
+        # Unknown is not evidence of a missing dependency; only authoritative,
+        # complete coverage may trigger this new structural refusal.
+        return {}
+
+    updates: dict[str, Any] = {"status": "escalated", "terminal_reason": reason}
+    updates["escalation_report"] = _escalation(
+        {**state, **updates},
+        reason_code=reason,
+        summary=summary,
+        what_happened=detail,
+        why_no_fix="Patch generation is stopped until Secret dependencies are safely available and verified",
+        attempts=[{"kind": "other", "status": "blocked", "detail": detail}],
+        next_checks=["Provide approved synthetic Secret fixtures for the referenced names and keys", "Review the Secret coverage report and rerun reproduction"],
+    )
+    updates["audit_events"] = append_audit(state, "secret_coverage", "escalated", detail)
+    return updates
+
+
 def _localization_observation(state: RunState) -> dict[str, Any]:
     # Keep caller/APM fields, then fill missing provider-neutral fields from the
     # sandbox signature. This matters when a caller supplied a partial runtime
@@ -470,6 +554,7 @@ def _localization_observation(state: RunState) -> dict[str, Any]:
     return observation
 
 
+@escalation_report_boundary
 def node_localize(state: RunState) -> dict[str, Any]:
     """Resolve healthy baselines and rank runtime/source candidates before patching.
 
@@ -693,6 +778,26 @@ def node_localize(state: RunState) -> dict[str, Any]:
             "comparison_count": len(comparisons),
             "candidate_count": len(candidates),
         }
+        repository_info = state.get("repository") or {}
+        repository_name = "/".join(
+            part for part in (repository_info.get("owner"), repository_info.get("name")) if part
+        )
+        approved_image = resolve_approved_image_replacement(
+            state.get("failure_signature") or {},
+            baselines,
+            repository=repository_name,
+            service_name=service_name,
+            environment=environment,
+        )
+        target_environment = state.get("target_environment")
+        if (
+            approved_image
+            and target_environment
+            and environment != str(target_environment)
+        ):
+            approved_image = None
+        if approved_image:
+            updates["localization_result"]["approved_image_replacement"] = approved_image
         updates["audit_events"] = append_audit(
             {**state, **updates},
             "localize",
@@ -711,9 +816,16 @@ def node_localize(state: RunState) -> dict[str, Any]:
     return updates
 
 
+@escalation_report_boundary
 def node_patch(state: RunState) -> dict[str, Any]:
-    if state.get("status") in {"failed_closed", "escalated"}:
+    if state.get("status") in {"failed_closed", "escalated", "blocked"} or (
+        ((state.get("diagnosis") or {}).get("classification") or {}).get("category")
+        == "blocked"
+    ):
         return {"updated_at": utc_now()}
+    coverage_halt = node_secret_coverage_gate(state)
+    if coverage_halt:
+        return coverage_halt
     halt = _budget_halt_updates(state, "patch")
     if halt:
         return halt
@@ -762,7 +874,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
                     "kind": "patch",
                     "status": "failed",
                     "detail": "budget_exhausted",
-                    "patch_id": state.get("active_patch_id"),
+                    **({"patch_id": state["active_patch_id"]} if state.get("active_patch_id") is not None else {}),
                 }
             ],
         )
@@ -794,11 +906,30 @@ def node_patch(state: RunState) -> dict[str, Any]:
         }
         updates["model_results"] = model_results
 
-    proposal = propose_patch(merged_for_patch)
+    try:
+        proposal = propose_patch(merged_for_patch)
+    except TemplateRefusal as refusal:
+        # A missing/ambiguous target or unevidenced value is not a patch attempt.
+        # Do not persist a marker proposal or send a no-op deploy to the connector.
+        reason = refusal.reason
+        updates["status"] = "escalated"
+        updates["terminal_reason"] = reason
+        updates["escalation_report"] = _escalation(
+            {**state, **updates},
+            reason_code=reason,
+            summary="No evidence-backed deterministic patch available",
+            what_happened=str(refusal),
+            why_no_fix="No safe file change can be justified by the observed signature",
+            attempts=[{"kind": "patch", "status": "blocked", "detail": reason}],
+        )
+        updates["audit_events"] = append_audit(
+            {**state, **updates}, "patch", "refused", reason
+        )
+        return updates
     if proposal.get("policy_status") == "rejected":
         # Count the rejected attempt toward budget, then escalate if exhausted next loop
         patches = list(state.get("candidate_patches") or [])
-        patches.append(proposal)
+        patches.append(without_patch_content(proposal))
         attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
         attempts["patch"] = int(proposal["attempt"])
         updates["candidate_patches"] = patches
@@ -897,6 +1028,7 @@ def _deploy_body_for_patch(
     return body
 
 
+@escalation_report_boundary
 def node_validate(state: RunState) -> dict[str, Any]:
     if state.get("status") in {"failed_closed", "escalated"}:
         return {"updated_at": utc_now(), "validation_retryable": False}
@@ -986,6 +1118,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
     client = SandboxClient()
     try:
         assert sandbox_id, "sandbox_id required for live validate"
+        resource = rollout_resource(state.get("failure_signature") or {})
         client.deploy_revision(sandbox_id, _deploy_body_for_patch(state, patch))
         after = client.observe_failure(sandbox_id, {})
         updates["failure_signature"] = after["signature"]
@@ -997,7 +1130,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
                     "health_checks": [
                         {
                             "type": "rollout",
-                            "resource": "deployment/payments-api",
+                            "resource": resource,
                             "mandatory": True,
                         },
                         {"type": "signature_absent", "mandatory": True},
@@ -1049,7 +1182,7 @@ def node_validate(state: RunState) -> dict[str, Any]:
                         "plan": {
                             "commands": [],
                             "health_checks": [
-                                {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True},
+                                {"type": "rollout", "resource": resource, "mandatory": True},
                                 {"type": "signature_absent", "mandatory": True},
                             ],
                             "compare_to_signature_key": before_key,
@@ -1181,9 +1314,22 @@ def _maybe_terminal_comment(state: RunState, updates: dict[str, Any]) -> None:
         return
 
 
+def _persist_graph_outcome(state: RunState) -> None:
+    """Report storage failures without logging payloads or exception messages."""
+    try:
+        RunStore().save_run(for_run_record_validation(state))
+    except Exception:  # Storage failure policy is separate from report validation.
+        logging.getLogger(__name__).error("Run outcome persistence failed")
+
+
 def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
+    failure = escalation_failure_updates(state)
+    if failure:
+        _persist_graph_outcome({**state, **failure})
+        return failure
     if state.get("status") in {"failed_closed", "escalated"}:
         updates = {"current_node": None, "updated_at": utc_now()}
+        _persist_graph_outcome({**state, **updates})
         _maybe_terminal_comment(state, updates)
         record_run_outcome({**state, **updates})
         return updates
@@ -1191,8 +1337,10 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     halt = _budget_halt_updates(state, "publish_or_escalate")
     if halt:
         # Never publish after budget exhaust
+        halt.update(escalation_failure_updates({**state, **halt}))
         halt["current_node"] = None
         halt["pull_request_url"] = None
+        _persist_graph_outcome({**state, **halt})
 
         _maybe_terminal_comment(state, halt)
         record_run_outcome({**state, **halt})
@@ -1251,11 +1399,8 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
     updates["updated_at"] = utc_now()
 
     # Persist inspectable run_record when a data dir is in use.
-    try:
-        merged = {**state, **updates}
-        RunStore().save_run(for_run_record_validation(merged))
-    except Exception:  # noqa: BLE001 â€” persistence must not crash the graph
-        pass
+    merged = {**state, **updates}
+    _persist_graph_outcome(merged)
     record_run_outcome(merged)
     _maybe_terminal_comment(state, updates)
     return updates
