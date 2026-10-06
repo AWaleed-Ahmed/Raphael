@@ -48,7 +48,7 @@ The pre-existing #30 graph gate ran after `diagnose`, whose optional external re
 Commands/results:
 
 - `./.venv/bin/python -m pytest agent/tests/test_byok.py -q`: **58 passed**.
-- `./.venv/bin/python -m pytest agent/tests -q`: **385 passed, 4 existing optional-integration skips**.
+- `./.venv/bin/python -m pytest agent/tests -q`: **386 passed, 4 existing optional-integration skips**.
 - `(cd dispatch && ../.venv/bin/python -m pytest tests -q)`: **77 passed**.
 - `./.venv/bin/python -m pytest evals/test_run_evals.py -q`: **10 passed**.
 - `git diff --check`: clean before commit.
@@ -64,3 +64,7 @@ Hosted core, contract and cross-repo gates are required on the updated PR head b
 ## Hosted verification of implementation `fa3d024`
 
 All checks passed: [core CI 37438867760](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37438867760) (Python and exact contract snapshot) and [cross-repo 37438867823](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37438867823) (three wire scenarios, real-hook smoke, seven scored outcomes, six Secret-kind controls). A second core run also passed. External-provider success remains a mocked-transport claim; these hosted integrations keep external models disabled. No live Gemini smoke is claimed. The documentation delivery commit records this evidence before merge and its exact-head checks are also required.
+
+## Final CI follow-up
+
+The documentation head's push-only audit job exposed a pre-existing save/read race in the test audit wrapper during automatic lease reaping (run 37439979212). The PR merge check passed, but the failed push check was investigated rather than ignored. The audit now holds each store's existing reentrant lock across its save/read pair. Runtime persistence behavior is unchanged. A regression checks lock ownership and schema-path-only output. Audit-enabled reruns: **386 agent passed / 4 skipped, 77 dispatch passed**. Fresh checks are required for this correction.
