@@ -39,6 +39,9 @@ def try_llm_diagnosis(
         return None
     if run.get("status") in {"blocked", "escalated", "failed_closed"} or required_secret_gaps(run):
         return None
+    from raphael_agent.image_pull import image_pull_block_reason
+    if image_pull_block_reason(run):
+        return None
     if not llm_diagnosis_enabled():
         return None
     try:

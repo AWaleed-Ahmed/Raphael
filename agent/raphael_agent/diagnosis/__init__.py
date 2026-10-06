@@ -205,6 +205,12 @@ def diagnose(run: dict[str, Any]) -> dict[str, Any]:
     from raphael_agent.learning import apply_learning_to_diagnosis
 
     result = apply_learning_to_diagnosis(run, result)
+    # Final gate also covers issue hints, learning and model-assisted results.
+    from raphael_agent.image_pull import image_pull_block_reason
+    image_block = image_pull_block_reason(run)
+    if image_block and result["classification"]["category"] != "blocked":
+        result = _unknown_result(evidence_ids, threshold=threshold, notes=image_block)
+        result["classification"].update(category="blocked", blocked_reason=image_block)
     validate_agent("diagnosis_result.json", result)
     return result
 

@@ -367,6 +367,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         create = recorded["create"]
         observe = recorded["observe_broken"]
         updates["sandbox_id"] = create["sandbox_id"]
+        updates["sandbox_backend"] = create.get("cluster_backend")
         updates["failure_signature"] = observe["signature"]
         updates["runtime_observation"] = _runtime_observation_from_signature(
             state, observe["signature"]
@@ -429,6 +430,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         )
         sandbox_id = created["sandbox_id"]
         updates["sandbox_id"] = sandbox_id
+        updates["sandbox_backend"] = created.get("cluster_backend")
         deployed = client.deploy_revision(
             sandbox_id,
             {

@@ -270,6 +270,9 @@ class ModelGateway:
         diagnosis: dict[str, Any], prediction: dict[str, Any] | None, state: dict[str, Any]
     ) -> dict[str, Any]:
         """Merge a model classification without bypassing deterministic gates."""
+        from raphael_agent.image_pull import image_pull_block_reason
+        if image_pull_block_reason(state):
+            return diagnosis
         if not prediction or prediction.get("abstained"):
             return diagnosis
         classification = diagnosis.get("classification") or {}
