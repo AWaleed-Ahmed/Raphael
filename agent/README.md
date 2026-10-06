@@ -102,25 +102,59 @@ Install the agent with `pip install -e .` after pulling the repository so the
 Model outputs are recorded under the run's `model_results` field for audit and
 are never sufficient to publish without sandbox validation.
 
-### Optional model (OpenAI-compatible, including local)
+### Optional external model (BYOK)
+
+Diagnosis and patching share a bounded JSON transport. Supported providers are
+`openai`, `gemini`, and `custom_openai`. Native Anthropic/Azure adapters and
+request-scoped keys are not implemented. Local classifier #40 is separate.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Enable LLM diagnosis refine |
-| `RAPHAEL_LLM_PATCH` | `0` | Enable Route B model patches (also needs diagnosis=1) |
-| `RAPHAEL_LLM_BASE_URL` | `https://api.openai.com/v1` | API root; client POSTs `{base}/chat/completions` |
-| `RAPHAEL_LLM_MODEL` | `gpt-4o-mini` | Model name |
-| `RAPHAEL_OPENAI_API_KEY` or `OPENAI_API_KEY` | unset | Bearer token (required when LLM on) |
+| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Enable external diagnosis refinement |
+| `RAPHAEL_LLM_PATCH` | `0` | Enable Route B model patches; also needs diagnosis=1 |
+| `RAPHAEL_LLM_PROVIDER` | `openai` | Explicit supported provider |
+| `RAPHAEL_LLM_API_KEY` | unset | Explicit key override for the selected provider |
+| `RAPHAEL_OPENAI_API_KEY`, then `OPENAI_API_KEY` | unset | OpenAI-only key fallback |
+| `RAPHAEL_GEMINI_API_KEY`, then `GEMINI_API_KEY` | unset | Gemini-only key fallback |
+| `RAPHAEL_LLM_BASE_URL` | provider default | OpenAI `/v1`, Gemini `/v1beta/openai`; custom requires a URL |
+| `RAPHAEL_LLM_MODEL` | automatic | Set a model to pin it; unset/blank/`auto`/`random` discovers and randomly selects |
+| `RAPHAEL_LLM_TIMEOUT_SECONDS` | `45` | Positive finite timeout, maximum 60 seconds |
+| `RAPHAEL_LLM_MAX_TOKENS` | `2048` | Output token cap, 1–8192 |
+
+Keys are resolved only after enable/safety checks. Missing keys skip the optional call;
+invalid configuration, network/provider errors or invalid output fail closed. HTTPS is
+required except for an explicitly configured loopback OpenAI-compatible endpoint.
+URLs cannot contain embedded credentials, query strings or fragments. Redirects and
+automatic mode rotates only on quota/rate-limit responses. Explicit models never rotate. Credentials and raw provider responses
+are not added to RunState or telemetry. Responses echoing the configured key are rejected.
+
+For Gemini, set `RAPHAEL_LLM_PROVIDER=gemini`, supply `GEMINI_API_KEY` locally, and
+optionally set `RAPHAEL_LLM_MODEL` to pin a model available to that account.
+The default endpoint follows [Google's compatibility documentation](https://ai.google.dev/gemini-api/docs/openai).
 
 Local example (Ollama):
 
 ```bash
 export RAPHAEL_LLM_DIAGNOSIS=1
 export RAPHAEL_LLM_PATCH=1
+export RAPHAEL_LLM_PROVIDER=custom_openai
 export RAPHAEL_LLM_BASE_URL=http://127.0.0.1:11434/v1
 export RAPHAEL_LLM_MODEL=llama3.2
-export RAPHAEL_OPENAI_API_KEY=ollama
+export RAPHAEL_LLM_API_KEY=ollama
 ```
+
+Automatic mode makes one authenticated catalog request (first page, at most 1,000
+Gemini entries), filters text candidates, then attempts each selected model at most
+once. It allows at most eight completion attempts within a shared deadline; catalog
+requests have a maximum ten-second timeout. Catalog access does not guarantee
+chat/JSON capability or remaining quota. Models sharing a quota pool may all fail;
+exhaustion fails closed. There is no credential/model cache shared across keys.
+OpenAI and compatible gateways use `/models`; Gemini uses native model metadata.
+
+An opt-in synthetic connectivity smoke is available after configuring a key:
+`python -m raphael_agent.scripts.byok_smoke --live`. It sends one synthetic request
+and does not prove diagnosis correctness, patch policy or live publication. Routine CI
+uses stubbed responses and needs no live provider key.
 
 Live draft PR only when: `PARTNER_MODE=allowlist` **and** `PUBLISH_MODE=live` **and** class allowlisted **and** token present.
 
