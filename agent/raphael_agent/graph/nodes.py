@@ -762,6 +762,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
             repository=repository_name,
             service_name=service_name,
             environment=environment,
+            sandbox_backend=state.get("sandbox_backend"),
         )
         target_environment = state.get("target_environment")
         if (

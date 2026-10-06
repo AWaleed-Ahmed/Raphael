@@ -251,6 +251,9 @@ class ModelGateway:
 
     def select_patch(self, state: dict[str, Any]) -> dict[str, Any] | None:
         """Adapt diagnosis + top candidate to the bounded patch selector."""
+        from raphael_agent.image_pull import is_image_pull
+        if is_image_pull(state.get("failure_signature") or {}):
+            return None
         diagnosis = state.get("diagnosis") or {}
         classification = diagnosis.get("classification") or {}
         top = (state.get("fault_candidates") or [{}])[0]

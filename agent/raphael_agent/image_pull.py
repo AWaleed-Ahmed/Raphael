@@ -21,16 +21,20 @@ def image_pull_repair_allowed(signature: dict[str, Any], sandbox_backend: str | 
     )
 
 
+def is_image_pull(signature: dict[str, Any]) -> bool:
+    normalized = signature.get("normalized") or {}
+    return (
+        signature.get("class") == "bad_image_reference"
+        or normalized.get("reason") in {"ImagePullBackOff", "ErrImagePull"}
+        or "image_pull_cause" in (normalized.get("attributes") or {})
+    )
+
+
 def image_pull_block_reason(run: dict[str, Any]) -> str | None:
     signature = run.get("failure_signature") or {}
     normalized = signature.get("normalized") or {}
     attributes = normalized.get("attributes") or {}
-    is_pull = (
-        signature.get("class") == "bad_image_reference"
-        or normalized.get("reason") in {"ImagePullBackOff", "ErrImagePull"}
-        or "image_pull_cause" in attributes
-    )
-    if not is_pull or image_pull_repair_allowed(signature, run.get("sandbox_backend")):
+    if not is_image_pull(signature) or image_pull_repair_allowed(signature, run.get("sandbox_backend")):
         return None
     cause = attributes.get("image_pull_cause")
     if cause in {"auth", "network", "rate_limited"}:
