@@ -5,9 +5,10 @@ def _signature():
     return {
         "class": "bad_image_reference",
         "normalized": {
+            "resource_kind": "Deployment",
             "resource_name": "payments-api",
             "container": "api",
-            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist"},
+            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist", "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"},
         },
     }
 

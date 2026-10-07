@@ -21,8 +21,12 @@ def resolve_approved_image_replacement(
     repository: str,
     service_name: str,
     environment: str,
+    sandbox_backend: str | None = None,
 ) -> dict[str, Any] | None:
     """Return an exact container image from one verified last-known-good release."""
+    from raphael_agent.image_pull import image_pull_repair_allowed
+    if not image_pull_repair_allowed(signature, sandbox_backend):
+        return None
     normalized = signature.get("normalized")
     if not isinstance(normalized, dict):
         return None

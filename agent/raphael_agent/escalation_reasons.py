@@ -10,6 +10,11 @@ from typing import Literal, get_args
 
 EscalationReason = Literal[
     "insufficient_evidence",
+    "image_pull_auth",
+    "image_pull_network",
+    "image_pull_rate_limited",
+    "image_pull_evidence_unverified",
+
     "production_secret_required",
     "privileged_or_host_access",
     "diagnosis_only",

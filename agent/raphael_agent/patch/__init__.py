@@ -27,6 +27,10 @@ def _is_issue_route(run: dict[str, Any]) -> bool:
 
 def propose_patch(run: dict[str, Any]) -> dict[str, Any]:
     """Build a constrained patch_proposal for the selected diagnosis."""
+    from raphael_agent.image_pull import image_pull_block_reason
+    image_block = image_pull_block_reason(run)
+    if image_block:
+        raise TemplateRefusal("patch_target_unavailable", image_block)
     # Route B: optional model patch first (still policy-gated).
     if _is_issue_route(run):
         llm_proposal = try_llm_patch(run)

@@ -119,7 +119,7 @@ def test_localize_node_records_image_provenance_from_matching_last_good(monkeypa
             "resource_kind": "Deployment",
             "resource_name": "payments-api",
             "container": "api",
-            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist"},
+            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist", "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"},
         },
     }
 
@@ -161,7 +161,7 @@ def test_localize_node_rejects_baseline_when_observation_and_target_environments
             "resource_kind": "Deployment",
             "resource_name": "payments-api",
             "container": "api",
-            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist"},
+            "attributes": {"image": "ghcr.io/acme/payments-api:does-not-exist", "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"},
         },
     }
 

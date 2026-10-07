@@ -41,6 +41,10 @@ def llm_patch_enabled() -> bool:
 
 def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
     """Optionally propose a patch via LLM. Returns policy-gated proposal or None."""
+    from raphael_agent.image_pull import is_image_pull
+    # Image incidents use the deterministic provenance-checked template only.
+    if is_image_pull(run.get("failure_signature") or {}):
+        return None
     if run.get("status") in {"blocked", "escalated", "failed_closed"} or ((run.get("diagnosis") or {}).get("classification") or {}).get("category") == "blocked":
         return None
     if required_secret_gaps(run):

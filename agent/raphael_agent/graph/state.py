@@ -39,6 +39,7 @@ class RunState(TypedDict, total=False):
     localization_result: dict[str, Any] | None
     diagnosis: dict[str, Any]
     sandbox_id: str | None
+    sandbox_backend: str | None
     sandbox_mode: str
     reproduction_result: dict[str, Any] | None
     secret_coverage: dict[str, Any] | None
@@ -123,6 +124,7 @@ def initial_run_state(seed: dict[str, Any], *, sandbox_mode: str = "skipped") ->
         evidence=[],
         redaction_report=None,
         sandbox_id=None,
+        sandbox_backend=None,
         sandbox_mode=sandbox_mode,
         reproduction_result=None,
         candidate_patches=[],

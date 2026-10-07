@@ -249,6 +249,11 @@
     },
     "diagnosis": { "$ref": "diagnosis_result.json" },
     "sandbox_id": { "type": ["string", "null"] },
+    "sandbox_backend": {
+      "type": ["string", "null"],
+      "enum": ["mock", "kubectl", null],
+      "description": "Backend recorded from the validated sandbox creation response; unset for legacy runs."
+    },
     "sandbox_mode": {
       "type": "string",
       "enum": ["live", "recorded_stub", "skipped"],
