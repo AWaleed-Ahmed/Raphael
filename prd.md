@@ -10,7 +10,7 @@
 
 **Known gaps against this spec:**
 
-- Structural Secret-dependency coverage: [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30); current refusal depends on an explicit textual signal.
+- Structural Secret-dependency coverage: [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30) shipped but is not complete against the approved safety design: unsupported forms, bundled fixtures, redaction and covered-remediation/sentinel proofs need follow-up. See D-20261005-03 and the handoff; textual and recognized structural refusals must not be mistaken for universal dependency detection.
 - Signature identity and trustworthy replacement-image provenance: [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33), [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34); registry-backed detection: [Ignis #11](https://github.com/AWaleed-Ahmed/Ignis/issues/11).
 - Trained-model runtime and empirical confidence/localization/learning proof: [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40), §§17.4, 17.6, 17.8. Forbidden-patch safety remains gated by §17.8.
 - General real-Kubernetes qualification, drift-input authorization, and the real partner pilot remain open; the hosted kind proof is limited to synthetic Secret consumption and image digests. See [handoff's scoped proof/work list](handoff.md#proven-today-with-limits).
@@ -696,7 +696,7 @@ The harness must compute the §17.2 scoring dimensions from machine-readable ass
 
 The existing cross-repository E2E workflow is the required regression gate for implemented scenarios. New evaluation scenarios extend that workflow and publish their traces as artifacts; they must not create a separate, parallel CI system with different runtime assumptions.
 
-**Report-validation policy — 2026-10-05 (D-20261005-02, implementation under review):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates.
+**Report-validation policy — 2026-10-05 (D-20261005-02, merged in PR #44 at `78c5e0e`):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates. Best-effort storage error handling remains a separate open decision.
 
 The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
 

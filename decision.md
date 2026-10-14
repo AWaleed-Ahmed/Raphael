@@ -30,8 +30,16 @@
 
 ## Decision log (newest first)
 
+### D-20261005-03 — Secret coverage shipped with gaps; preserve the patch boundary during follow-up
+- **Status:** accepted follow-up scope; application implementation paused for the bundled-Secret/no-values boundary decision. Supersedes earlier #30 completion claims, not the historical unit/kind observations.
+- **Date:** 2026-10-05
+- **Decision:** Repair #30 in two reviewed PRs, Ignis first, then an immutable release/tag and Raphael consumer/evals. Require independent review and approved designs for architectural/safety changes; main protection needs owner/admin action because the current account has write permission only.
+- **Finding:** Fresh-main audit of Ignis #18 (`176a13e`, `contracts-v1.3.0`) and Raphael #42 found unsupported references silently skipped, hardcoded `dependencies_available`, omitted bundled fixture metadata, generic redaction erasing `secret_coverage`, and missing precedence/sentinel/two-mock-eval proofs. Covered kind cases record `terminal: null`; Ready is not a successful remediation proof. See [the audit](https://github.com/AWaleed-Ahmed/Raphael/pull/42#issuecomment-5992136207).
+- **Boundary:** Deploy currently returns actual rendered file bytes, stores a raw manifest artifact and persists `rendered_yaml`. A Secret value bundled in those bytes survives these paths. Do not silently weaken the requested sentinel assertion or change the raw patch-input semantics to make it pass; get a reviewed boundary decision first. Existing coverage/checklist fixes require no schema-shape change, but the broader value-removal behavior needs explicit contract consideration.
+- **Consequences:** #44's approved report-validation fix is merged separately. Its old best-effort storage catch and whole-run schema/projection mismatches remain open; persistence enforcement stays off.
+
 ### D-20261005-02 — Validate reports at transitions and fail closed without leaking rejected values
-- **Status:** approved design; implementation under test on `fix/escalation-report-fail-closed`; not merged.
+- **Status:** merged in [PR #44](https://github.com/AWaleed-Ahmed/Raphael/pull/44) at `78c5e0e` after explicit approval and green head checks; storage failure handling remains separately open.
 - **Date:** 2026-10-05
 - **Decision:** Dispatch and graph use one report-validation helper. Invalid reports become `failed_closed` with `escalation_report_invalid`, a minimal replacement report, a schema-path-only audit event and error log. Validate before publication; keep JSON/SQLite persistence permissive and preserve the patch-content boundary.
 - **Finding:** #43's post-merge core and E2E/kind runs passed (37261846416 / 37261846426), but #43 did not rerun the validating-wrapper audit on its final head. Its earlier audit found `attempts[].status = completed` plus wider durable-run schema drift; PR #42 fixed the former. Fresh validation now also catches the real patch-budget producer emitting `attempts[].patch_id = null`, forbidden by the report schema. Eleven existing safety-test cases use incomplete report fixtures; those are distinct from the production producer defect.
