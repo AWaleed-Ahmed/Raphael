@@ -251,6 +251,9 @@ class ModelGateway:
 
     def select_patch(self, state: dict[str, Any]) -> dict[str, Any] | None:
         """Adapt diagnosis + top candidate to the bounded patch selector."""
+        from raphael_agent.image_pull import is_image_pull
+        if is_image_pull(state.get("failure_signature") or {}):
+            return None
         diagnosis = state.get("diagnosis") or {}
         classification = diagnosis.get("classification") or {}
         top = (state.get("fault_candidates") or [{}])[0]
@@ -270,6 +273,9 @@ class ModelGateway:
         diagnosis: dict[str, Any], prediction: dict[str, Any] | None, state: dict[str, Any]
     ) -> dict[str, Any]:
         """Merge a model classification without bypassing deterministic gates."""
+        from raphael_agent.image_pull import image_pull_block_reason
+        if image_pull_block_reason(state):
+            return diagnosis
         if not prediction or prediction.get("abstained"):
             return diagnosis
         classification = diagnosis.get("classification") or {}
@@ -279,6 +285,11 @@ class ModelGateway:
             return diagnosis
         raw_class = str(prediction.get("failure_class") or "")
         mapped_class = DIAGNOSIS_CLASS_MAP.get(raw_class, raw_class)
+        from raphael_agent.image_pull import image_pull_repair_allowed
+        if mapped_class == "bad_image_reference" and not image_pull_repair_allowed(
+            state.get("failure_signature") or {}, state.get("sandbox_backend")
+        ):
+            return diagnosis
         allowed = {
             "invalid_missing_config", "bad_image_reference", "probe_misconfiguration",
             "resource_constraint", "service_port_mismatch", "helm_kustomize_render_error",

@@ -22,8 +22,10 @@ def install():
             continue
 
         def audited_save(self, run, _original=original, _store_type=store_type):
-            result = _original(self, run)
-            persisted = self.get_run(run["run_id"])
+            # Keep the audited snapshot paired with this save while the reaper runs.
+            with self._lock:
+                result = _original(self, run)
+                persisted = self.get_run(run["run_id"])
             if persisted is None:
                 return result
             record = {"store": _store_type.__name__,

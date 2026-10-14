@@ -206,13 +206,30 @@ def analyze_run(run: dict[str, Any]) -> list[AnalyzerHit]:
             )
         )
 
-    if _IMAGE_RE.search(combined) or "raphael.scenario: bad-image" in manifest_text.lower():
+    from raphael_agent.image_pull import image_pull_block_reason, image_pull_repair_allowed
+
+    image_block = image_pull_block_reason(run)
+    if image_block:
+        hits.append(AnalyzerHit(
+            failure_class="unknown", category="blocked", confidence=0.99,
+            statement="Observed image pull evidence does not authorize an image replacement",
+            hypothesis_id="hyp-image-pull-refusal", blocked_reason=image_block,
+            supporting_evidence_ids=evidence_ids, analyzer_name="observed_image_pull",
+        ))
+    elif (_IMAGE_RE.search(combined) or "raphael.scenario: bad-image" in manifest_text.lower()) and not (run.get("failure_signature") or {}):
+        hits.append(AnalyzerHit(
+            failure_class="unknown", category="blocked", confidence=0.99,
+            statement="Image pull text lacks verified controller evidence",
+            hypothesis_id="hyp-image-pull-unverified", blocked_reason="image_pull_evidence_unverified",
+            supporting_evidence_ids=evidence_ids, analyzer_name="observed_image_pull",
+        ))
+    elif image_pull_repair_allowed(run.get("failure_signature") or {}, run.get("sandbox_backend")):
         hits.append(
             AnalyzerHit(
                 failure_class="bad_image_reference",
                 category="supported",
                 confidence=0.9,
-                statement="Container image reference is missing or pull failed",
+                statement="Verified controller evidence confirms an unavailable container image",
                 hypothesis_id="hyp-bad-image",
                 expected_signature_key=_observed_signature_key(run, "bad_image_reference"),
                 candidate_fix_hint="restore known-good image tag",

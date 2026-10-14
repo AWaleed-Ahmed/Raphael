@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import httpx
 import pytest
 
 from raphael_agent.graph import run_stub_graph
@@ -147,48 +146,12 @@ def test_llm_patch_mocked(monkeypatch):
     monkeypatch.setenv("RAPHAEL_OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("RAPHAEL_LLM_BASE_URL", "https://llm.test/v1")
 
-    class _Resp:
-        status_code = 200
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {
-                "choices": [
-                    {
-                        "message": {
-                            "content": json.dumps(
-                                {
-                                    "summary": "fix probe port",
-                                    "files": [
-                                        {
-                                            "path": "deploy/app.yaml",
-                                            "action": "modify",
-                                            "content": "apiVersion: v1\n",
-                                        }
-                                    ],
-                                }
-                            )
-                        }
-                    }
-                ]
-            }
-
-    class _Client:
-        def __init__(self, *a, **k):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def post(self, *a, **k):
-            return _Resp()
-
-    monkeypatch.setattr(httpx, "Client", _Client)
+    from raphael_agent.byok.client import LLMResponse
+    import raphael_agent.patch.llm as patch_llm
+    monkeypatch.setattr(patch_llm, "complete_json", lambda *a, **k: LLMResponse(
+        {"summary": "fix probe port", "files": [
+            {"path": "deploy/app.yaml", "action": "modify", "content": "apiVersion: v1\n"}
+        ]}, "gpt-4o-mini", {}))
     run = {
         "attempt_count": {"diagnosis": 1, "patch": 0},
         "delivery_mode": "issue_snippet",

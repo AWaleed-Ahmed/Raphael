@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
+import json
 import os
 from pathlib import Path
 from typing import Any, Literal
-
-from jsonschema import ValidationError
 
 from raphael_agent.budgets import check_budgets
 from raphael_agent.diagnosis import diagnose
@@ -39,7 +37,8 @@ from raphael_agent.localization import (
 from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.sandbox_config import secret_fixture_args
-from raphael_agent.schema_util import for_run_record_validation, load_sandbox_schema, validate_against
+from raphael_agent.schema_util import for_run_record_validation
+from raphael_agent.secret_coverage import required_secret_gaps
 from raphael_agent.store import RunStore
 from raphael_agent.store.patch_content import without_patch_content
 from raphael_agent.telemetry_supabase import record_run_outcome
@@ -368,6 +367,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         create = recorded["create"]
         observe = recorded["observe_broken"]
         updates["sandbox_id"] = create["sandbox_id"]
+        updates["sandbox_backend"] = create.get("cluster_backend")
         updates["failure_signature"] = observe["signature"]
         updates["runtime_observation"] = _runtime_observation_from_signature(
             state, observe["signature"]
@@ -430,6 +430,7 @@ def node_reproduce(state: RunState) -> dict[str, Any]:
         )
         sandbox_id = created["sandbox_id"]
         updates["sandbox_id"] = sandbox_id
+        updates["sandbox_backend"] = created.get("cluster_backend")
         deployed = client.deploy_revision(
             sandbox_id,
             {
@@ -485,39 +486,12 @@ def node_secret_coverage_gate(state: RunState) -> dict[str, Any]:
     """Stop before patching if the rendered workload has uncovered Secret refs."""
     if state.get("status") in {"failed_closed", "escalated", "blocked"}:
         return {}
-    if state.get("sandbox_mode") not in {"live", "connector"}:
+    gaps = required_secret_gaps(state)
+    if not gaps:
         return {}
-    report = state.get("secret_coverage")
-    if not isinstance(report, dict):
-        return {}
-    try:
-        validate_against(load_sandbox_schema("fidelity_report.json")["properties"]["secret_coverage"], report)
-        if len(json.dumps(report, ensure_ascii=False).encode("utf-8")) > 65_536:
-            return {}
-    except (ValidationError, TypeError, ValueError):
-        return {}
-    refs = report.get("references") if isinstance(report, dict) else None
-    if (
-        isinstance(report, dict)
-        and report.get("format_version") == 1
-        and report.get("complete") is True
-        and isinstance(refs, list)
-    ):
-        gaps = [
-            item for item in refs
-            if isinstance(item, dict)
-            and item.get("optional") is not True
-            and item.get("status") in {"missing_object", "missing_key"}
-        ]
-        if not gaps:
-            return {}
-        reason = "unresolved_secret_dependency"
-        summary = "Rendered workload requires Secret data that is not available in the sandbox fixtures"
-        detail = f"{len(gaps)} required Secret reference(s) are uncovered"
-    else:
-        # Unknown is not evidence of a missing dependency; only authoritative,
-        # complete coverage may trigger this new structural refusal.
-        return {}
+    reason = "unresolved_secret_dependency"
+    summary = "Rendered workload requires Secret data that is not available in the sandbox fixtures"
+    detail = f"{len(gaps)} required Secret reference(s) are uncovered"
 
     updates: dict[str, Any] = {"status": "escalated", "terminal_reason": reason}
     updates["escalation_report"] = _escalation(
@@ -788,6 +762,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
             repository=repository_name,
             service_name=service_name,
             environment=environment,
+            sandbox_backend=state.get("sandbox_backend"),
         )
         target_environment = state.get("target_environment")
         if (

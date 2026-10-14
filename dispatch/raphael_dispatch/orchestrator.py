@@ -441,6 +441,7 @@ class Orchestrator:
     def _after_create(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}
         state["sandbox_id"] = result.get("sandbox_id")
+        state["sandbox_backend"] = result.get("cluster_backend")
         return [self._issue_action(state, "deploy_revision", self._deploy_args(state))]
 
     @staticmethod

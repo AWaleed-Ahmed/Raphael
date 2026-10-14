@@ -72,7 +72,11 @@ def test_diagnose_probe_without_llm(monkeypatch):
 
 def test_diagnose_bad_image(monkeypatch):
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "0")
-    result = diagnose(_run(BAD_IMAGE_WS, "ImagePullBackOff: manifest unknown"))
+    run = _run(BAD_IMAGE_WS, "")
+    run["failure_signature"] = {"class": "bad_image_reference", "key": "verified-image-key",
+        "normalized": {"resource_kind": "Deployment", "resource_name": "app", "container": "app",
+            "attributes": {"image": "registry.example/app:arbitrary-tag", "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"}}}
+    result = diagnose(run)
     assert result["classification"]["failure_class"] == "bad_image_reference"
     assert result["selected_hypothesis_id"] == "hyp-bad-image"
 
@@ -165,5 +169,8 @@ def test_image_and_config_analyzers_preserve_observed_key():
         run = _run(workspace, evidence)
         run['failure_signature'] = {'class': failure_class, 'key': key,
                                     'normalized': {'resource_name': 'worker-api'}}
+        if failure_class == 'bad_image_reference':
+            run['failure_signature']['normalized'].update(resource_kind='Deployment', container='app',
+                attributes={"image": "acme/app:missing", "image_pull_cause": "not_found", "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"})
         hit = next(hit for hit in analyze_run(run) if hit.failure_class == failure_class)
         assert hit.expected_signature_key == key

@@ -217,12 +217,19 @@ def fix_probe_port_mismatch(run: dict[str, Any]) -> list[dict[str, Any]] | None:
 def fix_bad_image(run: dict[str, Any]) -> list[dict[str, Any]] | None:
     sig, norm, attrs = _signature_data(run)
     name, image = norm.get("resource_name"), attrs.get("image")
-    if (
-        not isinstance(image, str) or not image
-        or sig.get("key") != f"bad_image:{name}:{image}"
-        or not ("does-not-exist" in image or image.endswith(":missing") or "invalid.tag" in image)
-    ):
-        raise TemplateRefusal("patch_target_unavailable", "No exact structural bad-image signature")
+    from raphael_agent.image_pull import image_pull_repair_allowed
+    import json
+    if not image_pull_repair_allowed(sig, run.get("sandbox_backend")):
+        raise TemplateRefusal("patch_target_unavailable", "Image pull cause or Deployment/container identity is unverified")
+    if attrs.get("evidence_source") == "runtime":
+        expected_key = "image_pull:" + json.dumps(
+            ["Deployment", name, "regular", norm.get("container"), image, "not_found"],
+            ensure_ascii=False, separators=(",", ":"),
+        )
+    else:
+        expected_key = f"bad_image:{name}:{image}"
+    if sig.get("key") != expected_key:
+        raise TemplateRefusal("patch_target_unavailable", "Image pull fingerprint differs from exact target")
     norm = _signature(run, "bad_image_reference", sig["key"])
     path, content, deployment = _resource(run, "Deployment", norm["resource_name"])
     container = _container(deployment, norm["container"])
@@ -294,6 +301,11 @@ def generate_files_for_diagnosis(run: dict[str, Any]) -> tuple[list[dict[str, An
             None,
             f"Learning demoted template for {failure_class} (weight={weight})",
         )
+
+    from raphael_agent.image_pull import is_image_pull
+    if is_image_pull(run.get("failure_signature") or {}):
+        files = fix_bad_image(run)
+        return files, "Restore provenance-verified container image"
 
     # The patch-selector model chooses only from bounded template families.
     # Map its names to concrete generators; unknown families fall back to the
