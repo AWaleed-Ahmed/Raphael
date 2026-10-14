@@ -30,8 +30,15 @@
 
 ## Decision log (newest first)
 
+### D-20261014-01 — Preserve named raw manifest channels for patching; scope the no-values guarantee
+- **Status:** accepted; implementation is in progress on Ignis `fix/secret-coverage-safety`.
+- **Date:** 2026-10-14
+- **Decision:** Keep the existing raw patch/application channels unchanged. The no-values guarantee applies outside (1) `rendered_files` in the `deploy_revision` response, (2) the full rendered-manifest artifact, and (3) `SandboxRecord.rendered_yaml`. Coverage inventory and reports may contain Secret names and key names only, never values. This supersedes only the pending boundary decision in D-20261005-03; it does not claim universal absence from process memory or the named raw channels.
+- **Why:** Those raw channels are used by patch generation and later controller observe/validation flows. Silently redacting them could change patch-input semantics; the approved sentinel proof instead checks every response, log, and persisted surface outside these explicit channels.
+- **Consequences:** Ignis #30 follow-up remains Ignis-first, then a pinned release and Raphael consumer/eval update. Unsupported or malformed coverage stays unknown; only a positively uncovered required reference makes `dependencies_available` false. No public schema change is planned for the Ignis follow-up.
+
 ### D-20261005-03 — Secret coverage shipped with gaps; preserve the patch boundary during follow-up
-- **Status:** accepted follow-up scope; application implementation paused for the bundled-Secret/no-values boundary decision. Supersedes earlier #30 completion claims, not the historical unit/kind observations.
+- **Status:** accepted follow-up scope; raw-channel boundary superseded by D-20261014-01 and implementation is in progress. Supersedes earlier #30 completion claims, not the historical unit/kind observations.
 - **Date:** 2026-10-05
 - **Decision:** Repair #30 in two reviewed PRs, Ignis first, then an immutable release/tag and Raphael consumer/evals. Require independent review and approved designs for architectural/safety changes; main protection needs owner/admin action because the current account has write permission only.
 - **Finding:** Fresh-main audit of Ignis #18 (`176a13e`, `contracts-v1.3.0`) and Raphael #42 found unsupported references silently skipped, hardcoded `dependencies_available`, omitted bundled fixture metadata, generic redaction erasing `secret_coverage`, and missing precedence/sentinel/two-mock-eval proofs. Covered kind cases record `terminal: null`; Ready is not a successful remediation proof. See [the audit](https://github.com/AWaleed-Ahmed/Raphael/pull/42#issuecomment-5992136207).
