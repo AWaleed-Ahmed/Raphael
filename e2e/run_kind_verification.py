@@ -97,7 +97,7 @@ def verify_case(label, result, records, initial_pod, final_ready):
     if label == "image-without-provenance":
         assert result["final_status"] == "escalated"
         assert not state.get("pull_request_url")
-        assert state["terminal_reason"] == "patch_value_unavailable"
+        assert state["terminal_reason"] == "image_pull_evidence_unverified"
         assert not state.get("candidate_patches") and not evidence["patch_files"]
         assert evidence["validation"] is None
         return

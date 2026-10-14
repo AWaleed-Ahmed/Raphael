@@ -68,12 +68,16 @@ class EvaluationHarnessTests(unittest.TestCase):
         report = {
             field: [] for field in manifest["required_evidence"]["escalation_report"]["required_fields"]
         }
-        report.update(reason_code="patch_value_unavailable", what_happened="No verified healthy image")
+        report.update(
+            reason_code="image_pull_evidence_unverified",
+            what_happened="image_pull_evidence_unverified",
+            why_no_fix="Automatic fix not proposed for blocked failure classes",
+        )
         runner = {
             "job_id": "image-job", "runner_exit_code": 0,
             "run_state": {
-                "diagnosis": {"classification": {"failure_class": "bad_image_reference"}},
-                "terminal_reason": "patch_value_unavailable", "escalation_report": report,
+                "diagnosis": {"classification": {"failure_class": "unknown"}},
+                "terminal_reason": "image_pull_evidence_unverified", "escalation_report": report,
             },
         }
         records = [{

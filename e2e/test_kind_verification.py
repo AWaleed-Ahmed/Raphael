@@ -25,7 +25,7 @@ class KindProofTests(unittest.TestCase):
                   "terminal": {"payload": {"instructions": "discard_local_copy"}}}
         if label == "image-without-provenance":
             result["final_status"] = "escalated"
-            state["terminal_reason"] = "patch_value_unavailable"
+            state["terminal_reason"] = "image_pull_evidence_unverified"
             evidence.update(validation=None, patch_files=[])
         return result, evidence
 
