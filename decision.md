@@ -31,11 +31,11 @@
 ## Decision log (newest first)
 
 ### D-20261015-01 — Bad-image repair requires verified pull evidence
-- **Status:** accepted; correction and proof updates are in PR #48; the required positive kind proof is tracked in [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49).
+- **Status:** accepted; correction and proof updates are in PR #48; the positive kind proof is pending under [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and is excluded from required checks until reviewed, released Ignis #19 evidence is pinned.
 - **Date:** 2026-10-15
 - **Decision:** PR #47 (`5a1771e`) added a provenance gate: automatic bad-image repair requires structured `not_found` evidence, verified Deployment/container identity, and an approved evidence source. The current mock detector does not emit those provenance fields, so the mock case must refuse as `unknown` / `image_pull_evidence_unverified`. Do not manufacture registry provenance in the mock.
 - **Why:** A pattern-matched image name or generic pull error does not establish that the image is absent or authorize replacing it. The earlier `fix_finalized` claims in D-20260918-02 and D-20260930-01 are historical pre-gate results and are superseded as claims about current behavior.
-- **Consequences:** Bad-image repair is not currently proven end-to-end under the gate. Restore that claim only after a real kind case observes `ErrImagePull` with approved provenance and reaches `fix_finalized`. Track that proof as open work; the old mock success remains historical evidence only.
+- **Consequences:** Bad-image repair is not currently proven end-to-end under the gate. Restore that claim only after a real kind case observes `ErrImagePull` with approved provenance and reaches `fix_finalized`. The positive kind case remains in the runner as a manual-dispatch-only pending case tied to Raphael #49 and Ignis #19; add it back to required checks in the Raphael PR that consumes the reviewed, released, pinned runtime evidence. The old mock success remains historical evidence only.
 
 ### D-20261014-01 — Preserve named raw manifest channels for patching; scope the no-values guarantee
 - **Status:** accepted; implementation is in progress on Ignis `fix/secret-coverage-safety`.

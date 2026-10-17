@@ -11,6 +11,45 @@ from run_real_job import cluster_settings
 
 
 class KindProofTests(unittest.TestCase):
+    def test_pending_positive_is_excluded_from_required_checks(self):
+        with patch.dict("os.environ", {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE": "false",
+        }, clear=True):
+            self.assertEqual(proof.selected_cases(), ("probe", "image-without-provenance"))
+
+    def test_pending_positive_is_manual_only_and_requires_explicit_pin(self):
+        with patch.dict("os.environ", {
+            "GITHUB_EVENT_NAME": "push",
+            "E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE": "true",
+            "E2E_MANUAL_IGNIS_REF": "contracts-v1.4.0",
+        }, clear=True), self.assertRaisesRegex(RuntimeError, "manual-dispatch only"):
+            proof.selected_cases()
+
+        with patch.dict("os.environ", {
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE": "true",
+            "E2E_MANUAL_IGNIS_REF": "",
+        }, clear=True), self.assertRaisesRegex(RuntimeError, "immutable contracts-vX.Y.Z tag"):
+            proof.selected_cases()
+
+        with patch.dict("os.environ", {
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE": "true",
+            "E2E_MANUAL_IGNIS_REF": "main",
+        }, clear=True), self.assertRaisesRegex(RuntimeError, "immutable contracts-vX.Y.Z tag"):
+            proof.selected_cases()
+
+    def test_manual_dispatch_can_select_pending_positive_with_explicit_pin(self):
+        with patch.dict("os.environ", {
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE": "true",
+            "E2E_MANUAL_IGNIS_REF": "contracts-v1.4.0",
+        }, clear=True):
+            self.assertEqual(proof.selected_cases(), (
+                "probe", "image-without-provenance", "image-with-verified-provenance",
+            ))
+
     def case(self, label):
         image = label != "probe"
         original = "image: broken\n" if image else "port: 9090\nport: 8080\n"

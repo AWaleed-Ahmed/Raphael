@@ -6,7 +6,7 @@
 **Initial platform:** Kubernetes, GitHub, and GitHub Actions  
 **Delivery model:** Two-person engineering team
 
-> **Current implementation:** See [handoff.md](handoff.md) for verified status, proof limits, open work, and contributor setup. Probe repair is proven to `fix_finalized` in mock evals. Bad-image repair is gated on verified pull evidence; the mock refuses, and no positive end-to-end proof under the current gate exists. A real kind repair with genuine `ErrImagePull` and approved provenance is pending under [issue #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49). Missing-config is a proven refusal, not a safe automated fix. See D-20261015-01.
+> **Current implementation:** See [handoff.md](handoff.md) for verified status, proof limits, open work, and contributor setup. Probe repair is proven to `fix_finalized` in mock evals. Bad-image repair is gated on verified pull evidence; the mock refuses, and no positive end-to-end proof under the current gate exists. A real kind repair with genuine `ErrImagePull` and approved provenance is pending under [issue #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49). Its positive case is retained as manual-dispatch-only until reviewed Ignis #19 runtime evidence is released and pinned, then returns to required checks in the consumer PR. Missing-config is a proven refusal, not a safe automated fix. See D-20261015-01.
 
 **Known gaps against this spec:**
 
