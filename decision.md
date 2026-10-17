@@ -30,6 +30,20 @@
 
 ## Decision log (newest first)
 
+### D-20261015-01 — Bad-image repair requires verified pull evidence
+- **Status:** accepted; correction and proof updates are in PR #48; the positive kind proof is pending under [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and is excluded from required checks until reviewed, released Ignis #19 evidence is pinned.
+- **Date:** 2026-10-15
+- **Decision:** PR #47 (`5a1771e`) added a provenance gate: automatic bad-image repair requires structured `not_found` evidence, verified Deployment/container identity, and an approved evidence source. The current mock detector does not emit those provenance fields, so the mock case must refuse as `unknown` / `image_pull_evidence_unverified`. Do not manufacture registry provenance in the mock.
+- **Why:** A pattern-matched image name or generic pull error does not establish that the image is absent or authorize replacing it. The earlier `fix_finalized` claims in D-20260918-02 and D-20260930-01 are historical pre-gate results and are superseded as claims about current behavior.
+- **Consequences:** Bad-image repair is not currently proven end-to-end under the gate. Restore that claim only after a real kind case observes `ErrImagePull` with approved provenance and reaches `fix_finalized`. The positive kind case remains in the runner as a manual-dispatch-only pending case tied to Raphael #49 and Ignis #19; add it back to required checks in the Raphael PR that consumes the reviewed, released, pinned runtime evidence. The old mock success remains historical evidence only.
+
+### D-20261014-01 — Preserve named raw manifest channels for patching; scope the no-values guarantee
+- **Status:** accepted; implementation is in progress on Ignis `fix/secret-coverage-safety`.
+- **Date:** 2026-10-14
+- **Decision:** Keep the existing raw patch/application channels unchanged. The no-values guarantee applies outside (1) `rendered_files` in the `deploy_revision` response, (2) the full rendered-manifest artifact, and (3) `SandboxRecord.rendered_yaml`. Coverage inventory and reports may contain Secret names and key names only, never values. This supersedes only the pending boundary decision in D-20261005-03; it does not claim universal absence from process memory or the named raw channels.
+- **Why:** Those raw channels are used by patch generation and later controller observe/validation flows. Silently redacting them could change patch-input semantics; the approved sentinel proof instead checks every response, log, and persisted surface outside these explicit channels.
+- **Consequences:** Ignis #30 follow-up remains Ignis-first, then a pinned release and Raphael consumer/eval update. Unsupported or malformed coverage stays unknown; only a positively uncovered required reference makes `dependencies_available` false. No public schema change is planned for the Ignis follow-up.
+
 ### D-20261006-02 — Scope real-kind repair proof to owned resources and verified baseline fixtures
 - **Status:** reviewed implementation; three controls passed in hosted run 37442412528; final-head checks required before the authorized merge.
 - **Date:** 2026-10-06
@@ -45,8 +59,16 @@
 - **Consequences:** Shared external diagnosis/patch transport preserves schema/policy gates. Known structural Secret gaps stop external refinement before key/network work. Native Anthropic/Azure, tenant-key management and local classifier #40 remain separate. Live-provider connectivity is unverified without a supplied key.
 - **Proof:** 385 agent passed (4 skips), 77 dispatch, 58 BYOK and 10 evaluator tests. Core 37438867760 and cross-repo 37438867823 passed; see `docs/byok-implementation-review-2026-10-06.md`.
 
+### D-20261005-03 — Secret coverage shipped with gaps; preserve the patch boundary during follow-up
+- **Status:** accepted follow-up scope; raw-channel boundary superseded by D-20261014-01 and implementation is in progress. Supersedes earlier #30 completion claims, not the historical unit/kind observations.
+- **Date:** 2026-10-05
+- **Decision:** Repair #30 in two reviewed PRs, Ignis first, then an immutable release/tag and Raphael consumer/evals. Require independent review and approved designs for architectural/safety changes; main protection needs owner/admin action because the current account has write permission only.
+- **Finding:** Fresh-main audit of Ignis #18 (`176a13e`, `contracts-v1.3.0`) and Raphael #42 found unsupported references silently skipped, hardcoded `dependencies_available`, omitted bundled fixture metadata, generic redaction erasing `secret_coverage`, and missing precedence/sentinel/two-mock-eval proofs. Covered kind cases record `terminal: null`; Ready is not a successful remediation proof. See [the audit](https://github.com/AWaleed-Ahmed/Raphael/pull/42#issuecomment-5992136207).
+- **Boundary:** Deploy currently returns actual rendered file bytes, stores a raw manifest artifact and persists `rendered_yaml`. A Secret value bundled in those bytes survives these paths. The accepted channel scope is now D-20261014-01; that decision does not weaken or widen the historical no-values guarantee outside the named raw inputs.
+- **Consequences:** #44's approved report-validation fix is merged separately. Its old best-effort storage catch and whole-run schema/projection mismatches remain open; persistence enforcement stays off.
+
 ### D-20261005-02 — Validate reports at transitions and fail closed without leaking rejected values
-- **Status:** approved design; implementation under test on `fix/escalation-report-fail-closed`; not merged.
+- **Status:** merged in [PR #44](https://github.com/AWaleed-Ahmed/Raphael/pull/44) at `78c5e0e` after explicit approval and green head checks; storage failure handling remains separately open.
 - **Date:** 2026-10-05
 - **Decision:** Dispatch and graph use one report-validation helper. Invalid reports become `failed_closed` with `escalation_report_invalid`, a minimal replacement report, a schema-path-only audit event and error log. Validate before publication; keep JSON/SQLite persistence permissive and preserve the patch-content boundary.
 - **Finding:** #43's post-merge core and E2E/kind runs passed (37261846416 / 37261846426), but #43 did not rerun the validating-wrapper audit on its final head. Its earlier audit found `attempts[].status = completed` plus wider durable-run schema drift; PR #42 fixed the former. Fresh validation now also catches the real patch-budget producer emitting `attempts[].patch_id = null`, forbidden by the report schema. Eleven existing safety-test cases use incomplete report fixtures; those are distinct from the production producer defect.

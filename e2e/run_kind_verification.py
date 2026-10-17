@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,10 @@ from run_real_job import trace_records
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from evals.run_evals import trace_evidence, patch_line_changes
+
+REQUIRED_KIND_CASES = ("probe", "image-without-provenance")
+PENDING_BAD_IMAGE_POSITIVE_CASE = "image-with-verified-provenance"
+PENDING_BAD_IMAGE_TRACKING = "Raphael #49; Ignis #19"
 
 
 class CatalogFixture:
@@ -97,7 +102,7 @@ def verify_case(label, result, records, initial_pod, final_ready):
     if label == "image-without-provenance":
         assert result["final_status"] == "escalated"
         assert not state.get("pull_request_url")
-        assert state["terminal_reason"] == "patch_value_unavailable"
+        assert state["terminal_reason"] == "image_pull_evidence_unverified"
         assert not state.get("candidate_patches") and not evidence["patch_files"]
         assert evidence["validation"] is None
         return
@@ -205,8 +210,27 @@ def run_case(label, fixture, sha, output, catalog=None):
                 cleanup_namespace(namespace, owned)
 
 
+def selected_cases():
+    """Keep the positive provenance proof pending until Ignis #19 is released."""
+    include_pending = os.getenv("E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE", "false").lower() == "true"
+    if not include_pending:
+        print(
+            f"PENDING: {PENDING_BAD_IMAGE_POSITIVE_CASE} is excluded from required checks until reviewed, "
+            f"released Ignis #19 runtime evidence is pinned; tracked in {PENDING_BAD_IMAGE_TRACKING}.",
+            flush=True,
+        )
+        return REQUIRED_KIND_CASES
+    if os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch":
+        raise RuntimeError("the pending bad-image positive proof is manual-dispatch only")
+    ref = os.getenv("E2E_MANUAL_IGNIS_REF", "").strip()
+    if not re.fullmatch(r"(?:contracts-v\d+\.\d+\.\d+|[0-9a-fA-F]{40})", ref):
+        raise RuntimeError("manual pending proof requires an immutable contracts-vX.Y.Z tag or full commit SHA")
+    return (*REQUIRED_KIND_CASES, PENDING_BAD_IMAGE_POSITIVE_CASE)
+
+
 def main():
     assert os.getenv("GITHUB_ACTIONS") == "true", "hosted disposable CI only"
+    cases = selected_cases()
     assert kube("config", "current-context").strip() == CONTEXT
     output = ROOT / "e2e/kind-remediation-out"
     output.mkdir(exist_ok=True)
@@ -232,11 +256,15 @@ def main():
                         "runtime_identity": {"resource_kind": "Deployment", "resource_name": "payments-api",
                                              "container_images": {"api": "hashicorp/http-echo:1.0"}}}
             (output / "baseline.json").write_text(json.dumps({"catalog_row": baseline, "ready_pod": healthy}, indent=2))
-            run_case("probe", source / "probe", shas["probe"], output)
-            run_case("image-without-provenance", source / "bad-image", shas["bad-image"], output)
-            with CatalogFixture(baseline) as catalog:
-                run_case("image-with-verified-provenance", source / "bad-image", shas["bad-image"], output, catalog)
-                (output / "catalog-requests.json").write_text(json.dumps(catalog.requests, indent=2))
+            for label in cases:
+                if label == "probe":
+                    run_case(label, source / "probe", shas["probe"], output)
+                elif label == "image-without-provenance":
+                    run_case(label, source / "bad-image", shas["bad-image"], output)
+                else:
+                    with CatalogFixture(baseline) as catalog:
+                        run_case(label, source / "bad-image", shas["bad-image"], output, catalog)
+                        (output / "catalog-requests.json").write_text(json.dumps(catalog.requests, indent=2))
     finally:
         if namespace in owned:
             cleanup_namespace(namespace, owned)
