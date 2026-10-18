@@ -51,3 +51,19 @@ Each state transition is persisted through the existing agent `RunStore`, includ
 On startup, dispatch restores nonterminal jobs with a still-valid lease. A restart after initial deploy preserves the pending observation action unchanged, then issues a fresh unpatched `deploy_revision` on the same sandbox to reacquire `rendered_files` before patch generation. This refresh does not consume a patch attempt. Missing refreshed files escalate with `patch_input_unavailable` rather than generating a patch from empty input.
 
 **Recovery limit:** once a generated patch's executable bytes have been omitted from persistence, startup (or producer retry against that persisted run) fails closed with `patch_context_lost_on_restart`. Dispatch never replays a stripped action or silently substitutes new bytes under an old action ID. This also applies to later validation/finalization stages that still need the in-memory patch. Persisted jobs whose lease already expired are failed closed with `job_lease_expired` first. This policy does not promise automatic connector cleanup delivery from a startup terminal; that remains governed by the existing terminal-delivery mechanism.
+
+### Lease handover and publication recovery
+
+Use distinct connector credentials (or trusted configured connector identities)
+for independent workers. Result processing and renewal share persisted state;
+slow hooks run outside the state lock and async handlers offload blocking work.
+An in-progress result returns409 and must be retried while heartbeating. If a
+result already committed before its response arrived, the matching old owner
+can receive409 `action_completed` with the already-active next claim. Adopt that
+claim and its sequence; this response does not renew or extend it.
+
+Publishing persists intent before the remote call. An uncertain outcome becomes
+`publication_outcome_unknown` and requires manual reconciliation before another
+publication attempt. This does not roll back remote effects or guarantee exactly
+once. Deadline-bound GitHub requests own and close an async HTTP client per
+exchange, under a total wall deadline rather than an inactivity timeout.

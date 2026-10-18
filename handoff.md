@@ -1,9 +1,25 @@
 # Raphael contributor map
 
-Current checkpoint is based on Raphael main `5a1771e` and released Ignis `contracts-v1.3.0` (`176a13e`) as of 2026-10-15.
+Latest recovery checkpoint: 2026-10-19, based on Raphael main `903370a` and Ignis preservation `9d88f47`. Released contract/runtime pin remains `contracts-v1.3.0` (`176a13e`).
 This page describes current implementation and proof; [prd.md](prd.md) defines the product, not completed work.
 
 ## Start here: where we stopped
+
+**2026-10-19 #13/#17 recovery implemented:** both persistent repositories use
+`fix/restore-clone-leases`. Source edits recovered from session history were
+reviewed and reimplemented with additional lifecycle fixes; the old Git hashes
+remain unavailable. Owned checkout fidelity, persisted claim/renewal, atomic
+expiry/result commit, total publication/server deadlines, heartbeat handover,
+cancellation and partial-journal recovery are implemented. Fresh local results:
+agent441/4skip, dispatch86, Rust82, contracts19, harness/evaluator31,
+checkout matrix36, paired mock scenarios3. Independent standards/spec rechecks
+have zero remaining findings. See the [plan](docs/restore-13-17-plan-2026-10-18.md),
+[detailed cases/results](docs/restore-13-17-review-2026-10-19.md) and
+[remaining qualification checklist](docs/ignis-11-13-17-completion-checklist.md).
+Authenticated clone, system-attribute/full fidelity controls, hosted deadline/
+denial/kind runs, reviewed contract release/pins and #11 positive repair remain.
+No #11/#13/#17 closure or release is declared. Dated missing-code statements
+below describe the earlier preservation checkpoint and are superseded here.
 
 **2026-10-18 BYOK expansion (local implementation):**
 `feature/byok-provider-support` adds named OpenAI/Gemini/Anthropic/Groq/
