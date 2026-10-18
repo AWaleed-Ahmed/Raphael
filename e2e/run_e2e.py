@@ -112,7 +112,7 @@ def wait_terminal(trace: Path, job_id: str, timeout: float = 120) -> tuple[dict,
 
 
 def count_patch_attempts(records: list[dict], job_id: str) -> int:
-    count = 0
+    attempts: set[str] = set()
     for record in records:
         resp_body = record.get("response", {}).get("body", "")
         if job_id not in resp_body:
@@ -123,11 +123,12 @@ def count_patch_attempts(records: list[dict], job_id: str) -> int:
             continue
         for msg in parsed.get("messages", []):
             payload = msg.get("payload", {})
-            if payload.get("verb") == "deploy_revision":
+            if payload.get("job_id") == job_id and payload.get("verb") == "deploy_revision":
                 patch_data = payload.get("args", {}).get("patch")
-                if patch_data and patch_data.get("files"):
-                    count += 1
-    return count
+                action_id = payload.get("action_id")
+                if patch_data and patch_data.get("files") and action_id:
+                    attempts.add(action_id)
+    return len(attempts)
 
 
 def find_clone_workspace(job_id: str) -> Path | None:
@@ -426,6 +427,8 @@ def main() -> int:
         return 1
 
     env = os.environ.copy()
+    # Scope the configurable diagnosis delay to the restart scenario below.
+    env.pop("E2E_DIAGNOSE_DELAY_SECONDS", None)
     env["RAPHAEL_DISPATCH_TOKENS"] = json.dumps({
         PRODUCER: {"tenant_id": TENANT, "role": "producer"},
         TOKEN: {"tenant_id": TENANT, "role": "connector"},
@@ -485,7 +488,7 @@ def main() -> int:
         dispatch.terminate()
         dispatch.wait(timeout=10)
         processes.remove(dispatch)
-        env["E2E_DIAGNOSE_DELAY_SECONDS"] = "15"
+        env["E2E_DIAGNOSE_DELAY_SECONDS"] = os.environ.get("E2E_DIAGNOSE_DELAY_SECONDS", "15")
         diagnose_marker = data_dir / "diagnose-started"
         diagnose_marker.unlink(missing_ok=True)
         env["E2E_DIAGNOSE_STARTED_FILE"] = str(diagnose_marker)
