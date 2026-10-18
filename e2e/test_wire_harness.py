@@ -19,3 +19,25 @@ class PatchAttemptTests(unittest.TestCase):
                    self.record("initial", verb="deploy_initial"), self.record("empty", files=[]),
                    {"response": {"body": "invalid JSON"}}]
         self.assertEqual(count_patch_attempts(records, "job"), 0)
+
+
+class EvidenceTests(unittest.TestCase):
+    def test_claim_credentials_are_redacted_without_changing_action_identity(self):
+        from e2e.trace_redaction import redacted_body
+        original = {"claim": {"claim_id": "synthetic-private", "connector_id": "synthetic-owner", "action_id": "public-action", "renewal_sequence": 3}}
+        decoded = json.loads(redacted_body(json.dumps(original).encode()))
+        self.assertEqual(decoded["claim"]["claim_id"], "[redacted]")
+        self.assertEqual(decoded["claim"]["connector_id"], "[redacted]")
+        self.assertEqual(decoded["claim"]["action_id"], "public-action")
+        self.assertEqual(decoded["claim"]["renewal_sequence"], 3)
+        self.assertEqual(redacted_body(b'bad claim_id=synthetic-private'), "[non-JSON body omitted]")
+
+    def test_combined_launcher_uses_persisted_orchestrator_claims(self):
+        import os
+        from pathlib import Path
+        import runpy
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"RAPHAEL_AGENT_DATA_DIR": directory}):
+            launcher = runpy.run_path(str(Path(__file__).parent / "combined_launcher.py"))
+            self.assertIs(launcher["combined"].state.orchestrator, launcher["dispatch_app"].state.orchestrator)

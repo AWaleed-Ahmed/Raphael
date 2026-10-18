@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "dispatch"), str(ROOT / "agent")]
+sys.path[:0] = [str(ROOT), str(ROOT / "dispatch"), str(ROOT / "agent")]
+
+from e2e.trace_redaction import redacted_body  # noqa: E402
 
 from raphael_dispatch.app import create_app  # noqa: E402
 from raphael_dispatch.orchestrator import AgentHooks, Orchestrator  # noqa: E402
@@ -58,7 +60,7 @@ class TraceMiddleware(BaseHTTPMiddleware):
         payload = b"".join(chunks)
         with open(os.environ.get("E2E_TRACE_FILE", "e2e-dispatch-trace.jsonl"), "a", encoding="utf-8") as stream:
             import json
-            stream.write(json.dumps({"request": {"method": request.method, "path": request.url.path, "body": body.decode(errors="replace")}, "response": {"status": response.status_code, "body": payload.decode(errors="replace")}}) + "\n")
+            stream.write(json.dumps({"request": {"method": request.method, "path": request.url.path, "body": redacted_body(body)}, "response": {"status": response.status_code, "body": redacted_body(payload)}}) + "\n")
         from starlette.responses import Response
         return Response(payload, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
 
