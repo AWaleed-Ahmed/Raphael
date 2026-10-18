@@ -114,9 +114,12 @@ No real-provider success is claimed. No provider key was configured in the
 process environment during implementation. A credential was pasted into chat;
 it was not copied into source, logs, configuration or provider requests.
 Configure a replacement locally before the live smoke. Routine hosted suites
-remain independent of provider credentials. Existing unsupported-provider test
-expectations were updated for the new Anthropic support; no test suite was run
-for this change yet.
+remain independent of provider credentials. Regression verification now passes: focused BYOK100, full agent438
+(with4skips), dispatch77 and evaluator/proof assertions27. All26 contract
+files match the pinned release. The full agent suite includes the focused
+BYOK tests; do not add those counts together. See the
+[implementation record](byok-provider-implementation-review-2026-10-18.md) for
+commands, the initial collection conflict and remaining live/hosted limits.
 
 ## Official protocol references
 

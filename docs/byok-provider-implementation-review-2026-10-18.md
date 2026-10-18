@@ -32,7 +32,12 @@ Base includes the completion-checklist preservation checkpoint at `5ab6226`.
 | `git diff --check` | Passed |
 | Manual source inspection against official API docs | Completed; Together default uses current `.ai` endpoint because redirects are disabled |
 | mypy / ruff | Not installed in the project environment; no type/lint pass claimed |
-| Regression tests / hosted CI | Not run for this implementation; must pass before release |
+| BYOK focused regression | **100 passed**, including all nine presets, discovery/quota rotation and Anthropic error/output handling |
+| Full agent regression | **438 passed, 4 skipped** |
+| Full dispatch regression | **77 passed** |
+| Evaluator + kind-proof assertion tests | **27 passed**; these do not create a real kind cluster |
+| Contract snapshot | **26 files identical** to annotated `contracts-v1.3.0` / `176a13e1a580f4699eba17800bfd2932e5fcaf1c`; Git/SHA-256 check used because PowerShell is unavailable |
+| Hosted CI | Pending the push to main; local results are not hosted results |
 | Actual live provider smoke | Not run; replacement key must be configured locally |
 
 No provider was live-qualified by mocked results or by compilation. The key
@@ -41,10 +46,12 @@ repository artifacts; use the hidden terminal prompt in the setup guide.
 
 ## Remaining qualification
 
-1. Run existing BYOK, safety, schema and patch-policy regression suites.
-2. Add/request coverage for each new preset's key precedence/auth/discovery,
-   native Anthropic text/error/usage handling, metadata filtering, quota
-   exhaustion, pinned models and malformed/truncated output.
+1. Preserve the passing BYOK, safety, schema and patch-policy suites. New
+   coverage checks every named preset's key precedence/auth/discovery and
+   quota rotation, pinned models, Anthropic text/error/usage handling, catalog
+   metadata filtering and malformed/truncated output. Existing exhaustion and
+   deadline tests also pass.
+2. Expand provider-specific cases if actual live qualification exposes a gap.
 3. Run authorized synthetic live smoke on the providers being advertised as
    live-verified, with fresh locally configured keys; record provider/model,
    timestamp and outcome without raw credentials/responses.
@@ -55,3 +62,26 @@ repository artifacts; use the hidden terminal prompt in the setup guide.
 
 See [setup and official references](byok-provider-guide.md) and the
 [eight release milestones](release-milestones-2026-10-18.md).
+
+## Regression execution and push readiness
+
+User authorized committing and pushing to main on 2026-10-18 conditional on
+regression results. Code/test head `2a969bc` passed the checks above. Commands:
+
+```bash
+PYTHONPATH=agent:dispatch python -m pytest agent/tests/test_byok.py -q
+PYTHONPATH=agent:dispatch python -m pytest agent/tests -q
+PYTHONPATH=dispatch:agent python -m pytest dispatch/tests -q
+PYTHONPATH=agent:dispatch python -m unittest evals.test_run_evals e2e.test_kind_verification
+```
+
+The first combined agent+dispatch invocation stopped at collection because
+both use `tests.conftest`; independent suite invocations above passed. That
+collection failure was not masked or counted as a pass. Deprecation warnings
+remain for Starlette/AnyIO and `jsonschema.RefResolver`. No model-provider
+request, real-kind job or live publication was performed in these tests.
+
+Manual diff review confirmed no deployment/workflow/contract changes, existing
+safety gates retained, provider errors sanitized, and a fast-forward path from
+main `4951de9`. The positive bad-image kind case is still tracked as pending
+in the existing workflow; generic green CI does not close #11/#13/#17.

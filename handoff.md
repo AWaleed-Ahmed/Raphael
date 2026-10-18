@@ -10,8 +10,10 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 OpenRouter/Together/Mistral/DeepSeek/xAI configurations through the shared
 `complete_json()` path, retaining custom compatible gateways and model
 discovery/quota rotation. Native Anthropic has a small wire adapter; callers
-and transport stay shared. Compilation/diff checks passed, but current tests
-and live provider qualification are pending. See the
+and transport stay shared. Compilation/diff checks and regressions passed: agent438 (4skips),
+dispatch77, evaluator/proof assertions27; focused BYOK100 is included in the
+agent total. All26 contract files match the pinned Ignis release. Live provider
+and current-head hosted qualification remain pending. See the
 [provider guide](docs/byok-provider-guide.md),
 [implementation record](docs/byok-provider-implementation-review-2026-10-18.md)
 and [eight pilot-release milestones](docs/release-milestones-2026-10-18.md).
