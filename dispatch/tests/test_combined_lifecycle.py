@@ -74,7 +74,10 @@ def test_combined_run_app_rehydrates_and_reaps_automatically(tmp_path: Path, mon
     with TestClient(combined) as client:
         restored = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers_a)
         assert restored.status_code == 200
-        assert restored.json() == {"messages": [restored_action], "pending": True}
+        restored_body = restored.json()
+        assert restored_body["messages"] == [restored_action]
+        assert restored_body["pending"] is True
+        assert restored_body["claim"]["action_id"] == restored_action["payload"]["action_id"]
 
         # Submit through the actual combined route, make its lease expired, and
         # wait for the lifespan task.  No manual /v1/leases/reap call is made.

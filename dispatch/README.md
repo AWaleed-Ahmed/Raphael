@@ -35,6 +35,12 @@ Bearer token to `{ "tenant_id": "...", "role": "producer"|"connector" }`.
 Producer tokens submit unchanged connector-v1 job envelopes to
 `POST /v1/tenants/{tenant_id}/jobs`; connector tokens poll
 `GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token.
+The first poll returns a persisted claim alongside the action. Connector clients
+can renew it with `POST /v1/tenants/{tenant_id}/jobs/{job_id}/lease` and JSON
+`{"action_id":"…","claim_id":"…","renewal_sequence":1}`. Renewal
+sequences advance by one; replaying the current sequence is idempotent. A claim
+is bound to one action and cannot extend its fixed action or job deadline. This
+endpoint is not usable by older connectors until they implement heartbeat calls.
 The legacy `POST /v1/jobs` endpoint remains for compatibility but is deprecated
 for new producer integrations because it returns the first action directly.
 

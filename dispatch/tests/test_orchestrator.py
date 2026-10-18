@@ -3,7 +3,9 @@ from __future__ import annotations
 import pytest
 
 import json
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -11,7 +13,7 @@ from uuid import uuid4
 from starlette.testclient import TestClient
 
 from raphael_dispatch.app import create_app
-from raphael_dispatch.orchestrator import AgentHooks, Orchestrator
+from raphael_dispatch.orchestrator import AgentHooks, OrchestrationError, Orchestrator
 from raphael_dispatch.protocol import PROTOCOL_VERSION, get_schemas
 from raphael_agent.budgets import max_patch_attempts_budget
 from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
@@ -353,6 +355,67 @@ def test_replayed_result_is_noop(tmp_path: Path) -> None:
     assert second == {"messages": [], "idempotent_replay": True}
 
 
+def test_concurrent_duplicate_result_runs_transition_once(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    result = result_for(action, result=create_result(job["payload"]["job_id"]))
+    entered = threading.Event()
+    release = threading.Event()
+    original = orchestrator._after_create
+    calls = 0
+
+    def slow_after_create(state, payload):
+        nonlocal calls
+        calls += 1
+        entered.set()
+        assert release.wait(timeout=5)
+        return original(state, payload)
+
+    orchestrator._after_create = slow_after_create
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(orchestrator.receive_result, result)
+        assert entered.wait(timeout=5)
+        with pytest.raises(OrchestrationError, match="already being processed"):
+            orchestrator.receive_result(result)
+        release.set()
+        response = first.result(timeout=5)
+
+    assert calls == 1
+    assert response["messages"][0]["payload"]["verb"] == "deploy_revision"
+
+
+def test_expired_claim_cannot_commit_after_slow_result(tmp_path: Path) -> None:
+    current = [datetime(2026, 8, 27, tzinfo=timezone.utc)]
+    orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
+    job = job_envelope(lease_ttl_seconds=30)
+    action = orchestrator.intake(job, tenant_id="tenant-a")["messages"][0]
+    state = orchestrator.jobs[job["payload"]["job_id"]]
+    claim = orchestrator.claim_action(state, "connector-a")
+    result = result_for(action, result=create_result(job["payload"]["job_id"]))
+    entered = threading.Event()
+    release = threading.Event()
+    original = orchestrator._after_create
+
+    def slow_after_create(state, payload):
+        entered.set()
+        assert release.wait(timeout=5)
+        return original(state, payload)
+
+    orchestrator._after_create = slow_after_create
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(orchestrator.receive_result, result, "connector-a")
+        assert entered.wait(timeout=5)
+        current[0] += timedelta(seconds=31)
+        assert len(orchestrator.reap_expired()) == 1
+        release.set()
+        with pytest.raises(OrchestrationError, match="became terminal"):
+            first.result(timeout=5)
+
+    assert orchestrator.jobs[job["payload"]["job_id"]]["dispatch"]["stage"] == "terminal"
+    assert claim["action_id"] == action["payload"]["action_id"]
+
+
 def test_expired_lease_fails_closed(tmp_path: Path) -> None:
     current = [datetime(2026, 8, 27, tzinfo=timezone.utc)]
     orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
@@ -402,13 +465,18 @@ def test_startup_rehydrates_valid_pending_action_for_connector_poll(tmp_path: Pa
     original = make_orchestrator(tmp_path)
     job = job_envelope(lease_ttl_seconds=60)
     action = original.intake(job, tenant_id="tenant-a")["messages"][0]
+    with TestClient(create_app(original)) as client:
+        first_claim = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers).json()["claim"]
 
     restarted = make_orchestrator(tmp_path)
     with TestClient(create_app(restarted)) as client:
         response = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers)
 
     assert response.status_code == 200
-    assert response.json() == {"messages": [action], "pending": True}
+    assert response.json()["messages"] == [action]
+    assert response.json()["pending"] is True
+    assert response.json()["claim"]["action_id"] == action["payload"]["action_id"]
+    assert response.json()["claim"] == first_claim
     assert restarted.jobs[job["payload"]["job_id"]]["dispatch"]["pending_action"] == action
 
 
@@ -459,3 +527,57 @@ def test_validation_plan_targets_observed_resource():
 def test_validation_plan_refuses_missing_resource_identity():
     with pytest.raises(ValueError, match='Observed resource identity'):
         Orchestrator._validation_args({'failure_signature': {'key': 'before'}})
+
+
+def test_expiry_during_result_persistence_cannot_revive_job(tmp_path: Path) -> None:
+    current = [datetime.now(timezone.utc)]
+    o = make_orchestrator(tmp_path, clock=lambda: current[0])
+    action = o.intake(job_envelope(lease_ttl_seconds=30), tenant_id="tenant-a")["messages"][0]
+    job_id = action["payload"]["job_id"]
+    o.claim_action(o.jobs[job_id], "connector-a")
+    reached, release = threading.Event(), threading.Event()
+    save = o._save
+
+    def slow_save(state):
+        if state is not o.jobs[job_id]:
+            reached.set()
+            assert release.wait(5)
+        save(state)
+
+    o._save = slow_save
+    with ThreadPoolExecutor(2) as pool:
+        result = pool.submit(o.receive_result, result_for(action, result=create_result(job_id)), "connector-a")
+        assert reached.wait(5)
+        current[0] += timedelta(seconds=31)
+        poll = pool.submit(o.claim_action, o.jobs[job_id], "connector-a")
+        release.set()
+        with pytest.raises(OrchestrationError, match="exceeded"):
+            result.result(timeout=5)
+        assert poll.result(timeout=5) is None
+    assert o.jobs[job_id]["dispatch"]["stage"] == "terminal"
+    assert o.store.get_run(job_id)["dispatch"]["stage"] == "terminal"
+
+
+def test_uncertain_publication_is_not_repeated_after_restart(tmp_path: Path) -> None:
+    o = make_orchestrator(tmp_path)
+    action = o.intake(job_envelope())["messages"][0]
+    job_id = action["payload"]["job_id"]
+    state = o.jobs[job_id]
+    action = o._issue_action(state, "finalize_result", {"require_patch": True})
+    calls = []
+
+    def uncertain_publish(state):
+        calls.append(state["run_id"])
+        raise RuntimeError("response lost after publication")
+
+    o.hooks.publish = uncertain_publish
+    result = result_for(action)
+    with pytest.raises(RuntimeError, match="response lost"):
+        o.receive_result(result)
+    restarted = make_orchestrator(tmp_path)
+    restarted.hooks.publish = uncertain_publish
+    restarted.rehydrate()
+    with pytest.raises(OrchestrationError, match="already started"):
+        restarted.receive_result(result)
+    assert calls == [job_id]
+    assert restarted.jobs[job_id]["dispatch"]["stage"] == "terminal"

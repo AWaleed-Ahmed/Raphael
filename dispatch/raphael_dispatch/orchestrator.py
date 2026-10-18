@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import copy
+import threading
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from functools import wraps
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -33,8 +36,20 @@ from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, 
 Node = Callable[[dict[str, Any]], dict[str, Any]]
 
 
+def state_transaction(method: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(method)
+    def locked(self: Any, *args: Any, **kwargs: Any) -> Any:
+        with self._state_lock:
+            return method(self, *args, **kwargs)
+    return locked
+
+
 class OrchestrationError(ProtocolValidationError):
     """Raised when a connector message cannot advance its job state."""
+
+
+class ResultInProgress(OrchestrationError):
+    status_code = 409
 
 
 @dataclass
@@ -66,6 +81,8 @@ class Orchestrator:
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
         self.patch_store = self.patch_store or EphemeralPatchStore()
         self.jobs: dict[str, dict[str, Any]] = {}
+        self._state_lock = threading.RLock()
+        self._processing_actions: set[tuple[str, str]] = set()
 
     @staticmethod
     def _is_active_dispatch_state(state: dict[str, Any]) -> bool:
@@ -81,6 +98,10 @@ class Orchestrator:
         """Apply the one lease-staleness rule used at startup and while running."""
         dispatch = state["dispatch"]
         ttl = int(dispatch.get("lease_ttl_seconds") or 0)
+        claim = dispatch.get("claim")
+        if claim:
+            expiry = datetime.fromisoformat(str(claim["lease_expires_at"]).replace("Z", "+00:00"))
+            return current >= expiry
         if ttl <= 0:
             return False
         last = datetime.fromisoformat(str(dispatch["last_activity_at"]).replace("Z", "+00:00"))
@@ -97,6 +118,7 @@ class Orchestrator:
         self._save(state)
         return terminal
 
+    @state_transaction
     def rehydrate(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
         """Restore valid pending jobs, terminalizing persisted jobs whose lease already expired."""
         current = (now or self.clock()).astimezone(timezone.utc)
@@ -163,6 +185,10 @@ class Orchestrator:
         durable = {k: v for k, v in state.items() if k != "rendered_files"}
         self.store.save_run(durable)
 
+    @staticmethod
+    def public_claim(claim: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in claim.items() if key != "connector_id"}
+
     def _state_for_job(self, job: dict[str, Any], *, initial_evidence: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         job_id = job["job_id"]
         repository = self._repository(job)
@@ -204,6 +230,7 @@ class Orchestrator:
         }
         return state
 
+    @state_transaction
     def intake(
         self,
         job_envelope: dict[str, Any],
@@ -240,6 +267,7 @@ class Orchestrator:
         self._save(state)
         return {"messages": [action], "idempotent_replay": False}
 
+    @state_transaction
     def tenant_jobs(self, tenant_id: str) -> list[dict[str, Any]]:
         return [
             state for state in self.jobs.values()
@@ -248,15 +276,123 @@ class Orchestrator:
             and state.get("dispatch", {}).get("pending_action") is not None
         ]
 
-    def receive_result(self, result_envelope: dict[str, Any]) -> dict[str, Any]:
+    @state_transaction
+    def next_tenant_action(self, tenant_id: str, connector_id: str) -> dict[str, Any]:
+        for state in sorted(self.tenant_jobs(tenant_id), key=lambda item: item.get("created_at") or item["run_id"]):
+            claim = self._claim_action(state, connector_id)
+            if claim:
+                return {"messages": [state["dispatch"]["pending_action"]], "pending": True,
+                        "claim": self.public_claim(claim)}
+        return {"messages": [], "pending": False}
+
+    @state_transaction
+    def claim_action(self, state: dict[str, Any], connector_id: str | None = None) -> dict[str, Any] | None:
+        """Persist a claim bound to the currently pending action before returning it."""
+        state = self.jobs.get(state["run_id"], state)
+        return self._claim_action(state, connector_id)
+
+    def _claim_action(self, state: dict[str, Any], connector_id: str | None) -> dict[str, Any] | None:
+        if not self._is_active_dispatch_state(state):
+            return None
+        dispatch = state["dispatch"]
+        action = dispatch["pending_action"]
+        now = self.clock().astimezone(timezone.utc)
+        prior = dispatch.get("claim")
+        if prior and prior.get("action_id") == action["payload"]["action_id"]:
+            expiry = datetime.fromisoformat(str(prior["lease_expires_at"]).replace("Z", "+00:00"))
+            if now < expiry:
+                if prior.get("connector_id") != connector_id:
+                    return None
+                return prior
+            self._expire_lease(state)
+            return None
+        ttl = max(1, int(dispatch.get("lease_ttl_seconds") or 60))
+        deadline = datetime.fromisoformat(str(state["budget_snapshot"]["deadline_at"]).replace("Z", "+00:00"))
+        action_deadline = min(deadline, now + timedelta(seconds=1800))
+        claim = {
+            "job_id": state["run_id"],
+            "claim_id": str(uuid.uuid4()),
+            "connector_id": connector_id,
+            "action_id": action["payload"]["action_id"],
+            "renewal_sequence": 0,
+            "lease_ttl_seconds": ttl,
+            "action_deadline_at": action_deadline.isoformat().replace("+00:00", "Z"),
+            "job_deadline_at": deadline.isoformat().replace("+00:00", "Z"),
+            "lease_expires_at": min(now + timedelta(seconds=ttl), action_deadline).isoformat().replace("+00:00", "Z"),
+        }
+        dispatch["claim"] = claim
+        self._save(state)
+        return claim
+
+    @state_transaction
+    def renew_action_lease(
+        self, tenant_id: str, job_id: str, request: dict[str, Any], connector_id: str | None = None
+    ) -> dict[str, Any]:
+        state = self.jobs.get(job_id)
+        if state is None or state.get("tenant_id") != tenant_id:
+            raise OrchestrationError("tenant does not own job")
+        dispatch = state["dispatch"]
+        claim = dispatch.get("claim")
+        now = self.clock().astimezone(timezone.utc)
+        if (not self._is_active_dispatch_state(state) or not claim
+                or (connector_id is not None and claim.get("connector_id") != connector_id)
+                or request.get("claim_id") != claim.get("claim_id")
+                or request.get("action_id") != claim.get("action_id")
+                or request.get("action_id") != dispatch["pending_action"]["payload"]["action_id"]):
+            raise OrchestrationError("claim is stale, expired, or no longer active")
+        expiry = datetime.fromisoformat(str(claim["lease_expires_at"]).replace("Z", "+00:00"))
+        deadline = datetime.fromisoformat(str(claim["action_deadline_at"]).replace("Z", "+00:00"))
+        if now >= expiry or now >= deadline:
+            self._expire_lease(state)
+            raise OrchestrationError("claim lease or action deadline expired")
+        sequence = request.get("renewal_sequence")
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 1:
+            raise OrchestrationError("renewal_sequence must be a positive integer")
+        current_sequence = int(claim.get("renewal_sequence", 0))
+        if sequence == current_sequence:
+            return dict(claim)
+        if sequence != current_sequence + 1:
+            raise OrchestrationError("renewal_sequence is stale or skipped")
+        ttl = max(1, int(dispatch.get("lease_ttl_seconds") or 60))
+        claim["renewal_sequence"] = sequence
+        claim["lease_expires_at"] = min(now + timedelta(seconds=ttl), deadline).isoformat().replace("+00:00", "Z")
+        dispatch["last_activity_at"] = self._now()
+        self._save(state)
+        return dict(claim)
+
+    def receive_result(self, result_envelope: dict[str, Any], connector_id: str | None = None) -> dict[str, Any]:
         get_schemas().validate_envelope(result_envelope)
         if result_envelope.get("kind") != "result":
             raise OrchestrationError("result handling requires a result envelope")
         payload = result_envelope["payload"]
         job_id = payload["job_id"]
-        state = self.jobs.get(job_id)
-        if state is None:
-            raise OrchestrationError(f"unknown job_id: {job_id}")
+        action_id = payload["action_id"]
+        action_key = (job_id, action_id)
+        with self._state_lock:
+            state = self.jobs.get(job_id)
+            if state is None:
+                raise OrchestrationError(f"unknown job_id: {job_id}")
+            claim = state["dispatch"].get("claim")
+            if connector_id is not None and claim and claim.get("connector_id") != connector_id:
+                raise OrchestrationError("connector does not own the active claim")
+            if action_key in self._processing_actions:
+                raise ResultInProgress("result for action is already being processed")
+            if action_id not in state["dispatch"].get("processed_actions", {}):
+                self._require_current_action(job_id, action_id)
+            snapshot = copy.deepcopy(state)
+            self._processing_actions.add(action_key)
+        try:
+            return self._receive_result_once(snapshot, result_envelope, connector_id)
+        finally:
+            with self._state_lock:
+                self._processing_actions.discard(action_key)
+
+    def _receive_result_once(
+        self, live_state: dict[str, Any], result_envelope: dict[str, Any], connector_id: str | None
+    ) -> dict[str, Any]:
+        state = live_state
+        payload = result_envelope["payload"]
+        job_id = payload["job_id"]
 
         dispatch = state["dispatch"]
         action_id = payload["action_id"]
@@ -325,7 +461,13 @@ class Orchestrator:
                 state["result_id"] = finalized["result_id"]
             if finalized.get("record"):
                 state["validated_fix_record"] = finalized["record"]
-            self._run_node(self.hooks.publish, state)
+            original_budget = dict(state["budget_snapshot"])
+            self._begin_publication(state, action_id)
+            try:
+                self._run_node(self.hooks.publish, state)
+            finally:
+                state["budget_snapshot"] = original_budget
+            state["dispatch"]["publication"]["status"] = "completed"
             final_status = "fix_finalized"
             if state.get("status") == "failed_closed":
                 final_status = "failed"
@@ -336,9 +478,60 @@ class Orchestrator:
             raise OrchestrationError(f"unsupported pending stage: {stage}")
 
         processed[action_id] = {"fingerprint": fingerprint, "at": self._now()}
-        self._save(state)
-        return {"messages": messages, "idempotent_replay": False}
+        return self._commit_result(state, action_id, messages, connector_id)
 
+    def _require_current_action(self, job_id: str, action_id: str) -> dict[str, Any]:
+        current = self.jobs.get(job_id)
+        if current is None or not self._is_active_dispatch_state(current):
+            raise OrchestrationError("job became terminal while result was being processed")
+        pending = current["dispatch"].get("pending_action")
+        if not pending or pending["payload"]["action_id"] != action_id:
+            raise OrchestrationError("action changed while result was being processed")
+        if self._lease_is_expired(current, self.clock().astimezone(timezone.utc)):
+            self._expire_lease(current)
+            raise OrchestrationError("result processing exceeded the action lease or deadline")
+        return current
+
+    @state_transaction
+    def _begin_publication(self, state: dict[str, Any], action_id: str) -> None:
+        current = self._require_current_action(state["run_id"], action_id)
+        if current["dispatch"].get("publication"):
+            current["status"] = "failed_closed"
+            current["terminal_reason"] = "publication_outcome_unknown"
+            self._terminal(current, "failed")
+            self._save(current)
+            raise OrchestrationError("publication was already started; reconcile its outcome")
+        intent = {"action_id": action_id, "status": "started"}
+        current["dispatch"]["publication"] = intent
+        self._save(current)
+        self._require_current_action(state["run_id"], action_id)
+        state["dispatch"]["publication"] = dict(intent)
+        claim = current["dispatch"].get("claim")
+        if claim:
+            state["budget_snapshot"]["deadline_at"] = min(
+                claim["lease_expires_at"], claim["action_deadline_at"], claim["job_deadline_at"]
+            )
+
+    @state_transaction
+    def _commit_result(
+        self, state: dict[str, Any], action_id: str,
+        messages: list[dict[str, Any]], connector_id: str | None,
+    ) -> dict[str, Any]:
+        job_id = state["run_id"]
+        self._require_current_action(job_id, action_id)
+        if state["dispatch"].get("pending_action") is not None and connector_id is not None:
+            self._claim_action(state, connector_id)
+        else:
+            self._save(state)
+        # Persistence can take time. Do not replace live state after its lease expired.
+        self._require_current_action(job_id, action_id)
+        self.jobs[job_id] = state
+        response = {"messages": messages, "idempotent_replay": False}
+        if messages and messages[0].get("kind") == "action":
+            response["claim"] = state["dispatch"].get("claim")
+        return response
+
+    @state_transaction
     def reap_expired(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
         """Terminalize silent jobs whose connector lease has expired."""
         current = (now or self.clock()).astimezone(timezone.utc)
@@ -368,6 +561,7 @@ class Orchestrator:
         action = self._envelope(job_id=job_id, kind="action", payload=payload)
         dispatch = state["dispatch"]
         dispatch["pending_action"] = action
+        dispatch.pop("claim", None)
         dispatch["stage"] = {
             "create_sandbox": "create_sandbox",
             "deploy_revision": "deploy_initial" if dispatch.get("stage") == "create_sandbox" else "deploy_patch",
