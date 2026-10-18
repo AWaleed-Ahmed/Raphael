@@ -5,6 +5,15 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 ## Start here: where we stopped
 
+**2026-10-18 preservation checkpoint:** see the shared
+[#11/#13/#17 completion checklist](docs/ignis-11-13-17-completion-checklist.md).
+New `feature/ignis-11-13-17-completion` branches preserve the recoverable code
+in both repositories. The final local `/tmp` fix commits from the prior session
+are missing and were never pushed; their reported test results do not qualify
+these branches. Restore/reimplement those fixes, then complete the issue-specific
+behavioral checks, reviewed contract release/pins and current-pair hosted proof.
+No issue is declared complete by this checkpoint.
+
 **Current checkpoint — 2026-10-15:** Raphael main is `5a1771e`; the push run after PR #47 and scheduled main runs through [38537751212](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/38537751212) were red on the obsolete eval/no-provenance expectations. PR #48 corrects those expectations; its [hosted run 38631691054](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/38631691054) passes core CI, all seven mock evals, the wire harness, real-hooks smoke, and the Secret-fixture kind job. The kind job's no-provenance control also passes. Its positive verified-provenance case still refuses: that run used Ignis `contracts-v1.3.0`, whose signature lacked the structured runtime fields required by Raphael's gate, despite the cluster observing `ErrImagePull`/`not found`. Ignis PR #19 supplies that runtime evidence but is not yet merged/released. Probe repair remains the current mock `fix_finalized` baseline; bad-image repair is not currently proven end-to-end. The positive case remains in the runner as a clearly labelled manual-dispatch-only pending case tied to [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and [Ignis #19](https://github.com/AWaleed-Ahmed/Ignis/pull/19); restore it to required checks in the Raphael PR that consumes the reviewed, released, pinned runtime evidence. This defers the proof without changing its expected outcome or provenance gate.
 
 **Current checkpoint — 2026-10-05:** [PR #44](https://github.com/AWaleed-Ahmed/Raphael/pull/44) merged at `78c5e0e` after approval and green head checks. Escalation-report validation now fails closed before publication/action issuance; `save_run()` remains permissive. The old broad storage catch remains a separate open item, not a report-validation catch. Post-merge [core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37303560041) and [E2E/kind](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37303559981) both passed.
