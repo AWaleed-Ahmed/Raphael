@@ -378,6 +378,19 @@ class Orchestrator:
         self._save(state)
         return dict(claim)
 
+    @state_transaction
+    def result_tenant(self, job_id: str) -> str | None:
+        """Load only a completed job on demand to recover its cleanup response."""
+        state = self.jobs.get(job_id)
+        if state is None:
+            assert self.store is not None
+            persisted = self.store.get_run(job_id)
+            dispatch = (persisted or {}).get("dispatch") or {}
+            if dispatch.get("stage") == "terminal" and dispatch.get("terminal_message"):
+                state = persisted
+                self.jobs[job_id] = state
+        return state.get("tenant_id") if state is not None else None
+
     def receive_result(self, result_envelope: dict[str, Any], connector_id: str | None = None) -> dict[str, Any]:
         get_schemas().validate_envelope(result_envelope)
         if result_envelope.get("kind") != "result":
@@ -387,6 +400,7 @@ class Orchestrator:
         action_id = payload["action_id"]
         action_key = (job_id, action_id)
         with self._state_lock:
+            self.result_tenant(job_id)
             state = self.jobs.get(job_id)
             if state is None:
                 raise OrchestrationError(f"unknown job_id: {job_id}")
@@ -420,7 +434,8 @@ class Orchestrator:
         if action_id in processed:
             if processed[action_id]["fingerprint"] != fingerprint:
                 raise OrchestrationError("action_id replayed with a different result payload")
-            return {"messages": [], "idempotent_replay": True}
+            terminal = dispatch.get("terminal_message")
+            return {"messages": [terminal] if terminal else [], "idempotent_replay": True}
 
         pending = dispatch.get("pending_action")
         if not pending or pending["payload"]["action_id"] != action_id:
@@ -606,6 +621,7 @@ class Orchestrator:
             "instructions": "discard_local_copy",
         }
         terminal = self._envelope(job_id=state["run_id"], kind="terminal", payload=payload)
+        state["dispatch"]["terminal_message"] = terminal
         state["dispatch"]["pending_action"] = None
         state["dispatch"]["stage"] = "terminal"
         state["dispatch"].pop("patch_payloads_omitted", None)

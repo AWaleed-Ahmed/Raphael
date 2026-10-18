@@ -581,3 +581,32 @@ def test_uncertain_publication_is_not_repeated_after_restart(tmp_path: Path) -> 
         restarted.receive_result(result)
     assert calls == [job_id]
     assert restarted.jobs[job_id]["dispatch"]["stage"] == "terminal"
+
+
+@pytest.mark.parametrize("restart", [False, True])
+def test_terminal_result_replays_after_response_loss_and_restart(tmp_path: Path, monkeypatch, restart: bool) -> None:
+    headers = _connector_headers(monkeypatch)
+    original = make_orchestrator(tmp_path)
+    job = job_envelope()
+    job_id = job["payload"]["job_id"]
+    original.intake(job, tenant_id="tenant-a")
+    from raphael_dispatch.auth import principal_from_request
+    owner = principal_from_request(headers["Authorization"], "connector").connector_id
+    action = original.next_tenant_action("tenant-a", owner)["messages"][0]
+    result = result_for(action, status="failed", error={"code": "synthetic", "message": "failed"})
+    first = original.receive_result(result, owner)
+    assert first["messages"][0]["kind"] == "terminal"
+    current = make_orchestrator(tmp_path) if restart else original
+    with TestClient(create_app(current)) as client:
+        replay = client.post("/v1/results", headers=headers, json=result)
+        assert replay.status_code == 200
+        assert replay.json() == {"messages": first["messages"], "idempotent_replay": True}
+        assert client.get("/v1/tenants/tenant-a/jobs/next", headers=headers).json()["messages"] == []
+        changed = result_for(action, status="failed", error={"code": "different", "message": "changed"})
+        assert client.post("/v1/results", headers=headers, json=changed).status_code == 422
+        monkeypatch.setenv("RAPHAEL_DISPATCH_TOKENS", json.dumps({
+            "other-owner": {"tenant_id": "tenant-a", "role": "connector"},
+            "other-tenant": {"tenant_id": "tenant-b", "role": "connector"},
+        }))
+        assert client.post("/v1/results", headers={"Authorization": "Bearer other-owner"}, json=result).status_code == 422
+        assert client.post("/v1/results", headers={"Authorization": "Bearer other-tenant"}, json=result).status_code == 403

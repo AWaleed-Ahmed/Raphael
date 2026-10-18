@@ -96,8 +96,8 @@ async def receive_result(request: Request) -> JSONResponse:
         envelope = await _json_body(request)
         get_schemas().validate_envelope(envelope)
         job_id = envelope.get("payload", {}).get("job_id")
-        state = request.app.state.orchestrator.jobs.get(job_id)
-        if state is None or state.get("tenant_id") != principal.tenant_id:
+        tenant_id = await asyncio.to_thread(request.app.state.orchestrator.result_tenant, job_id)
+        if tenant_id != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not own job"}, status_code=403)
         # Graph hooks can block for seconds (for example model-backed diagnosis).
         # Keep the event loop available to authenticate and process lease heartbeats.
