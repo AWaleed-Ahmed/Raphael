@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from raphael_agent.byok import client
-from raphael_agent.byok.models import BYOKConfig, LLMProvider
+from raphael_agent.byok.models import BYOKConfig, LLMProvider, PROVIDERS
 from raphael_agent.diagnosis.llm import try_llm_diagnosis
 from raphael_agent.patch.llm import try_llm_patch
 
@@ -19,6 +19,9 @@ def clean_env(monkeypatch):
                  "RAPHAEL_LLM_BASE_URL", "RAPHAEL_LLM_TIMEOUT_SECONDS", "RAPHAEL_LLM_MAX_TOKENS",
                  "RAPHAEL_OPENAI_API_KEY", "OPENAI_API_KEY", "RAPHAEL_GEMINI_API_KEY", "GEMINI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
+    for provider, settings in PROVIDERS.items():
+        for name in (f"RAPHAEL_{provider.value.upper()}_API_KEY", *settings.key_names):
+            monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "1")
     monkeypatch.setenv("RAPHAEL_LLM_PATCH", "1")
 
@@ -391,3 +394,123 @@ def test_deadline_prevents_another_model_attempt(monkeypatch):
     with pytest.raises(client.BYOKError, match="provider_deadline_exceeded"):
         client.complete_json(replace(configured(monkeypatch), model=None), system="test", payload={})
     assert len(attempted) == 1
+
+
+@pytest.mark.parametrize("provider", list(PROVIDERS))
+def test_named_provider_configuration_and_key_isolation(monkeypatch, provider):
+    settings = PROVIDERS[provider]
+    monkeypatch.setenv("RAPHAEL_LLM_PROVIDER", provider.value)
+    for other, other_settings in PROVIDERS.items():
+        if other != provider:
+            monkeypatch.setenv(other_settings.key_names[0], "unrelated-key")
+    assert BYOKConfig.from_env() is None
+    monkeypatch.setenv(settings.key_names[0], "provider-key")
+    config = BYOKConfig.from_env()
+    assert config.base_url == settings.base_url
+    assert config.api_key == "provider-key"
+    monkeypatch.setenv(f"RAPHAEL_{provider.value.upper()}_API_KEY", "named-key")
+    assert BYOKConfig.from_env().api_key == "named-key"
+    monkeypatch.setenv("RAPHAEL_LLM_API_KEY", "generic-key")
+    assert BYOKConfig.from_env().api_key == "generic-key"
+
+
+def anthropic_response(content='{"ok":true}', stop_reason="end_turn"):
+    return {"content": [{"type": "text", "text": content}], "stop_reason": stop_reason,
+            "usage": {"input_tokens": 4, "output_tokens": 2}}
+
+
+@pytest.mark.parametrize("provider", list(PROVIDERS))
+@pytest.mark.parametrize("automatic", [False, True])
+def test_named_providers_reuse_completion_and_quota_rotation(monkeypatch, provider, automatic):
+    stable_order(monkeypatch)
+    config = BYOKConfig(api_key="private-fixture-key", provider=provider,
+                        model=None if automatic else "pinned-model")
+    models = ["claude-a", "claude-b"] if provider == LLMProvider.ANTHROPIC else ["gpt-a", "gpt-b"]
+    attempts = []
+    catalogs = []
+
+    def handle(request):
+        assert config.api_key not in str(request.url)
+        if provider == LLMProvider.ANTHROPIC:
+            assert request.headers["x-api-key"] == config.api_key
+            assert request.headers["anthropic-version"] == "2023-06-01"
+            assert "authorization" not in request.headers
+        elif provider == LLMProvider.GEMINI and request.method == "GET":
+            assert request.headers["x-goog-api-key"] == config.api_key
+        else:
+            assert request.headers["authorization"] == "Bearer " + config.api_key
+        if request.method == "GET":
+            catalogs.append(request)
+            if provider == LLMProvider.GEMINI:
+                return httpx.Response(200, json={"models": [
+                    {"name": "models/" + model, "supportedGenerationMethods": ["generateContent"]}
+                    for model in models]})
+            assert request.url.path == httpx.URL(config.base_url).path + "/models"
+            if provider == LLMProvider.ANTHROPIC:
+                assert request.url.params["limit"] == "1000"
+            return httpx.Response(200, json={"data": [{"id": model} for model in models]})
+        body = json.loads(request.content)
+        attempts.append(body["model"])
+        assert config.api_key not in request.content.decode()
+        if provider == LLMProvider.ANTHROPIC:
+            assert request.url.path.endswith("/messages")
+            assert "JSON" in body["system"]
+            assert "response_format" not in body
+            assert [m["role"] for m in body["messages"]] == ["user"]
+        else:
+            assert request.url.path.endswith("/chat/completions")
+            assert body["response_format"] == {"type": "json_object"}
+        if automatic and len(attempts) == 1:
+            return httpx.Response(429)
+        result = anthropic_response() if provider == LLMProvider.ANTHROPIC else response({"ok": True})
+        return httpx.Response(200, json=result)
+
+    mock_transport(monkeypatch, handle)
+    result = client.complete_json(config, system="fixture", payload={"synthetic": True})
+    assert result.parsed_json == {"ok": True}
+    assert result.token_usage == {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}
+    assert attempts == (models if automatic else ["pinned-model"])
+    assert len(catalogs) == int(automatic)
+
+
+@pytest.mark.parametrize("stop_reason", ["max_tokens", "tool_use", "refusal", "pause_turn", None])
+def test_anthropic_incomplete_turn_fails_closed(monkeypatch, stop_reason):
+    config = BYOKConfig(api_key="fixture-key", provider="anthropic", model="pinned")
+    mock_transport(monkeypatch, lambda r: httpx.Response(200, json=anthropic_response(stop_reason=stop_reason)))
+    with pytest.raises(client.BYOKError, match="incomplete_provider_response"):
+        client.complete_json(config, system="fixture", payload={})
+
+
+@pytest.mark.parametrize("content,error", [
+    ("not-json", "invalid_provider_response"), ("[]", "json_object_required"),
+    ('{"key":"fixture-key"}', "credential_in_output")])
+def test_anthropic_output_validation(monkeypatch, content, error):
+    config = BYOKConfig(api_key="fixture-key", provider="anthropic", model="pinned")
+    mock_transport(monkeypatch, lambda r: httpx.Response(200, json=anthropic_response(content)))
+    with pytest.raises(client.BYOKError, match=error):
+        client.complete_json(config, system="fixture", payload={})
+
+
+def test_catalog_metadata_excludes_incompatible_models(monkeypatch):
+    config = BYOKConfig(api_key="fixture-key", provider="openrouter")
+    def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": [
+                {"id": "a", "architecture": {"output_modalities": ["image"]}},
+                {"id": "b", "capabilities": {"completion_chat": False}},
+                {"id": "c", "supported_parameters": ["temperature"]},
+                {"id": "d", "supported_parameters": ["response_format"],
+                 "architecture": {"output_modalities": ["text"]}}]})
+        assert json.loads(request.content)["model"] == "d"
+        return httpx.Response(200, json=response({"ok": True}))
+    mock_transport(monkeypatch, handle)
+    assert client.complete_json(config, system="fixture", payload={}).model == "d"
+
+
+@pytest.mark.parametrize("choice", [None, "malformed", {}, {"finish_reason": "length"},
+                                    {"finish_reason": "tool_calls"}, {"finish_reason": "content_filter"}])
+def test_malformed_or_incomplete_choice_is_sanitized(monkeypatch, choice):
+    config = BYOKConfig(api_key="fixture-key", model="pinned")
+    mock_transport(monkeypatch, lambda r: httpx.Response(200, json={"choices": [choice]}))
+    with pytest.raises(client.BYOKError):
+        client.complete_json(config, system="fixture", payload={})
