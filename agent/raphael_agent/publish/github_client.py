@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -33,10 +34,12 @@ class GitHubPublisher:
         token: str | None = None,
         api_base: str | None = None,
         client: httpx.Client | None = None,
+        deadline_at: str | None = None,
     ) -> None:
         self.token = token if token is not None else github_token()
         self.api_base = (api_base or github_api_base()).rstrip("/")
         self._client = client
+        self.deadline_at = datetime.fromisoformat(deadline_at.replace("Z", "+00:00")) if deadline_at else None
 
     def _headers(self) -> dict[str, str]:
         if not self.token:
@@ -49,6 +52,12 @@ class GitHubPublisher:
         }
 
     def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        timeout = 60.0
+        if self.deadline_at is not None:
+            timeout = min(timeout, (self.deadline_at - datetime.now(timezone.utc)).total_seconds())
+            if timeout <= 0:
+                raise GitHubApiError(408, "publication deadline expired")
+        kwargs["timeout"] = timeout
         url = f"{self.api_base}{path}"
         if self._client is not None:
             response = self._client.request(

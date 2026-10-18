@@ -255,7 +255,7 @@ def _publish_issue_snippet(
             delivery="issue_snippet",
         )
 
-    client = github or GitHubPublisher()
+    client = github or GitHubPublisher(deadline_at=(run.get("budget_snapshot") or {}).get("deadline_at"))
     try:
         comment = client.create_issue_comment(
             owner,
@@ -452,7 +452,7 @@ def publish(
             mode=mode,
         )
 
-    client = github or GitHubPublisher()
+    client = github or GitHubPublisher(deadline_at=(run.get("budget_snapshot") or {}).get("deadline_at"))
     try:
         head_sha = run.get("commit_sha") or client.get_ref_sha(owner, name, base)
         try:

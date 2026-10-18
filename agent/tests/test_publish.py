@@ -270,3 +270,17 @@ def test_publish_live_idempotent_open_pr(monkeypatch):
 )
 def test_optional_live_network_publish():
     pytest.skip("placeholder — use manual smoke with RAPHAEL_PUBLISH_MODE=live")
+
+
+def test_expired_publication_deadline_prevents_http_mutation() -> None:
+    from datetime import datetime, timedelta, timezone
+    from raphael_agent.publish.github_client import GitHubApiError, GitHubPublisher
+
+    client = MagicMock()
+    publisher = GitHubPublisher(
+        token="synthetic", client=client,
+        deadline_at=(datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(),
+    )
+    with pytest.raises(GitHubApiError, match="deadline expired"):
+        publisher._request("POST", "/repos/example/demo/pulls", json={})
+    client.request.assert_not_called()
