@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
@@ -59,7 +60,16 @@ class GitHubPublisher:
                 raise GitHubApiError(408, "publication deadline expired")
         kwargs["timeout"] = timeout
         url = f"{self.api_base}{path}"
-        if self._client is not None:
+        if self.deadline_at is not None:
+            # A scalar HTTPX timeout only limits inactivity per I/O operation.
+            # An async timeout cancels the whole exchange, including a trickling body.
+            if self._client is not None:
+                raise GitHubApiError(500, "deadline-bound publishing requires its owned HTTP client")
+            try:
+                response = asyncio.run(self._request_until_deadline(method, url, timeout, kwargs))
+            except TimeoutError:
+                raise GitHubApiError(408, "publication deadline expired; reconcile remote outcome") from None
+        elif self._client is not None:
             response = self._client.request(
                 method, url, headers=self._headers(), **kwargs
             )
@@ -79,6 +89,14 @@ class GitHubPublisher:
         if response.status_code == 204 or not response.content:
             return None
         return response.json()
+
+    async def _request_until_deadline(
+        self, method: str, url: str, timeout: float, kwargs: dict[str, Any]
+    ) -> httpx.Response:
+        async with asyncio.timeout(timeout):
+            # Keep both client and connection pool inside this event loop.
+            async with httpx.AsyncClient() as client:
+                return await client.request(method, url, headers=self._headers(), **kwargs)
 
     def get_ref_sha(self, owner: str, repo: str, branch: str) -> str:
         data = self._request("GET", f"/repos/{owner}/{repo}/git/ref/heads/{branch}")

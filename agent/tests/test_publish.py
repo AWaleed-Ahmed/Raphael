@@ -284,3 +284,48 @@ def test_expired_publication_deadline_prevents_http_mutation() -> None:
     with pytest.raises(GitHubApiError, match="deadline expired"):
         publisher._request("POST", "/repos/example/demo/pulls", json={})
     client.request.assert_not_called()
+
+
+
+def test_publication_absolute_deadline_cancels_trickling_body(monkeypatch) -> None:
+    import asyncio
+    import time
+    from datetime import datetime, timedelta, timezone
+    import httpx
+    from raphael_agent.publish.github_client import GitHubApiError, GitHubPublisher
+
+    class Trickle(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                yield b" "
+
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda: real_client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=Trickle()))))
+    publisher = GitHubPublisher(token="synthetic",
+        deadline_at=(datetime.now(timezone.utc) + timedelta(milliseconds=80)).isoformat())
+    start = time.monotonic()
+    with pytest.raises(GitHubApiError, match="deadline expired"):
+        publisher._request("POST", "/synthetic", json={})
+    assert time.monotonic() - start < 0.5
+
+
+def test_deadline_publication_owns_client_per_exchange(monkeypatch) -> None:
+    from datetime import datetime, timedelta, timezone
+    import httpx
+    from raphael_agent.publish.github_client import GitHubPublisher
+
+    clients = []
+    real_client = httpx.AsyncClient
+    def create_client():
+        instance = real_client(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"ok": True})))
+        clients.append(instance)
+        return instance
+    monkeypatch.setattr(httpx, "AsyncClient", create_client)
+    publisher = GitHubPublisher(token="synthetic",
+        deadline_at=(datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat())
+    assert publisher._request("GET", "/synthetic") == {"ok": True}
+    assert publisher._request("GET", "/synthetic") == {"ok": True}
+    assert len(clients) == 2 and all(instance.is_closed for instance in clients)
