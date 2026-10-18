@@ -47,7 +47,7 @@ def test_provider_key_precedence_and_defaults(monkeypatch):
     assert config.api_key not in repr(config)
 
 
-@pytest.mark.parametrize("provider", ["anthropic", "azure", "typo"])
+@pytest.mark.parametrize("provider", ["azure", "bedrock", "typo"])
 def test_unsupported_provider_is_explicit(monkeypatch, provider):
     monkeypatch.setenv("RAPHAEL_LLM_PROVIDER", provider)
     with pytest.raises(ValueError, match="unsupported_llm_provider"):

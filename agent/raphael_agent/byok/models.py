@@ -11,12 +11,37 @@ from urllib.parse import urlsplit
 class LLMProvider(str, Enum):
     OPENAI = "openai"
     GEMINI = "gemini"
+    ANTHROPIC = "anthropic"
+    GROQ = "groq"
+    OPENROUTER = "openrouter"
+    TOGETHER = "together"
+    MISTRAL = "mistral"
+    DEEPSEEK = "deepseek"
+    XAI = "xai"
     CUSTOM_OPENAI = "custom_openai"
 
 
-DEFAULT_BASE_URLS = {
-    LLMProvider.OPENAI: "https://api.openai.com/v1",
-    LLMProvider.GEMINI: "https://generativelanguage.googleapis.com/v1beta/openai",
+@dataclass(frozen=True)
+class ProviderSettings:
+    """Provider differences; transport and callers remain shared."""
+
+    base_url: str
+    key_names: tuple[str, ...]
+
+
+PROVIDERS = {
+    LLMProvider.OPENAI: ProviderSettings("https://api.openai.com/v1", ("OPENAI_API_KEY",)),
+    LLMProvider.GEMINI: ProviderSettings(
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+        ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    ),
+    LLMProvider.ANTHROPIC: ProviderSettings("https://api.anthropic.com/v1", ("ANTHROPIC_API_KEY",)),
+    LLMProvider.GROQ: ProviderSettings("https://api.groq.com/openai/v1", ("GROQ_API_KEY",)),
+    LLMProvider.OPENROUTER: ProviderSettings("https://openrouter.ai/api/v1", ("OPENROUTER_API_KEY",)),
+    LLMProvider.TOGETHER: ProviderSettings("https://api.together.ai/v1", ("TOGETHER_API_KEY",)),
+    LLMProvider.MISTRAL: ProviderSettings("https://api.mistral.ai/v1", ("MISTRAL_API_KEY",)),
+    LLMProvider.DEEPSEEK: ProviderSettings("https://api.deepseek.com/v1", ("DEEPSEEK_API_KEY",)),
+    LLMProvider.XAI: ProviderSettings("https://api.x.ai/v1", ("XAI_API_KEY",)),
 }
 
 
@@ -44,7 +69,8 @@ class BYOKConfig:
         if not model or model.lower() in {"auto", "random"}:
             model = None
         object.__setattr__(self, "model", model)
-        base_url = self.base_url or DEFAULT_BASE_URLS.get(provider)
+        settings = PROVIDERS.get(provider)
+        base_url = self.base_url or (settings.base_url if settings else None)
         if not isinstance(base_url, str):
             raise ValueError("llm_base_url_required")
         try:
@@ -74,11 +100,8 @@ class BYOKConfig:
             provider = LLMProvider(os.environ.get("RAPHAEL_LLM_PROVIDER", "openai").strip().lower())
         except ValueError:
             raise ValueError("unsupported_llm_provider") from None
-        names = {
-            LLMProvider.OPENAI: ("RAPHAEL_OPENAI_API_KEY", "OPENAI_API_KEY"),
-            LLMProvider.GEMINI: ("RAPHAEL_GEMINI_API_KEY", "GEMINI_API_KEY"),
-            LLMProvider.CUSTOM_OPENAI: (),
-        }[provider]
+        settings = PROVIDERS.get(provider)
+        names = (f"RAPHAEL_{provider.value.upper()}_API_KEY", *(settings.key_names if settings else ()))
         key = next((os.environ[n] for n in ("RAPHAEL_LLM_API_KEY", *names) if os.environ.get(n)), None)
         if key is None:
             return None
