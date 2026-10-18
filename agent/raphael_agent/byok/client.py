@@ -150,6 +150,8 @@ def _response_parts(data: dict[str, Any], provider: LLMProvider) -> tuple[str, d
         fields = {"prompt_tokens": "input_tokens", "completion_tokens": "output_tokens"}
     else:
         choice = data["choices"][0]
+        if not isinstance(choice, dict):
+            raise BYOKError("invalid_provider_response")
         if choice.get("finish_reason") in {"length", "content_filter", "tool_calls"}:
             raise BYOKError("incomplete_provider_response")
         content = choice["message"]["content"]

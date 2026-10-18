@@ -5,6 +5,18 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 ## Start here: where we stopped
 
+**2026-10-18 BYOK expansion (local implementation):**
+`feature/byok-provider-support` adds named OpenAI/Gemini/Anthropic/Groq/
+OpenRouter/Together/Mistral/DeepSeek/xAI configurations through the shared
+`complete_json()` path, retaining custom compatible gateways and model
+discovery/quota rotation. Native Anthropic has a small wire adapter; callers
+and transport stay shared. Compilation/diff checks passed, but current tests
+and live provider qualification are pending. See the
+[provider guide](docs/byok-provider-guide.md),
+[implementation record](docs/byok-provider-implementation-review-2026-10-18.md)
+and [eight pilot-release milestones](docs/release-milestones-2026-10-18.md).
+This does not restore the lost #13/#17 commits or close those issues.
+
 **2026-10-18 preservation checkpoint:** see the shared
 [#11/#13/#17 completion checklist](docs/ignis-11-13-17-completion-checklist.md).
 New `feature/ignis-11-13-17-completion` branches preserve the recoverable code
