@@ -12,7 +12,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from .orchestrator import OrchestrationError, Orchestrator
+from .orchestrator import ActionCompleted, OrchestrationError, Orchestrator
 from .protocol import ProtocolValidationError, get_schemas
 from .auth import AuthError, principal_from_request
 
@@ -84,7 +84,7 @@ def _error(exc: Exception) -> JSONResponse:
 
 async def intake_job(request: Request) -> JSONResponse:
     try:
-        result = request.app.state.orchestrator.intake(await _json_body(request))
+        result = await asyncio.to_thread(request.app.state.orchestrator.intake, await _json_body(request))
     except (ProtocolValidationError, OrchestrationError) as exc:
         return _error(exc)
     return JSONResponse(result)
@@ -115,7 +115,7 @@ async def receive_result(request: Request) -> JSONResponse:
 
 async def reap_leases(request: Request) -> JSONResponse:
     try:
-        terminals = request.app.state.orchestrator.reap_expired()
+        terminals = await asyncio.to_thread(request.app.state.orchestrator.reap_expired)
     except (ProtocolValidationError, OrchestrationError) as exc:
         return _error(exc)
     return JSONResponse({"terminals": terminals})
@@ -124,7 +124,7 @@ async def reap_leases(request: Request) -> JSONResponse:
 async def choose_next_action(request: Request) -> JSONResponse:
     """Compatibility endpoint backed by the real intake state machine."""
     try:
-        result = request.app.state.orchestrator.intake(await _json_body(request))
+        result = await asyncio.to_thread(request.app.state.orchestrator.intake, await _json_body(request))
     except (ProtocolValidationError, OrchestrationError) as exc:
         return _error(exc)
     messages = result.get("messages") or []
@@ -139,7 +139,7 @@ async def submit_tenant_job(request: Request) -> JSONResponse:
         if request.path_params["tenant_id"] != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not match bearer token"}, status_code=403)
         envelope = await _json_body(request)
-        result = request.app.state.orchestrator.intake(envelope, tenant_id=principal.tenant_id)
+        result = await asyncio.to_thread(request.app.state.orchestrator.intake, envelope, tenant_id=principal.tenant_id)
         job_id = envelope["payload"]["job_id"]
         return JSONResponse({"job_id": job_id, "status": "queued"}, status_code=202)
     except (ProtocolValidationError, OrchestrationError, AuthError, KeyError) as exc:
@@ -174,6 +174,8 @@ async def renew_tenant_job_lease(request: Request) -> JSONResponse:
         return JSONResponse(request.app.state.orchestrator.public_claim(result))
     except AuthError as exc:
         return JSONResponse({"valid": False, "error": str(exc)}, status_code=getattr(exc, "status_code", 401))
+    except ActionCompleted as exc:
+        return JSONResponse({"valid": False, "error": str(exc), "code": "action_completed", "claim": exc.claim}, status_code=409)
     except OrchestrationError as exc:
         status = 403 if "tenant" in str(exc) else 409
         return JSONResponse({"valid": False, "error": str(exc)}, status_code=status)

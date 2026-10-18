@@ -166,3 +166,34 @@ def test_results_require_authentication_before_processing(monkeypatch):
     response = c.post("/v1/results", json={"not": "a result envelope"})
     assert response.status_code == 401
     assert response.json() == {"valid": False, "error": "missing bearer token"}
+
+
+
+def test_completed_action_handover_denies_stale_renewal_without_extending_claim(monkeypatch):
+    from tests.test_orchestrator import create_result
+    c = client(monkeypatch)
+    request = job("a")
+    job_id = request["payload"]["job_id"]
+    c.post("/v1/tenants/a/jobs", headers={"Authorization": "Bearer producer-a"}, json=request)
+    headers = {"Authorization": "Bearer connector-a"}
+    first = c.get("/v1/tenants/a/jobs/next", headers=headers).json()
+    action = first["messages"][0]["payload"]
+    result = {"protocol_version": "1.0", "message_id": str(uuid4()), "job_id": job_id,
+              "kind": "result", "sent_at": datetime.now(timezone.utc).isoformat(),
+              "payload": {"job_id": job_id, "action_id": action["action_id"], "verb": action["verb"],
+                          "status": "ok", "result": create_result(job_id)}}
+    accepted = c.post("/v1/results", headers=headers, json=result)
+    assert accepted.status_code == 200
+    next_claim = accepted.json()["claim"]
+    renewal = {"action_id": action["action_id"], "claim_id": first["claim"]["claim_id"], "renewal_sequence": 1}
+    endpoint = f"/v1/tenants/a/jobs/{job_id}/lease"
+    response = c.post(endpoint, headers=headers, json=renewal)
+    assert response.status_code == 409
+    assert response.json()["code"] == "action_completed"
+    assert response.json()["claim"] == next_claim
+    assert "connector_id" not in response.json()["claim"]
+    assert c.get("/v1/tenants/a/jobs/next", headers=headers).json()["claim"] == next_claim
+    wrong_owner = c.post(endpoint, headers={"Authorization": "Bearer connector-a2"}, json=renewal)
+    assert wrong_owner.status_code == 409 and "claim" not in wrong_owner.json()
+    wrong_claim = c.post(endpoint, headers=headers, json={**renewal, "claim_id": str(uuid4())})
+    assert wrong_claim.status_code == 409 and "claim" not in wrong_claim.json()

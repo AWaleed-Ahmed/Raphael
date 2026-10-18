@@ -52,6 +52,14 @@ class ResultInProgress(OrchestrationError):
     status_code = 409
 
 
+class ActionCompleted(OrchestrationError):
+    """A result committed before its old heartbeat received the response."""
+
+    def __init__(self, claim: dict[str, Any]) -> None:
+        super().__init__("action already completed")
+        self.claim = claim
+
+
 @dataclass
 class AgentHooks:
     """Agent-owned state transitions used by dispatch; tests may inject fakes."""
@@ -334,6 +342,16 @@ class Orchestrator:
         dispatch = state["dispatch"]
         claim = dispatch.get("claim")
         now = self.clock().astimezone(timezone.utc)
+        completed = dispatch.get("processed_actions", {}).get(request.get("action_id"), {})
+        if (self._is_active_dispatch_state(state) and claim
+                and claim.get("connector_id") == connector_id
+                and completed.get("claim_id") == request.get("claim_id")
+                and completed.get("connector_id") == connector_id
+                and completed.get("claim_id") is not None
+                and not self._lease_is_expired(state, now)):
+            # Deny the stale renewal without extending anything. The same owner
+            # may adopt the already-committed claim while its result is in transit.
+            raise ActionCompleted(self.public_claim(claim))
         if (not self._is_active_dispatch_state(state) or not claim
                 or (connector_id is not None and claim.get("connector_id") != connector_id)
                 or request.get("claim_id") != claim.get("claim_id")
@@ -395,6 +413,7 @@ class Orchestrator:
         job_id = payload["job_id"]
 
         dispatch = state["dispatch"]
+        completed_claim = dict(dispatch.get("claim") or {})
         action_id = payload["action_id"]
         fingerprint = self._fingerprint(payload)
         processed = dispatch.setdefault("processed_actions", {})
@@ -477,7 +496,11 @@ class Orchestrator:
         else:
             raise OrchestrationError(f"unsupported pending stage: {stage}")
 
-        processed[action_id] = {"fingerprint": fingerprint, "at": self._now()}
+        processed[action_id] = {
+            "fingerprint": fingerprint, "at": self._now(),
+            "claim_id": completed_claim.get("claim_id"),
+            "connector_id": completed_claim.get("connector_id"),
+        }
         return self._commit_result(state, action_id, messages, connector_id)
 
     def _require_current_action(self, job_id: str, action_id: str) -> dict[str, Any]:
