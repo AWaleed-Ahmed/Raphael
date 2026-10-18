@@ -67,3 +67,11 @@ Publishing persists intent before the remote call. An uncertain outcome becomes
 publication attempt. This does not roll back remote effects or guarantee exactly
 once. Deadline-bound GitHub requests own and close an async HTTP client per
 exchange, under a total wall deadline rather than an inactivity timeout.
+
+An identical terminal-result retry returns the persisted terminal cleanup
+message, including after restart, after tenant/owner/fingerprint checks. Only
+safe terminal envelopes are replayed; completed jobs stay out of the queue.
+Older terminal records without a saved envelope retain their previous limit.
+The paired connector retries identical cached results within confirmed bounds;
+final delivery failure uses journaled cleanup, retained on failure for restart.
+See D-20261019-01 and the result-delivery correction review.

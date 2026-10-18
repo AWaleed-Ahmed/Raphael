@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20261019-01 — Persist owned leases and recover result delivery safely
+- **Status:** implemented on `fix/restore-clone-leases`; hosted qualification and reviewed contract release/pins remain pending.
+- **Date:** 2026-10-19
+- **Decision:** Persist opaque action claims bound to tenant/connector identity, renewal sequence, confirmed expiry and immutable action/job deadlines. Serialize state transitions, run slow hooks outside the lock, and recheck identity/expiry after persistence. A completed-action409 can hand the same owner its already-active next claim without extending it. Persist publication intent before remote mutation and fail closed for manual reconciliation after an uncertain outcome; use a total request deadline and owned client lifetime.
+- **Why:** Lease loss, result races and process restarts must not revive terminal work, repeat uncertain publication, or abandon owned resources. Result delivery retries identical cached bytes within the execution deadline/confirmed lease, allowing at most three failed transport/429/5xx exchanges. In-progress409 waits retain the same budget. Final delivery errors use journaled terminal cleanup; failed cleanup survives restart.
+- **Alternatives:** In-memory claims lose ownership on restart; scalar inactivity timeouts allow trickling responses; automatic uncertain publish retries can duplicate effects; immediate cleanup on the first transient delivery error prevents ordinary retry recovery.
+- **Consequences:** Persist the safe terminal envelope and replay it for an identical committed result to the same authenticated owner, including lazy terminal-state loading after restart. Completed jobs remain excluded from polling; executable patch bytes are never replayed from persistence. Older terminal records without this envelope retain their prior limitation. Distinct workers require distinct credentials/identities. This does not promise exactly-once remote publication, guaranteed cleanup against an unavailable controller, or issue closure. See [the correction record](docs/result-delivery-fix-review-2026-10-19.md).
+
 ### D-20261015-01 — Bad-image repair requires verified pull evidence
 - **Status:** accepted; correction and proof updates are in PR #48; the positive kind proof is pending under [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and is excluded from required checks until reviewed, released Ignis #19 evidence is pinned.
 - **Date:** 2026-10-15

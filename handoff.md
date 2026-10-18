@@ -5,6 +5,14 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 ## Start here: where we stopped
 
+**2026-10-19 delivery correction:** final result-delivery errors now use journaled
+cleanup after bounded cached-result retries. Identical committed terminal results
+replay their safe envelope after restart, subject to tenant/owner/fingerprint
+checks. The recheck findings are resolved and D-20261019-01 records the choices.
+Fresh local counts: agent441/4skip, dispatch88, Rust86, contracts19, harness31,
+checkout matrix36, paired mock3. See [cases/results and CI limits](docs/result-delivery-fix-review-2026-10-19.md).
+Reviewed contract release/pins and current-pair hosted qualification remain open.
+
 **2026-10-19 #13/#17 recovery implemented:** both persistent repositories use
 `fix/restore-clone-leases`. Source edits recovered from session history were
 reviewed and reimplemented with additional lifecycle fixes; the old Git hashes
