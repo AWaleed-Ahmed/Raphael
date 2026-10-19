@@ -19,6 +19,8 @@ review branches; no main merge or contract-check bypass.
    without a verified scoped healthy baseline. Preserve no patch/no publication,
    unverified-evidence refusals, real-backend rejection of mock evidence and the
    pending real-kind positive proof. Assert source/cause/backend on the eval wire.
+   Require runtime absence/ownership in the real-kind negative control and the
+   exact missing-replacement refusal there too.
 5. Add workflow/ref/eval regression assertions and run them in core CI. Exercise
    the implemented TTL30/diagnosis35 wire control automatically. Verify local
    suites, real-hook/evals and canonical contract sync, then push PR #50 and inspect

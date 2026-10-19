@@ -14,7 +14,7 @@ replacement the eval requires patch_value_unavailable, no patch and no publish.
 Legacy/unverified and real-backend mock refusals remain agent controls. This
 supersedes older descriptions of unstructured mock evidence, not the separate
 pending real-kind positive proof. Local results: agent441/4skip, dispatch88,
-workflow/eval/wire assertions38, wire3, production-hook smoke and all7 evals.
+workflow/eval/wire/kind assertions41, wire3, production-hook smoke and all7 evals.
 See [the CI repair record](docs/ci-repair-review-2026-10-19.md) for failed runs,
 release identity, reruns and hosted status links. D-20261019-02 records the choice.
 

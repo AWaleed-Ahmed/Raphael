@@ -29,7 +29,13 @@ The code/contracts/fixtures match the previously tested recovery877af6b tree.
    attributes fail. The production gate is unchanged; legacy/unverified signatures
    and mock evidence on real backends remain agent regression cases. This does
    not qualify a registry lookup or a positive real-kind image repair.
-4. Core CI now runs the workflow/ref/eval/wire/kind assertion modules. The hosted
+4. The real-kind negative control had the same legacy refusal expectation.
+   It now requires non-mock backend, runtime source and the shared verified
+   ownership/absence predicate, then the exact missing-healthy-baseline refusal
+   and absence of an approved replacement/patch/publication/validation. Three
+   new assertions reject mock source/backend, wrong owner/cause and wrong
+   reason/approved-image combinations. The positive case remains manual-only.
+5. Core CI now runs the workflow/ref/eval/wire/kind assertion modules. The hosted
    wire harness exercises TTL30s and diagnosis35s, including whole-process restart.
 
 ## Local expected/actual evidence
@@ -37,7 +43,7 @@ The code/contracts/fixtures match the previously tested recovery877af6b tree.
 | Case | Expected | Actual |
 | --- | --- | --- |
 | Ref resolution | Committed contract default or validated full-SHA/tag override; all three jobs consume one output | 7 new workflow/ref assertions pass |
-| Existing safety/eval assertions | No weakened refusal, patch, publication, backend or cleanup expectations | 38 combined assertions pass |
+| Existing safety/eval assertions | No weakened refusal, patch, publication, backend or cleanup expectations | 41 combined assertions pass |
 | Bad-image former hosted evidence | Exact new mock/baseline semantics explain the earlier red result | All scorer assertions pass, original runner exit0 preserved |
 | Schema synchronization | Exact tagged upstream snapshot, complete tree comparison | Canonical sync and Check pass against the published GitHub v1.4.0 tag; staged checks also passed |
 | Agent regressions | Preserve production gates | 441 passed / 4 skipped |
@@ -49,7 +55,7 @@ Initial failures are retained as diagnostic evidence: workflow assertions first
 failed before adding the shared resolver/core step/short-lease inputs. The new
 source/backend eval assertion failed before the scorer checked those fields.
 One combined assertion run lacked loopback permission; its HTTP fixture failed
-with PermissionError and all38 passed with the required permission. A manual
+with PermissionError and all38 passed at that stage (41 after the kind-control additions) with the required permission. A manual
 re-score initially omitted runner_exit_code from the separate runner artifact;
 using the original eval-results exit0 makes all assertions pass without changing
 runtime evidence. Official PowerShell hashes were UTF-16; after decoding correctly,
@@ -71,6 +77,11 @@ canonical sync and D-20261019-02 preserve the repository standards.
 
 Independent read-only focused review: zero actionable findings. Shared runtime
 selection, contract parity and strict mock refusal address the confirmed failures.
+
+The first current-head core run [39271237220](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39271237220)
+passed both contracts and Python at00183be. The related real-kind control was
+then strengthened before accepting full hosted qualification; final-head runs
+are tracked in the PR description.
 
 ## Public tag and hosted results
 

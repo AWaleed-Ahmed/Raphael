@@ -21,6 +21,7 @@ from run_real_job import trace_records
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from evals.run_evals import trace_evidence, patch_line_changes
+from raphael_agent.image_pull import image_pull_repair_allowed
 
 REQUIRED_KIND_CASES = ("probe", "image-without-provenance")
 PENDING_BAD_IMAGE_POSITIVE_CASE = "image-with-verified-provenance"
@@ -102,7 +103,12 @@ def verify_case(label, result, records, initial_pod, final_ready):
     if label == "image-without-provenance":
         assert result["final_status"] == "escalated"
         assert not state.get("pull_request_url")
-        assert state["terminal_reason"] == "image_pull_evidence_unverified"
+        signature = evidence["observed_signature"]
+        assert state.get("sandbox_backend") not in {None, "", "mock"}
+        assert signature["normalized"]["attributes"]["evidence_source"] == "runtime"
+        assert image_pull_repair_allowed(signature, state["sandbox_backend"])
+        assert state["terminal_reason"] == "patch_value_unavailable"
+        assert not (state.get("localization_result") or {}).get("approved_image_replacement")
         assert not state.get("candidate_patches") and not evidence["patch_files"]
         assert evidence["validation"] is None
         return
