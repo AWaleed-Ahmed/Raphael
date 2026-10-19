@@ -147,6 +147,13 @@ the versioned consumer/controller pair is delivered.
 
 ## 5. Contract release, CI and hosting order
 
+2026-10-19: the user approved annotated contracts-v1.4.0 at merged Ignis
+f1f3b2c858c6ce246308eae395e280856459d9a5. Canonical GitHub sync/Check passes;
+Raphael runtime defaults use the contract pin through one shared CI resolver.
+REL-06/07 are satisfied on PR #50. Current-head hosted qualification and required
+positive image proof remain separate gates. See [the CI repair record](ci-repair-review-2026-10-19.md).
+
+
 This is primarily GitHub Actions qualification on disposable Ubuntu/kind
 runners. A persistent public server/domain or production Kubernetes account
 is not needed to complete these synthetic integration checks.
@@ -156,8 +163,8 @@ is not needed to complete these synthetic integration checks.
 3. [ ] REL-03 Verify workflow triggers. Raphael core CI runs on `feature/**` pushes and PRs to main; cross-repository E2E does not run on this feature push alone. Ignis CI runs on main pushes/PRs to main. Pushing the branches does not prove all checks ran.
 4. [ ] REL-04 Run candidate cross-repo jobs: mock/wire/real-hooks/evals/report audit; real-kind remediation including the pending positive case; Secret-fixture kind. Retain `if: always()` artifact/cluster cleanup, dry-run publishing and no application publishing token.
 5. [ ] REL-05 Inspect artifacts, not just green summaries. Record skipped cases explicitly, fix failures and rerun on current heads. Complete the #13 matrix and #17 timing/denial coverage rather than substituting generic integration success.
-6. [ ] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
-7. [ ] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
+6. [x] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
+7. [x] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
 8. [ ] REL-08 Restore required positive image proof in the consumer PR, remove obsolete candidate special cases, and run current-head core/contracts/Ignis and all paired hosted jobs on the released pair. Retain manual overrides for explicit qualification.
 9. [ ] REL-09 Obtain user review/merge approval. Record final post-merge CI/run URLs and immutable identities; rerun if merges or pins change relevant code.
 10. [ ] REL-10 Update both implementation reviews, Raphael handoff and each issue with delivered behavior, proof links and limits. Close each issue only after its own acceptance conditions above are met.
