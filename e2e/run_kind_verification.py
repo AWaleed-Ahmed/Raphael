@@ -161,6 +161,20 @@ def verify_workload_identity(pod, replica_sets, deployments, signature, namespac
             "deployment_uid": deployment["metadata"]["uid"], "container": container["name"], "image": container["image"]}
 
 
+def install_rollout_wrapper(out, real_kubectl):
+    rollout_pids = out / "rollout-pids"
+    bin_dir = out / "bin"
+    bin_dir.mkdir()
+    wrapper = bin_dir / "kubectl"
+    wrapper.write_text(f"#!{sys.executable}\nimport os, sys\n"
+                       f"if 'rollout' in sys.argv and 'status' in sys.argv:\n"
+                       f"    sys.argv[sys.argv.index('--timeout') + 1] = '30s'\n"
+                       f"    with open({str(rollout_pids)!r}, 'a') as stream: stream.write(str(os.getpid()) + '\\n')\n"
+                       f"os.execv({real_kubectl!r}, [{real_kubectl!r}] + sys.argv[1:])\n")
+    wrapper.chmod(0o755)
+    return bin_dir
+
+
 def run_case(label, fixture, sha, output, catalog=None):
     out = output / label
     out.mkdir(parents=True)
@@ -169,17 +183,11 @@ def run_case(label, fixture, sha, output, catalog=None):
     rollout_pids = out / "rollout-pids"
     if label == "image-without-provenance":
         # The wrapper execs the real kubectl at the same PID; no rollout response
-        # is mocked. Only the controller child receives this owned PATH override.
+        # is mocked. Force the CLI timeout to 30s so a native short timeout cannot
+        # masquerade as process cancellation. Only controller children use this PATH.
         real_kubectl = shutil.which("kubectl")
         assert real_kubectl
-        bin_dir = out / "bin"
-        bin_dir.mkdir()
-        wrapper = bin_dir / "kubectl"
-        wrapper.write_text(f"#!{sys.executable}\nimport os, sys\n"
-                           f"if 'rollout' in sys.argv and 'status' in sys.argv:\n"
-                           f"    with open({str(rollout_pids)!r}, 'a') as stream: stream.write(str(os.getpid()) + '\\n')\n"
-                           f"os.execv({real_kubectl!r}, [{real_kubectl!r}] + sys.argv[1:])\n")
-        wrapper.chmod(0o755)
+        bin_dir = install_rollout_wrapper(out, real_kubectl)
         env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     for key in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY", "RAPHAEL_SECRET_FIXTURE_SET",
                 "GITHUB_TOKEN", "RAPHAEL_GITHUB_TOKEN", "RAPHAEL_GITHUB_APP_PRIVATE_KEY",
@@ -288,12 +296,15 @@ def verify_rollout_deadline(sandbox, pid_file, output):
                       headers={"Content-Type": "application/json", "x-raphael-action-deadline-at": absolute,
                                "x-raphael-connector-action-id": action_id})
     start = time.monotonic()
+    status, body = None, None
     try:
         with urlopen(request, timeout=15) as response:
-            raise AssertionError(f"unexpected validation response {response.status}: {response.read()}")
+            status, body = response.status, json.load(response)
     except HTTPError as error:
-        assert error.code == 504, (error.code, error.read())
+        status, body = error.code, json.loads(error.read())
     elapsed = time.monotonic() - start
+    (output / "rollout-deadline-response.json").write_text(json.dumps({"status": status, "body": body, "elapsed_seconds": elapsed}, indent=2))
+    assert status == 504, (status, body)
     assert 6 < elapsed < 12, elapsed
     assert pid_file.exists(), "real kubectl rollout never started; timeout alone is insufficient proof"
     pids = [int(pid) for pid in pid_file.read_text().splitlines()]
@@ -307,8 +318,8 @@ def verify_rollout_deadline(sandbox, pid_file, output):
     wait_for(stopped, "real kubectl cancellation", timeout=3)
     (output / "rollout-deadline-proof.json").write_text(json.dumps({
         "passed": True, "backend": "kind", "command": "real kubectl rollout status deployment/payments-api",
-        "action_id": action_id, "http_status": 504, "elapsed_seconds": elapsed,
-        "kubectl_processes_stopped": True, "configured_rollout_seconds": 30, "absolute_budget_seconds": 8}, indent=2))
+        "action_id": action_id, "http_status": status, "elapsed_seconds": elapsed,
+        "kubectl_processes_stopped": True, "configured_rollout_seconds": 30, "absolute_budget_seconds": 8, "owned_wrapper_cli_timeout_seconds": 30}, indent=2))
 
 
 def selected_cases():

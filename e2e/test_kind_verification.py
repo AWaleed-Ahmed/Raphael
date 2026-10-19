@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 import sys
+import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +13,21 @@ from run_real_job import cluster_settings
 
 
 class KindProofTests(unittest.TestCase):
+    def test_rollout_wrapper_executes_cli_with_long_timeout_and_records_pid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real = root / "owned-kubectl"
+            real.write_text(f"#!{sys.executable}\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n")
+            real.chmod(0o755)
+            wrapper = proof.install_rollout_wrapper(root, str(real)) / "kubectl"
+            args = ["--context", "owned", "rollout", "status", "deployment/app", "--timeout", "2s"]
+            actual = json.loads(subprocess.check_output([str(wrapper), *args], text=True))
+            self.assertEqual(actual, args[:-1] + ["30s"])
+            self.assertTrue((root / "rollout-pids").read_text().strip().isdigit())
+            actual = json.loads(subprocess.check_output([str(wrapper), "version", "--client"], text=True))
+            self.assertEqual(actual, ["version", "--client"])
+            self.assertEqual(len((root / "rollout-pids").read_text().splitlines()), 1)
+
     def test_all_released_pair_cases_are_required_for_every_ci_event(self):
         for event in ("pull_request", "push", "schedule", "repository_dispatch", "workflow_dispatch"):
             with self.subTest(event=event), patch.dict("os.environ", {
