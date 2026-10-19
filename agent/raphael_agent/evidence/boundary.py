@@ -7,6 +7,7 @@ from typing import Any
 import yaml
 
 from .redaction import redact_text
+from raphael_agent.secret_coverage import sanitized_secret_coverage
 
 MAX_ITEMS = 8
 MAX_EXCERPT = 16_000
@@ -18,7 +19,9 @@ def redact_value(value: Any) -> Any:
     """Redact structured observations before serializing string leaves."""
     if isinstance(value, dict):
         return {
-            key: "[REDACTED]" if _SENSITIVE.search(str(key)) else redact_value(item)
+            key: (sanitized_secret_coverage(item) or "[REDACTED]")
+            if key == "secret_coverage" else
+            "[REDACTED]" if _SENSITIVE.search(str(key)) else redact_value(item)
             for key, item in value.items()
         }
     if isinstance(value, list):

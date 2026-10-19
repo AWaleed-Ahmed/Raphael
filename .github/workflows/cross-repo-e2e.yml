@@ -102,6 +102,7 @@ jobs:
     timeout-minutes: 20
     env:
       IGNIS_REF: ${{ needs.resolve-ignis.outputs.ref }}
+      RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -256,6 +257,11 @@ jobs:
           python -m unittest evals.test_run_evals
           python evals/run_evals.py 2>&1 | tee evals/evaluation.log
 
+      - name: Prove undecorated required and covered Secret dependencies
+        env:
+          RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
+        run: python -u e2e/run_secret_coverage_evals.py
+
       - name: Verify LF wire content under CRLF checkout settings
         if: ${{ inputs.crlf_checkouts == true }}
         run: python -m evals.verify_rendered_lf
@@ -274,5 +280,6 @@ jobs:
             e2e/*.jsonl
             e2e/*.log
             e2e/lease-denial-out/**
+            e2e/secret-coverage-out/**
             evals/out/**
             evals/evaluation.log

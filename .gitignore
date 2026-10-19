@@ -80,3 +80,4 @@ htmlcov/
 *.tsbuildinfo
 interface/IDE/out/
 *.vsix
+e2e/secret-coverage-out/

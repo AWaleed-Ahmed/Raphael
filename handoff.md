@@ -5,6 +5,8 @@ This page describes current implementation and proof; [prd.md](prd.md) defines t
 
 ## Start here: where we stopped
 
+**2026-10-20 #30 completion follow-up:** `fix/structural-secret-dependencies` preserves validated Secret metadata, orders direct live observation before diagnosis/model refinement, names required gaps and cleans up on refusal. Ignis #20 is reconciled with current deadlines/leases and recomputes bundled fixture inventory per deployment. Local and hosted candidate acceptance controls pass, including covered-Secret probe repair on real kind; see [Raphael #55](https://github.com/AWaleed-Ahmed/Raphael/pull/55) and the linked review for exact runs. Reviewed runtime delivery remains open. See [completion plan](docs/issue-30-completion-plan.md) and [case-by-case review](docs/issue-30-completion-review.md). Older #30 checkpoints below remain historical.
+
 **#11/#13/#17 qualification:** remaining image/clone/lease controls are implemented
 in [Ignis #22](https://github.com/AWaleed-Ahmed/Ignis/pull/22) and
 [Raphael #51](https://github.com/AWaleed-Ahmed/Raphael/pull/51). Full local results:

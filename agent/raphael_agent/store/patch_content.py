@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from raphael_agent.secret_coverage import sanitized_secret_coverage
+
 PATCH_CONTENT_KEYS = {"rendered_files", "content", "unified_diff", "unified_diff_hunk"}
 
 
@@ -27,6 +29,8 @@ def without_patch_content(value: Any) -> Any:
 def durable_run_record(run: dict[str, Any]) -> dict[str, Any]:
     """Project connector runs to metadata; never mutate the live execution state."""
     out = {key: value for key, value in run.items() if key != "rendered_files"}
+    if "secret_coverage" in out:
+        out["secret_coverage"] = sanitized_secret_coverage(out["secret_coverage"])
     if not isinstance(run.get("dispatch"), dict):
         return out
     out = without_patch_content(out)
