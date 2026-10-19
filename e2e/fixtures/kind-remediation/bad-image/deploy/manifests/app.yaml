@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: hashicorp/http-echo:does-not-exist-kind-proof
+          image: hashicorp/http-echo:9b6d28a1ec5f4c30a7b8d9e01f23456789abcdef
           imagePullPolicy: IfNotPresent
           args: ["-listen=:8080", "-text=healthy"]
           ports:
