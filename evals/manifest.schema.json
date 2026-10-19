@@ -90,6 +90,16 @@
       "required": ["pre_fix_signature", "validation", "terminal_instruction"],
       "properties": {
         "pre_fix_signature": { "type": "boolean" },
+        "image_pull": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["evidence_source", "image_pull_cause", "sandbox_backend"],
+          "properties": {
+            "evidence_source": { "const": "mock_fixture" },
+            "image_pull_cause": { "const": "not_found" },
+            "sandbox_backend": { "const": "mock" }
+          }
+        },
         "validation": {
           "oneOf": [
             {

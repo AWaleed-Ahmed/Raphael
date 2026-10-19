@@ -14,6 +14,8 @@ EXPECTED_SHA256 = {
     "error.schema.json": "911ac2f23905f5e402fc797992e23053b36b74153360d9e2ca506993edad6540",
     "job.schema.json": "89ec68894ba99c1bf35436ba5df4b5d4a8e4aad8fe9ecfea4ef70ae9e5f4a94c",
     "result.schema.json": "bf4e1e4639f559f75d06b49b592f8b342ff7c92e5bf351511d31967c330840fb",
+    "lease-claim.schema.json": "972dfb66a2146989318b6c8b0a80d71159399bf13d5bced2fe2bc78c71df755e",
+    "lease-renewal-request.schema.json": "ef8716a25deb0f733f83c3e37e7c86489953dd4d9138f42dbc477ed38ad96f9b",
     "terminal.schema.json": "176a53afb358f2cd5401ba6a34b8d6cb00feb114194fb996746eeb1d7b49d9b1",
 }
 

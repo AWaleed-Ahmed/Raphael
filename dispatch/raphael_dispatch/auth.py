@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -14,6 +15,7 @@ class AuthError(ValueError):
 class Principal:
     tenant_id: str
     role: str
+    connector_id: str
 
 
 def principal_from_request(authorization: str | None, role: str) -> Principal:
@@ -34,4 +36,5 @@ def principal_from_request(authorization: str | None, role: str) -> Principal:
         error = AuthError("token role is not permitted for this endpoint")
         error.status_code = 403
         raise error
-    return Principal(str(claims["tenant_id"]), str(claims["role"]))
+    connector_id = str(claims.get("connector_id") or hashlib.sha256(token.encode()).hexdigest())
+    return Principal(str(claims["tenant_id"]), str(claims["role"]), connector_id)

@@ -61,3 +61,13 @@ probe fix, and absence of patches for missing-config and unprovenanced bad-image
 unexpected evidence or any CRLF content fails loudly; successful checks
 write `evals/out/line-endings.json`, included in the existing artifact upload.
 This complements, rather than weakens, the scorer's inflated-diff rejection test.
+
+## Mock image evidence after Ignis contracts-v1.4.0
+
+`bad_image_reference` uses explicit `mock_fixture`/`not_found` evidence only
+with `sandbox_backend=mock`. It expects a recognized bad-image diagnosis and
+`patch_value_unavailable` escalation because the fixture supplies no verified
+healthy replacement. The eval asserts the wire source/cause/backend, no candidate
+patch, no publication and no validation. This is a synthetic refusal control,
+not a registry lookup or real-cluster image-repair proof. Legacy/unverified image
+signatures and mock evidence on real backends remain covered by agent gate tests.

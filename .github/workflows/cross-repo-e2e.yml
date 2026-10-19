@@ -7,8 +7,7 @@ name: Cross-repository E2E
 on:
   push:
     branches: [main]
-  # Temporary pre-merge verification path. Remove after this feature branch
-  # has completed one successful GitHub-hosted run.
+  # Qualify proposed changes before merging them into main.
   pull_request:
   repository_dispatch:
     types: [ignis-main-updated]
@@ -17,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       ignis_ref:
-        description: "Ignis tag, commit SHA, or branch to test (defaults to contracts-v1.3.0)"
+        description: "Immutable Ignis contract tag or full commit SHA (defaults to CONTRACTS_VERSION)"
         required: false
         type: string
       crlf_checkouts:
@@ -35,15 +34,27 @@ permissions:
   contents: read
 
 jobs:
+  resolve-ignis:
+    name: Resolve shared Ignis revision
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.reference.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve contract default or immutable override
+        id: reference
+        env:
+          IGNIS_REF_REQUESTED: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref }}
+        run: python3 tools/resolve_ignis_ref.py
+
   secret-fixture-kind:
+    needs: [resolve-ignis]
     name: Secret fixture propagation (disposable kind)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       # Narrow proof only. Never load a customer kubeconfig or publish to GitHub.
-      # Immutable implementation and public schema release.
-      # Review this paired feature against its exact Ignis candidate; other runs retain the release.
-      IGNIS_REF: ${{ (github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662' || 'contracts-v1.3.0' }}
+      IGNIS_REF: ${{ needs.resolve-ignis.outputs.ref }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
       RAPHAEL_PARTNER_MODE: dry_run
@@ -90,12 +101,12 @@ jobs:
         run: kind delete cluster --name raphael-fixture-proof
 
   kind-remediation:
+    needs: [resolve-ignis]
     name: Real-kind remediation with provenance controls
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      # Review this paired feature against its exact Ignis candidate; other runs retain the release.
-      IGNIS_REF: ${{ inputs.ignis_ref || ((github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662') || 'contracts-v1.3.0' }}
+      IGNIS_REF: ${{ needs.resolve-ignis.outputs.ref }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -152,6 +163,7 @@ jobs:
         run: kind delete cluster --name raphael-remediation-proof
 
   e2e:
+    needs: [resolve-ignis]
     name: Ignis mock backend + Raphael dispatch
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -159,9 +171,7 @@ jobs:
       # Test-only audit follows real dispatch subprocesses across all seven evals.
       PYTHONPATH: ${{ github.workspace }}/tools/report_audit
       RAPHAEL_REPORT_AUDIT_FILE: ${{ github.workspace }}/evals/out/report-audit.jsonl
-      # Scheduled and Raphael-originated runs use the pinned Ignis implementation release.
-      # Ignis-originated repository_dispatch runs test the exact pushed Ignis revision.
-      IGNIS_REF: ${{ inputs.ignis_ref || github.event.client_payload.ignis_ref || (github.head_ref == 'codex/raphael-image-pull-evidence' || github.ref_name == 'codex/raphael-image-pull-evidence') && 'b71e781b7f93246f271bb15df8efa2c0fda8e662' || 'contracts-v1.3.0' }}
+      IGNIS_REF: ${{ needs.resolve-ignis.outputs.ref }}
       E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
       RAPHAEL_PARTNER_MODE: dry_run
       RAPHAEL_PUBLISH_MODE: dry_run
@@ -231,6 +241,9 @@ jobs:
           git config --global --get core.autocrlf
 
       - name: Run three-scenario wire-protocol harness
+        env:
+          E2E_LEASE_TTL_SECONDS: "30"
+          E2E_DIAGNOSE_DELAY_SECONDS: "35"
         shell: bash
         run: |
           set -o pipefail

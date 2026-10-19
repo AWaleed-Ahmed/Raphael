@@ -2,7 +2,10 @@
 
 ## Release scope and count
 
-**Eight major milestones remain for a limited, controlled pilot release.**
+**Eight milestone groups define the limited, controlled pilot release.**
+As of 2026-10-19, milestone1 source recovery is implemented and locally reviewed
+on the recovery branches; the remaining qualification/release groups stay open.
+See [fresh recovery evidence](restore-13-17-review-2026-10-19.md).
 This is a planning grouping of the current handoff and acceptance requirements,
 not a count of open GitHub issues, an estimate in days, or eight small commits.
 No pilot/production release is declared by this document. A general production
@@ -15,7 +18,7 @@ cloud-provider claims require their own evidence; do not silently include them.
 
 | # | Milestone | Completion evidence |
 | --- | --- | --- |
-| 1 | Recover/reimplement lost #13/#17 and paired dispatch fixes | Persistent pushed code, renewed review and fresh tests; previous `/tmp` heads and their test counts cannot substitute. See REC/LSE/CLN tasks in the shared completion checklist. |
+| 1 | Recover/reimplement lost #13/#17 and paired dispatch fixes | Implemented on `fix/restore-clone-leases` in both persistent clones with new commits, independent review and fresh local tests; see the recovery record. Durable remote checkpoint is recorded there. See REC/LSE/CLN tasks in the shared completion checklist. |
 | 2 | Finish the outstanding structural-Secret safety follow-up | Resolve bundled-Secret/raw-patch boundary, unsupported-form coverage, redaction, fixture scope and sentinel/covered-remediation controls tracked by the handoff and `fix/secret-coverage-safety`. Reviewed paired contracts and no unsafe repair/provider call on required dependency gaps. |
 | 3 | Qualify Ignis #11/#13/#17 against one candidate pair | Image attribution/provenance/refusal controls; fidelity/authenticated clone matrix; finite deadlines, short-lease renewal/denial/restart and cleanup. Clearly distinguish parser/mock fixtures from actual kind observations. |
 | 4 | Deliver reviewed contracts and exact runtime alignment | User-approved Ignis merge/release; synced Raphael snapshot and `CONTRACTS_VERSION`; all runtime defaults pinned to the reviewed release; contract sync check passes. No existing tag retargeting. |

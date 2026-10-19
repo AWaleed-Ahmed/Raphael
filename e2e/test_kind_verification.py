@@ -58,13 +58,19 @@ class KindProofTests(unittest.TestCase):
                     "validation": {"passed": True, "signature_cleared": True},
                     "patch_files": [{"path": "deploy/manifests/app.yaml", "content": patched}],
                     "initial_rendered_files": {"deploy/manifests/app.yaml": original}}
-        state = {"publish": {"dry_run": True}, "localization_result": {"approved_image_replacement": {
+        state = {"sandbox_backend": "kubectl", "publish": {"dry_run": True}, "localization_result": {"approved_image_replacement": {
             "image": "hashicorp/http-echo:1.0", "source": {"healthy_trace_id": "kind-verified-baseline"}}}}
         result = {"job_id": "synthetic", "final_status": "fix_finalized", "run_state": state,
                   "terminal": {"payload": {"instructions": "discard_local_copy"}}}
         if label == "image-without-provenance":
             result["final_status"] = "escalated"
-            state["terminal_reason"] = "image_pull_evidence_unverified"
+            state["terminal_reason"] = "patch_value_unavailable"
+            state.pop("localization_result")
+            evidence["observed_signature"]["normalized"] = {
+                "resource_kind": "Deployment", "resource_name": "app", "container": "app",
+                "attributes": {"image": "hashicorp/http-echo:missing", "image_pull_cause": "not_found",
+                               "evidence_source": "runtime", "owner_verified": True, "container_type": "regular"},
+            }
             evidence.update(validation=None, patch_files=[])
         return result, evidence
 
@@ -87,6 +93,31 @@ class KindProofTests(unittest.TestCase):
     def test_refusal_cannot_include_patch(self):
         result, evidence = self.case("image-without-provenance")
         result["run_state"]["candidate_patches"] = [{"patch_id": "bad"}]
+        with patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
+            proof.verify_case("image-without-provenance", result, [], {}, False)
+
+    def test_missing_baseline_refusal_requires_verified_runtime_evidence(self):
+        for source, backend in (("mock_fixture", "mock"), ("mock_fixture", "kubectl"), ("runtime", "mock")):
+            result, evidence = self.case("image-without-provenance")
+            result["run_state"]["sandbox_backend"] = backend
+            evidence["observed_signature"]["normalized"]["attributes"]["evidence_source"] = source
+            with self.subTest(source=source, backend=backend), patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
+                proof.verify_case("image-without-provenance", result, [], {}, False)
+
+    def test_missing_baseline_refusal_rejects_invalid_owner_and_cause(self):
+        for field, value in (("owner_verified", False), ("image_pull_cause", "auth")):
+            result, evidence = self.case("image-without-provenance")
+            evidence["observed_signature"]["normalized"]["attributes"][field] = value
+            with self.subTest(field=field), patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
+                proof.verify_case("image-without-provenance", result, [], {}, False)
+
+    def test_missing_baseline_refusal_requires_exact_reason_and_no_approved_image(self):
+        result, evidence = self.case("image-without-provenance")
+        result["run_state"]["terminal_reason"] = "budget_exhausted"
+        with patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
+            proof.verify_case("image-without-provenance", result, [], {}, False)
+        result["run_state"]["terminal_reason"] = "patch_value_unavailable"
+        result["run_state"]["localization_result"] = {"approved_image_replacement": {"image": "synthetic"}}
         with patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
             proof.verify_case("image-without-provenance", result, [], {}, False)
 

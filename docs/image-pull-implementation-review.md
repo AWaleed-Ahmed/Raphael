@@ -58,3 +58,13 @@ Final local agent suite: **396 passed, 4 skipped**. Dispatch: **77 passed**. Rus
 These results do not establish live provider, registry, Supabase or kind behavior. Existing hosted mock/Secret-kind/image-provenance-kind jobs are the next proof. A registry-denial live control and production short-lease heartbeat controls are still pending. The Ignis candidate inherits incomplete #17; do not close #17 or claim that heartbeat coordination is implemented.
 
 Merge-tree comparison against fetched Raphael main is conflict-free. The paired PR is for review only at this stage; no automatic merge, release or issue closure. The PR-scoped runtime override must be replaced with an authorized rollout/pin update before relying on post-merge runs, which otherwise retain the older release.
+
+## Recovery checkpoint — 2026-10-19
+
+The missing #13/#17 source has now been recovered/reimplemented on persistent
+`fix/restore-clone-leases` branches, with additional review fixes and fresh local
+verification. See [the detailed recovery review](restore-13-17-review-2026-10-19.md)
+and [shared remaining checklist](ignis-11-13-17-completion-checklist.md). Earlier
+missing-code statements are historical. Hosted qualification, reviewed contract
+release/pins and #11 positive repair remain open; local mock proof does not close
+those gates.

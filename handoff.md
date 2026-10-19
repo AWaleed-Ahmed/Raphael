@@ -1,9 +1,46 @@
 # Raphael contributor map
 
-Current checkpoint is based on Raphael main `5a1771e` and released Ignis `contracts-v1.3.0` (`176a13e`) as of 2026-10-15.
+Latest recovery checkpoint: 2026-10-19, based on Raphael main `903370a` and Ignis preservation `9d88f47`. Released contract/runtime pin remains `contracts-v1.3.0` (`176a13e`).
 This page describes current implementation and proof; [prd.md](prd.md) defines the product, not completed work.
 
 ## Start here: where we stopped
+
+**2026-10-19 CI/runtime alignment:** the user-approved annotated Ignis
+`contracts-v1.4.0` now points to reviewed merged `f1f3b2c858c6ce246308eae395e280856459d9a5`.
+Canonical GitHub sync/Check passes. One validated reference from CONTRACTS_VERSION
+(or a shared explicit tag/SHA override) feeds every paired CI job. New mock image
+evidence is recognized only on the mock backend; without a verified healthy
+replacement the eval requires patch_value_unavailable, no patch and no publish.
+Legacy/unverified and real-backend mock refusals remain agent controls. This
+supersedes older descriptions of unstructured mock evidence, not the separate
+pending real-kind positive proof. Local results: agent441/4skip, dispatch88,
+workflow/eval/wire/kind assertions41, wire3, production-hook smoke and all7 evals.
+See [the CI repair record](docs/ci-repair-review-2026-10-19.md) for failed runs,
+release identity, reruns and hosted status links. D-20261019-02 records the choice.
+
+**2026-10-19 delivery correction:** final result-delivery errors now use journaled
+cleanup after bounded cached-result retries. Identical committed terminal results
+replay their safe envelope after restart, subject to tenant/owner/fingerprint
+checks. The recheck findings are resolved and D-20261019-01 records the choices.
+Fresh local counts: agent441/4skip, dispatch88, Rust86, contracts19, harness31,
+checkout matrix36, paired mock3. See [cases/results and CI limits](docs/result-delivery-fix-review-2026-10-19.md).
+Reviewed contract release/pins and current-pair hosted qualification remain open.
+
+**2026-10-19 #13/#17 recovery implemented:** both persistent repositories use
+`fix/restore-clone-leases`. Source edits recovered from session history were
+reviewed and reimplemented with additional lifecycle fixes; the old Git hashes
+remain unavailable. Owned checkout fidelity, persisted claim/renewal, atomic
+expiry/result commit, total publication/server deadlines, heartbeat handover,
+cancellation and partial-journal recovery are implemented. Fresh local results:
+agent441/4skip, dispatch86, Rust82, contracts19, harness/evaluator31,
+checkout matrix36, paired mock scenarios3. Independent standards/spec rechecks
+have zero remaining findings. See the [plan](docs/restore-13-17-plan-2026-10-18.md),
+[detailed cases/results](docs/restore-13-17-review-2026-10-19.md) and
+[remaining qualification checklist](docs/ignis-11-13-17-completion-checklist.md).
+Authenticated clone, system-attribute/full fidelity controls, hosted deadline/
+denial/kind runs, reviewed contract release/pins and #11 positive repair remain.
+No #11/#13/#17 closure or release is declared. Dated missing-code statements
+below describe the earlier preservation checkpoint and are superseded here.
 
 **2026-10-18 BYOK expansion (local implementation):**
 `feature/byok-provider-support` adds named OpenAI/Gemini/Anthropic/Groq/

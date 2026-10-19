@@ -35,6 +35,12 @@ Bearer token to `{ "tenant_id": "...", "role": "producer"|"connector" }`.
 Producer tokens submit unchanged connector-v1 job envelopes to
 `POST /v1/tenants/{tenant_id}/jobs`; connector tokens poll
 `GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token.
+The first poll returns a persisted claim alongside the action. Connector clients
+can renew it with `POST /v1/tenants/{tenant_id}/jobs/{job_id}/lease` and JSON
+`{"action_id":"…","claim_id":"…","renewal_sequence":1}`. Renewal
+sequences advance by one; replaying the current sequence is idempotent. A claim
+is bound to one action and cannot extend its fixed action or job deadline. This
+endpoint is not usable by older connectors until they implement heartbeat calls.
 The legacy `POST /v1/jobs` endpoint remains for compatibility but is deprecated
 for new producer integrations because it returns the first action directly.
 
@@ -45,3 +51,27 @@ Each state transition is persisted through the existing agent `RunStore`, includ
 On startup, dispatch restores nonterminal jobs with a still-valid lease. A restart after initial deploy preserves the pending observation action unchanged, then issues a fresh unpatched `deploy_revision` on the same sandbox to reacquire `rendered_files` before patch generation. This refresh does not consume a patch attempt. Missing refreshed files escalate with `patch_input_unavailable` rather than generating a patch from empty input.
 
 **Recovery limit:** once a generated patch's executable bytes have been omitted from persistence, startup (or producer retry against that persisted run) fails closed with `patch_context_lost_on_restart`. Dispatch never replays a stripped action or silently substitutes new bytes under an old action ID. This also applies to later validation/finalization stages that still need the in-memory patch. Persisted jobs whose lease already expired are failed closed with `job_lease_expired` first. This policy does not promise automatic connector cleanup delivery from a startup terminal; that remains governed by the existing terminal-delivery mechanism.
+
+### Lease handover and publication recovery
+
+Use distinct connector credentials (or trusted configured connector identities)
+for independent workers. Result processing and renewal share persisted state;
+slow hooks run outside the state lock and async handlers offload blocking work.
+An in-progress result returns409 and must be retried while heartbeating. If a
+result already committed before its response arrived, the matching old owner
+can receive409 `action_completed` with the already-active next claim. Adopt that
+claim and its sequence; this response does not renew or extend it.
+
+Publishing persists intent before the remote call. An uncertain outcome becomes
+`publication_outcome_unknown` and requires manual reconciliation before another
+publication attempt. This does not roll back remote effects or guarantee exactly
+once. Deadline-bound GitHub requests own and close an async HTTP client per
+exchange, under a total wall deadline rather than an inactivity timeout.
+
+An identical terminal-result retry returns the persisted terminal cleanup
+message, including after restart, after tenant/owner/fingerprint checks. Only
+safe terminal envelopes are replayed; completed jobs stay out of the queue.
+Older terminal records without a saved envelope retain their previous limit.
+The paired connector retries identical cached results within confirmed bounds;
+final delivery failure uses journaled cleanup, retained on failure for restart.
+See D-20261019-01 and the result-delivery correction review.

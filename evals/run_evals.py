@@ -240,6 +240,15 @@ def score_scenario(manifest: dict[str, Any], runner_result: dict[str, Any], reco
         "validation_matches": validation_matches,
         "terminal_instruction_matches": nested(evidence["terminal"], "instructions") == required["terminal_instruction"],
     }
+    image_pull_expected = required.get("image_pull")
+    if image_pull_expected:
+        attributes = nested(evidence["observed_signature"], "normalized", "attributes")
+        assertions["image_pull_evidence_matches"] = (
+            isinstance(attributes, dict)
+            and attributes.get("evidence_source") == image_pull_expected["evidence_source"]
+            and attributes.get("image_pull_cause") == image_pull_expected["image_pull_cause"]
+            and state.get("sandbox_backend") == image_pull_expected["sandbox_backend"]
+        )
     if "terminal_reason" in expected:
         assertions["terminal_reason_correct"] = terminal_reason == expected["terminal_reason"]
     if "no_candidate_patch" in required:

@@ -64,3 +64,13 @@ Requires the Ignis binary built from a commit that includes `contracts-v1.1.0`
 (`rendered_files` in deploy_revision response). Safety: asserts no
 `RAPHAEL_GITHUB_TOKEN` or `GITHUB_TOKEN` is set before running; publish
 defaults to dry_run.
+
+## Shared CI runtime reference
+
+All three cross-repository jobs depend on `resolve-ignis` and use its one output.
+The default comes from root `CONTRACTS_VERSION`; `workflow_dispatch.ignis_ref` or
+an Ignis repository-dispatch payload may supply a contract tag or full40-character
+commit SHA. Mutable branches and short SHAs are rejected. The selected ref is
+logged. Obsolete branch-name overrides have been removed. The wire scenario runs
+with lease30s and diagnosis35s; real-hook/eval controls retain their own timing.
+Core CI runs the workflow/ref, evaluator, wire and kind-proof assertions.

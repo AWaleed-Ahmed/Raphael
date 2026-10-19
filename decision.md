@@ -30,6 +30,21 @@
 
 ## Decision log (newest first)
 
+### D-20261019-02 — Align CI with the reviewed Ignis contract release
+- **Status:** tag published with user approval on2026-10-19; canonical GitHub sync/Check passes; hosted qualification tracked on PR #50.
+- **Date:** 2026-10-19
+- **Decision:** Publish a new annotated `contracts-v1.4.0` at reviewed merged Ignis `f1f3b2c858c6ce246308eae395e280856459d9a5`, sync via the canonical script and retain its drift check. Every paired CI job takes the same validated contract tag/full-SHA override or root `CONTRACTS_VERSION` default. Remove the obsolete candidate-branch pins and automatically exercise the existing short-lease restart.
+- **Why:** PR #50's contract failure came from new schemas pinned to the older release. A separate current-main dispatch run tested newer Ignis mock evidence against legacy eval expectations, while its other jobs used the older runtime. One selected ref makes the tested pair explicit.
+- **Consequences:** The mock image eval requires labelled mock absence on the mock backend; the real-kind negative control requires verified runtime absence and ownership. Both require the precise missing-healthy-baseline refusal with no approved replacement, patch or publication. This supersedes D-20261015-01 only as a description of the updated mock fixture: it now emits structured mock evidence. Runtime/registry provenance, healthy replacement authorization and the pending real-kind positive gate are not relaxed. No existing tag moves and no main merge is authorized by this decision.
+
+### D-20261019-01 — Persist owned leases and recover result delivery safely
+- **Status:** implemented on `fix/restore-clone-leases`; hosted qualification and reviewed contract release/pins remain pending.
+- **Date:** 2026-10-19
+- **Decision:** Persist opaque action claims bound to tenant/connector identity, renewal sequence, confirmed expiry and immutable action/job deadlines. Serialize state transitions, run slow hooks outside the lock, and recheck identity/expiry after persistence. A completed-action409 can hand the same owner its already-active next claim without extending it. Persist publication intent before remote mutation and fail closed for manual reconciliation after an uncertain outcome; use a total request deadline and owned client lifetime.
+- **Why:** Lease loss, result races and process restarts must not revive terminal work, repeat uncertain publication, or abandon owned resources. Result delivery retries identical cached bytes within the execution deadline/confirmed lease, allowing at most three failed transport/429/5xx exchanges. In-progress409 waits retain the same budget. Final delivery errors use journaled terminal cleanup; failed cleanup survives restart.
+- **Alternatives:** In-memory claims lose ownership on restart; scalar inactivity timeouts allow trickling responses; automatic uncertain publish retries can duplicate effects; immediate cleanup on the first transient delivery error prevents ordinary retry recovery.
+- **Consequences:** Persist the safe terminal envelope and replay it for an identical committed result to the same authenticated owner, including lazy terminal-state loading after restart. Completed jobs remain excluded from polling; executable patch bytes are never replayed from persistence. Older terminal records without this envelope retain their prior limitation. Distinct workers require distinct credentials/identities. This does not promise exactly-once remote publication, guaranteed cleanup against an unavailable controller, or issue closure. See [the correction record](docs/result-delivery-fix-review-2026-10-19.md).
+
 ### D-20261015-01 — Bad-image repair requires verified pull evidence
 - **Status:** accepted; correction and proof updates are in PR #48; the positive kind proof is pending under [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and is excluded from required checks until reviewed, released Ignis #19 evidence is pinned.
 - **Date:** 2026-10-15
