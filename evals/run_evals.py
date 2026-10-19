@@ -242,9 +242,10 @@ def score_scenario(manifest: dict[str, Any], runner_result: dict[str, Any], reco
     }
     image_pull_expected = required.get("image_pull")
     if image_pull_expected:
-        attributes = nested(evidence["observed_signature"], "normalized", "attributes") or {}
+        attributes = nested(evidence["observed_signature"], "normalized", "attributes")
         assertions["image_pull_evidence_matches"] = (
-            attributes.get("evidence_source") == image_pull_expected["evidence_source"]
+            isinstance(attributes, dict)
+            and attributes.get("evidence_source") == image_pull_expected["evidence_source"]
             and attributes.get("image_pull_cause") == image_pull_expected["image_pull_cause"]
             and state.get("sandbox_backend") == image_pull_expected["sandbox_backend"]
         )

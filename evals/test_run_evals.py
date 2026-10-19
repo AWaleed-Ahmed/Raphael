@@ -98,11 +98,16 @@ class EvaluationHarnessTests(unittest.TestCase):
         runner["run_state"]["sandbox_backend"] = "kubectl"
         self.assertFalse(score_scenario(manifest, runner, records)["passed"])
         runner["run_state"]["sandbox_backend"] = "mock"
-        signature["normalized"]["attributes"]["evidence_source"] = "runtime"
-        records[0]["request"]["body"] = json.dumps({"kind": "result", "payload": {
-            "job_id": "image-job", "verb": "observe_failure", "result": {"signature": signature},
-        }})
-        self.assertFalse(score_scenario(manifest, runner, records)["passed"])
+        for attributes in (
+            {"evidence_source": "runtime", "image_pull_cause": "not_found"},
+            {"evidence_source": "mock_fixture", "image_pull_cause": "network"},
+            ["malformed"],
+        ):
+            signature["normalized"]["attributes"] = attributes
+            records[0]["request"]["body"] = json.dumps({"kind": "result", "payload": {
+                "job_id": "image-job", "verb": "observe_failure", "result": {"signature": signature},
+            }})
+            self.assertFalse(score_scenario(manifest, runner, records)["passed"])
 
     def _score(self, *, diagnosis_class: str = "probe_misconfiguration", terminal: str = "fix_finalized", patched: str | None = None, reproduced=True):
         manifest = load_scenarios({"probe_misconfiguration"})[0]
