@@ -136,14 +136,16 @@ def main():
                 (output / "proof.json").write_text(json.dumps(proof, indent=2))
                 print(json.dumps(proof, indent=2))
         finally:
-            cleanup_owned_command(started, slow)
-            for process in reversed(processes):
-                process.terminate()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=5)
+            try:
+                cleanup_owned_command(started, slow)
+            finally:
+                for process in reversed(processes):
+                    process.terminate()
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
     return 0
 
 
