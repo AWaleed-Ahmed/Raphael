@@ -200,7 +200,7 @@ class WorkloadIdentityTests(unittest.TestCase):
 
     def test_healthy_sentinel_uses_observed_health_without_patch(self):
         result = {"job_id": "job", "final_status": "escalated", "run_state": {
-            "sandbox_backend": "kubectl", "terminal_reason": "reproduction_failed"},
+            "sandbox_backend": "kubectl", "terminal_reason": "low_confidence"},
             "terminal": {"payload": {"instructions": "discard_local_copy"}}}
         evidence = {"observed_signature": {"class": "healthy", "reproduced": False}, "patch_files": [], "validation": None}
         initial = {"status": {"containerStatuses": [{"ready": True}]}}

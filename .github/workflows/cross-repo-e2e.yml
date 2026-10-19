@@ -243,6 +243,9 @@ jobs:
           set -o pipefail
           python e2e/run_real_job.py 2>&1 | tee e2e/real-hooks.log
 
+      - name: Prove renewal denial during real controller validation
+        run: python -u e2e/run_lease_denial.py
+
       # §17.3 extends this existing cross-repository gate. It reuses the
       # production-hooks runner above for immutable scenario fixtures and
       # emits machine-scored evidence; it is not a separate CI system.
@@ -270,5 +273,6 @@ jobs:
           path: |
             e2e/*.jsonl
             e2e/*.log
+            e2e/lease-denial-out/**
             evals/out/**
             evals/evaluation.log

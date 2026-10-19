@@ -13,6 +13,9 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from cluster import CONTEXT, kube, pods, ready, wait_for, cleanup_namespace
@@ -95,7 +98,7 @@ def verify_case(label, result, records, initial_pod, final_ready):
         assert state.get("sandbox_backend") not in {None, "", "mock"}
         assert evidence["observed_signature"]["class"] == "healthy"
         assert evidence["observed_signature"]["reproduced"] is False
-        assert result["final_status"] == "escalated" and state["terminal_reason"] == "reproduction_failed"
+        assert result["final_status"] == "escalated" and state["terminal_reason"] == "low_confidence"
         assert not state.get("candidate_patches") and not state.get("pull_request_url")
         assert not evidence["patch_files"] and evidence["validation"] is None
         assert result["terminal"]["payload"]["instructions"] == "discard_local_copy"
@@ -163,6 +166,21 @@ def run_case(label, fixture, sha, output, catalog=None):
     out.mkdir(parents=True)
     gate, trace, result_path = out / "release", out / "trace.jsonl", out / "runner-result.json"
     env = dict(os.environ)
+    rollout_pids = out / "rollout-pids"
+    if label == "image-without-provenance":
+        # The wrapper execs the real kubectl at the same PID; no rollout response
+        # is mocked. Only the controller child receives this owned PATH override.
+        real_kubectl = shutil.which("kubectl")
+        assert real_kubectl
+        bin_dir = out / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "kubectl"
+        wrapper.write_text(f"#!{sys.executable}\nimport os, sys\n"
+                           f"if 'rollout' in sys.argv and 'status' in sys.argv:\n"
+                           f"    with open({str(rollout_pids)!r}, 'a') as stream: stream.write(str(os.getpid()) + '\\n')\n"
+                           f"os.execv({real_kubectl!r}, [{real_kubectl!r}] + sys.argv[1:])\n")
+        wrapper.chmod(0o755)
+        env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     for key in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY", "RAPHAEL_SECRET_FIXTURE_SET",
                 "GITHUB_TOKEN", "RAPHAEL_GITHUB_TOKEN", "RAPHAEL_GITHUB_APP_PRIVATE_KEY",
                 "RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH", "RAPHAEL_GITHUB_APP_ID", "RAPHAEL_GITHUB_INSTALLATION_ID"):
@@ -222,6 +240,8 @@ def run_case(label, fixture, sha, output, catalog=None):
             deployments = json.loads(kube("get", "deployments", "-n", namespace, "-o", "json"))
             (out / "initial-replicasets.json").write_text(json.dumps(replica_sets, indent=2))
             (out / "initial-deployments.json").write_text(json.dumps(deployments, indent=2))
+            if label == "image-without-provenance":
+                verify_rollout_deadline(sandbox, rollout_pids, out)
             gate.touch()
             deadline = time.monotonic() + 240
             while not result_path.exists():
@@ -256,6 +276,39 @@ def run_case(label, fixture, sha, output, catalog=None):
             (out / "pod-observations.json").write_text(json.dumps(snapshots, indent=2))
             if namespace:
                 cleanup_namespace(namespace, owned)
+
+
+def verify_rollout_deadline(sandbox, pid_file, output):
+    """A real failing workload keeps real kubectl busy beyond an 8-second deadline."""
+    action_id = "owned-rollout-deadline-" + uuid.uuid4().hex
+    absolute = (datetime.now(timezone.utc) + timedelta(seconds=8)).isoformat()
+    request = Request(f"http://127.0.0.1:8090/v1/sandboxes/{sandbox}/validate", method="POST",
+                      data=json.dumps({"plan": {"commands": [], "health_checks": [
+                          {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True, "timeout_seconds": 30}]}}).encode(),
+                      headers={"Content-Type": "application/json", "x-raphael-action-deadline-at": absolute,
+                               "x-raphael-connector-action-id": action_id})
+    start = time.monotonic()
+    try:
+        with urlopen(request, timeout=15) as response:
+            raise AssertionError(f"unexpected validation response {response.status}: {response.read()}")
+    except HTTPError as error:
+        assert error.code == 504, (error.code, error.read())
+    elapsed = time.monotonic() - start
+    assert 6 < elapsed < 12, elapsed
+    assert pid_file.exists(), "real kubectl rollout never started; timeout alone is insufficient proof"
+    pids = [int(pid) for pid in pid_file.read_text().splitlines()]
+    assert pids
+    def stopped():
+        for pid in pids:
+            path = Path(f"/proc/{pid}/stat")
+            if path.exists() and path.read_text().split()[2] != "Z":
+                return False
+        return True
+    wait_for(stopped, "real kubectl cancellation", timeout=3)
+    (output / "rollout-deadline-proof.json").write_text(json.dumps({
+        "passed": True, "backend": "kind", "command": "real kubectl rollout status deployment/payments-api",
+        "action_id": action_id, "http_status": 504, "elapsed_seconds": elapsed,
+        "kubectl_processes_stopped": True, "configured_rollout_seconds": 30, "absolute_budget_seconds": 8}, indent=2))
 
 
 def selected_cases():

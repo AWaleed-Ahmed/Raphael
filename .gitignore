@@ -47,3 +47,4 @@ agent/.raphael-agent-data-*/
 e2e/kind-fixture-out/
 
 e2e/kind-remediation-out/
+e2e/lease-denial-out/
