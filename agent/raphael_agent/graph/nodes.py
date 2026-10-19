@@ -501,7 +501,15 @@ def node_secret_coverage_gate(state: RunState) -> dict[str, Any]:
         what_happened=detail,
         why_no_fix="Patch generation is stopped until Secret dependencies are safely available and verified",
         attempts=[{"kind": "other", "status": "blocked", "detail": detail}],
-        next_checks=["Provide approved synthetic Secret fixtures for the referenced names and keys", "Review the Secret coverage report and rerun reproduction"],
+        next_checks=[
+            "Provide approved synthetic fixtures for " + "; ".join(
+                f"{item['namespace']}/{item['secret_name']}"
+                + (f"[{item['key']}]" if item.get("key") else "")
+                + f" ({item['workload_kind']}/{item['workload_name']})"
+                for item in gaps[:8]
+            )[:4_000],
+            "Review the complete Secret coverage report and rerun reproduction",
+        ],
     )
     updates["audit_events"] = append_audit(state, "secret_coverage", "escalated", detail)
     return updates
@@ -1304,6 +1312,14 @@ def node_publish_or_escalate(state: RunState) -> dict[str, Any]:
         return failure
     if state.get("status") in {"failed_closed", "escalated"}:
         updates = {"current_node": None, "updated_at": utc_now()}
+        if state.get("sandbox_mode") == "live" and state.get("sandbox_id"):
+            try:
+                SandboxClient().destroy_sandbox(state["sandbox_id"], {"reason": "agent-terminal-refusal"})
+            except Exception:  # Cleanup remains retryable using the saved sandbox identity.
+                updates["errors"] = list(state.get("errors") or []) + [{
+                    "code": "sandbox_cleanup_failed", "message": "Terminal sandbox cleanup must be retried",
+                    "retryable": True, "node": "publish_or_escalate",
+                }]
         _persist_graph_outcome({**state, **updates})
         _maybe_terminal_comment(state, updates)
         record_run_outcome({**state, **updates})

@@ -17,6 +17,21 @@ from raphael_agent.graph.nodes import (
     route_after_validate,
 )
 from raphael_agent.graph.state import RunState
+from raphael_agent.diagnosis.analyzers import analyze_run
+
+
+def _route_after_evidence(state: RunState) -> str:
+    # Explicit immutable safety blocks retain precedence over sandbox work.
+    if state.get("sandbox_mode") == "live" and not state.get("diagnosis_only"):
+        if not any(hit.category == "blocked" for hit in analyze_run(state)):
+            return "reproduce"
+    return "diagnose"
+
+
+def _route_after_diagnose(state: RunState) -> str:
+    if state.get("diagnosis_only") or state.get("status") in {"failed_closed", "escalated"}:
+        return "publish_or_escalate"
+    return "secret_coverage" if state.get("sandbox_mode") == "live" else "reproduce"
 
 
 def build_stub_graph():
@@ -38,13 +53,20 @@ def build_stub_graph():
 
     graph.add_edge(START, "ingest")
     graph.add_edge("ingest", "evidence")
-    graph.add_edge("evidence", "diagnose")
+    graph.add_conditional_edges(
+        "evidence", _route_after_evidence,
+        {"diagnose": "diagnose", "reproduce": "reproduce"},
+    )
     graph.add_conditional_edges(
         "diagnose",
-        lambda state: "publish_or_escalate" if state.get("diagnosis_only") else "reproduce",
-        {"reproduce": "reproduce", "publish_or_escalate": "publish_or_escalate"},
+        _route_after_diagnose,
+        {"reproduce": "reproduce", "secret_coverage": "secret_coverage", "publish_or_escalate": "publish_or_escalate"},
     )
-    graph.add_edge("reproduce", "secret_coverage")
+    graph.add_conditional_edges(
+        "reproduce",
+        lambda state: "diagnose" if state.get("sandbox_mode") == "live" else "secret_coverage",
+        {"diagnose": "diagnose", "secret_coverage": "secret_coverage"},
+    )
     graph.add_conditional_edges(
         "secret_coverage",
         lambda state: "publish_or_escalate" if state.get("status") == "escalated" else "localize",
