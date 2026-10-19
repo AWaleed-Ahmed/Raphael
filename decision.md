@@ -30,6 +30,26 @@
 
 ## Decision log (newest first)
 
+### D-20261019-03 — Require Linux runtime qualification for image and lease delivery
+
+**Decision:** require probe repair, no-provenance image refusal, verified-baseline
+image repair and healthy sentinel control on every cross-repo CI event. Qualify
+clone preference/system attributes in owned Linux containers. Require real paired
+lease-denial cleanup and real kubectl termination; distinguish parser/tool fixtures
+from runtime evidence. These need no persistent public hosting.
+
+**Why:** optional positive proof and generic green integration runs did not cover
+all acceptance gates. New targeted tests exposed cancelled-fetch fallback and
+post-cleanup claim-redelivery defects, corrected in Ignis #22.
+
+**Alternatives:** retaining optional/manual image proof or treating mock timing as
+Kubernetes cancellation proof would leave the original acceptance gaps open.
+
+**Status:** implemented in qualification branches; final hosted evidence and user
+merge/release approval pending. Supersedes the manual-positive portion of
+D-20261019-02; preserves one shared immutable partner resolver and contract checks.
+See [qualification review](docs/qualify-11-13-17-review-2026-10-19.md).
+
 ### D-20261019-02 — Align CI with the reviewed Ignis contract release
 - **Status:** tag published with user approval on2026-10-19; canonical GitHub sync/Check passes; hosted qualification tracked on PR #50.
 - **Date:** 2026-10-19

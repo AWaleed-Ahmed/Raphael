@@ -1,9 +1,20 @@
 # Raphael contributor map
 
-Latest recovery checkpoint: 2026-10-19, based on Raphael main `903370a` and Ignis preservation `9d88f47`. Released contract/runtime pin remains `contracts-v1.3.0` (`176a13e`).
+Latest qualification checkpoint: 2026-10-19. Reviewed baselines are Raphael `7e86715` and Ignis `f1f3b2c`; released pin is `contracts-v1.4.0`. New qualification is on `test/qualify-11-13-17` in both repositories.
 This page describes current implementation and proof; [prd.md](prd.md) defines the product, not completed work.
 
 ## Start here: where we stopped
+
+**#11/#13/#17 qualification:** remaining image/clone/lease controls are implemented
+in [Ignis #22](https://github.com/AWaleed-Ahmed/Ignis/pull/22) and
+[Raphael #51](https://github.com/AWaleed-Ahmed/Raphael/pull/51). Full local results:
+agent443/4skip, dispatch88, Rust92 plus seven tool controls in one integration
+test, contracts19, harness47, Linux matrix72 hosted, and paired denial cleanup.
+Four real-kind cases are now required automatically. Final hosted artifacts and
+approved new runtime release/pin/merge remain; no persistent hosting is needed.
+See [qualification review](docs/qualify-11-13-17-review-2026-10-19.md) and the
+[shared completion checklist](docs/ignis-11-13-17-completion-checklist.md).
+Older checkpoints below are history, not the current remaining implementation.
 
 **2026-10-19 CI/runtime alignment:** the user-approved annotated Ignis
 `contracts-v1.4.0` now points to reviewed merged `f1f3b2c858c6ce246308eae395e280856459d9a5`.
