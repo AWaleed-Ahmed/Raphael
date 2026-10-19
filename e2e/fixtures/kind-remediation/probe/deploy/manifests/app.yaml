@@ -16,6 +16,12 @@ spec:
         - name: api
           image: hashicorp/http-echo:1.0
           imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: payments-db
+                  key: DATABASE_URL
           args: ["-listen=:8080", "-text=healthy"]
           ports:
             - containerPort: 8080

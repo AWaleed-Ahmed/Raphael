@@ -202,6 +202,8 @@ def run_case(label, fixture, sha, output, catalog=None):
                 "RAPHAEL_CONNECTOR_HTTP_TIMEOUT_SECONDS": "240", "RAPHAEL_MAX_WALL_SECONDS": "600",
                 "RAPHAEL_LLM_DIAGNOSIS": "0", "RAPHAEL_LLM_PATCH": "0", "RAPHAEL_MODEL_ENABLED": "0",
                 "RAPHAEL_LEARNING": "0", "RAPHAEL_PARTNER_MODE": "dry_run", "RAPHAEL_PUBLISH_MODE": "dry_run"})
+    if label == "probe":
+        env["RAPHAEL_SECRET_FIXTURE_SET"] = "payments-test"
     if catalog:
         env.update(SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
                    RAPHAEL_CLIENT_ID="proof-client", RAPHAEL_COMPANY_ID="proof-company",
@@ -216,12 +218,20 @@ def run_case(label, fixture, sha, output, catalog=None):
             received = gate.with_suffix(".received.json")
             wait_for(received.exists, "initial deployed workload at inspection barrier", timeout=120)
             body = json.loads(received.read_text())
+            deployment_result = body["payload"]["result"]
             sandbox = body["payload"]["result"]["sandbox_id"]
             records = trace_records(trace)
             created = next(body["payload"]["result"] for row in records
                            if (body := json.loads(row["request"]["body"] or "{}"))
                            and body.get("payload", {}).get("verb") == "create_sandbox"
                            and body["payload"].get("status") == "ok")
+            if label == "probe":
+                coverage = deployment_result["fidelity"]["secret_coverage"]
+                assert coverage["complete"] and not coverage["truncated"], coverage
+                assert len(coverage["references"]) == 1, coverage
+                reference = coverage["references"][0]
+                assert reference["secret_name"] == "payments-db" and reference["key"] == "DATABASE_URL"
+                assert reference["status"] == "covered", coverage
             namespace = created["namespace"]
             assert created["cluster_backend"] != "mock"
             owned.add(namespace)
@@ -261,6 +271,9 @@ def run_case(label, fixture, sha, output, catalog=None):
             assert process.wait(timeout=20) == 0
             records = trace_records(trace)
             verify_case(label, result, records, initial, any(ready(pod) for pod in snapshots))
+            if label == "probe":
+                assert result["run_state"]["secret_coverage"] == coverage
+
             if label in {"image-without-provenance", "image-with-verified-provenance"}:
                 identity = verify_workload_identity(initial, replica_sets, deployments, trace_evidence(records, result["job_id"])["observed_signature"], namespace)
                 (out / "verified-workload-identity.json").write_text(json.dumps(identity, indent=2))
