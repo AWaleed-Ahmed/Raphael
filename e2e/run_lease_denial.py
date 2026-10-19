@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import signal
 import subprocess
 import sys
 import tempfile
@@ -35,11 +36,26 @@ def stopped(pid):
         return True
 
 
+def cleanup_owned_command(marker, script):
+    """Kill only the owned validator group if a failed proof bypasses normal cleanup."""
+    if not marker.exists():
+        return
+    pid = json.loads(marker.read_text())[0]
+    try:
+        command = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        if os.fsencode(script) in command and os.getpgid(pid) == pid:
+            os.killpg(pid, signal.SIGKILL)
+            wait_until(lambda: stopped(pid), "owned validator failure cleanup", seconds=3)
+    except (ProcessLookupError, FileNotFoundError):
+        pass
+
+
 def main():
     assert sys.platform == "linux", "qualification currently supports Linux"
     assert not os.getenv("GITHUB_TOKEN") and not os.getenv("RAPHAEL_GITHUB_TOKEN")
     output = E2E / "lease-denial-out"
     output.mkdir(exist_ok=True)
+    (output / "proof.json").unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="lease-denial-") as directory:
         owned = Path(directory)
         source = owned / "source"
@@ -120,6 +136,7 @@ def main():
                 (output / "proof.json").write_text(json.dumps(proof, indent=2))
                 print(json.dumps(proof, indent=2))
         finally:
+            cleanup_owned_command(started, slow)
             for process in reversed(processes):
                 process.terminate()
                 try:
