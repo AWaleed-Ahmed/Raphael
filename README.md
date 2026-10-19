@@ -49,3 +49,7 @@ The dispatch service listens on port `8092` when started through its package ent
 - Delivery is human-controlled through pull requests; automatic merge, production mutation, secret reads, and arbitrary shell or kubectl actions are prohibited.
 
 Rules for contributors are in [`CODING_RULE.md`](CODING_RULE.md). Project decisions are recorded in [`decision.md`](decision.md).
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

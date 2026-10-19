@@ -1,4 +1,5 @@
 {
+  "license": "Apache-2.0",
   "name": "raphael-ide",
   "displayName": "Raphael",
   "description": "Raphael self-healing deployment agent — inspect runs, apply fixes, open draft PRs (local agent).",
