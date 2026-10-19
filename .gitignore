@@ -66,3 +66,16 @@ e2e/kind-remediation-out/
 /docs/restore-13-17-review-2026-10-19.md
 /docs/result-delivery-fix-review-2026-10-19.md
 /docs/secret-coverage-30-plan.md
+
+# Local caches, coverage, and generated artifacts
+.raphael-artifacts/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.tsbuildinfo
+interface/IDE/out/
+*.vsix
