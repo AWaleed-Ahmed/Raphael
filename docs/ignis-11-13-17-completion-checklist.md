@@ -1,6 +1,6 @@
 # Completion checklist: Ignis #11, #13 and #17
 
-Updated: **2026-10-19**. Status: **qualification implementation complete; final hosted proof and reviewed runtime delivery pending**.
+Updated: **2026-10-20**. Status: **candidate hosted proof inspected; Ignis merged/released; updated Raphael head checks and human merge review pending**.
 
 This is the shared delivery checklist for:
 
@@ -13,6 +13,18 @@ The same document is saved in both repositories at
 for the delivered pair has been attached here. Existing code is not proof of
 completion. The user reviews merges and releases; pushing these branches does
 not authorize either.
+
+## Hosted correction checkpoint — 2026-10-20
+
+Candidate CRLF run39278732657 passed all three paired jobs; four remediation
+controls, six Secret-kind controls, lease denial and real kubectl deadline artifacts
+were inspected. Ignis #22 is merged at bc4250439c87c1f8cd85dc258b051141d3ad8d6c.
+The user approved publication of contracts-v1.4.1 at that commit; the annotated
+tag is published. Canonical Raphael sync/Check uses the published tag, with no
+schema-byte changes. PR #51's earlier automatic mock job failed because v1.4.0
+lacked the qualified claim-redelivery correction. The consumer pin now selects
+v1.4.1; updated-head automatic checks and human review remain. See the qualification
+review for failed/passing runs, timings and proof limits.
 
 ## Latest qualification checkpoint — 2026-10-19
 
@@ -34,8 +46,8 @@ failed. The original recovery history follows for provenance.
 The old Git objects remain unavailable. Inspected source-edit records from local
 session history allowed reconstruction on current persistent branches, followed
 by new fixes and fresh tests. These are new commits, not recreated old hashes.
-See the [implementation/review record](restore-13-17-review-2026-10-19.md) and
-[plan](restore-13-17-plan-2026-10-18.md) for full tested identities and results.
+See the [implementation/review record](historical/restore-13-17-review-2026-10-19.md) and
+[plan](historical/restore-13-17-plan-2026-10-18.md) for full tested identities and results.
 
 | Repository | Recovery base | Present implementation |
 | --- | --- | --- |
@@ -69,7 +81,7 @@ an authenticated HTTP clone. LSE-11/14/16/18 retain broader and hosted controls.
 architecture-log findings are resolved. Fresh results are agent441/4skip,
 dispatch88, Rust86, contracts19, harness31, matrix36 and paired3. LSE-09 and ALL-02
 are locally satisfied; broader hosted/release controls stay open. See
-[the correction record](result-delivery-fix-review-2026-10-19.md).
+[the correction record](historical/result-delivery-fix-review-2026-10-19.md).
 
 ## 1. Shared completion rules
 
@@ -153,7 +165,7 @@ platforms, and the issue records the supported guarantee and exclusions.
 - [x] LSE-15 Test uncertain publication plus restart: no second remote mutation. Expired publication must issue no HTTP mutation; retain a clear manual-reconciliation state.
 - [x] LSE-16 Run paired HTTP renewal denial during a slow operation: no executor completion/late result, bounded server work, workspace cleanup and journal deletion only after successful cleanup.
 - [x] LSE-17 Run paired restart during an operation lasting longer than its lease (for example diagnosis35s, TTL30). Show successful renewals, same sandbox after restart, eventual terminal outcome and cleanup. Count distinct action IDs, not replay deliveries, when asserting patch attempts.
-- [ ] LSE-18 Include these short-lease/deadline/denial controls in hosted qualification. Existing long-lease Secret-kind proof does not establish heartbeat behavior; mock timing tests do not prove real kubectl cancellation.
+- [x] LSE-18 Include these short-lease/deadline/denial controls in hosted qualification. Existing long-lease Secret-kind proof does not establish heartbeat behavior; mock timing tests do not prove real kubectl cancellation.
 
 **Close #17 only when:** end-to-end execution and local/server waits are bounded,
 short-lease progress survives valid renewal, denial/expiry stop work safely,
@@ -166,7 +178,7 @@ the versioned consumer/controller pair is delivered.
 f1f3b2c858c6ce246308eae395e280856459d9a5. Canonical GitHub sync/Check passes;
 Raphael runtime defaults use the contract pin through one shared CI resolver.
 REL-06/07 are satisfied on PR #50. Current-head hosted qualification and required
-positive image proof remain separate gates. See [the CI repair record](ci-repair-review-2026-10-19.md).
+positive image proof remain separate gates. See [the CI repair record](historical/ci-repair-review-2026-10-19.md).
 
 
 This is primarily GitHub Actions qualification on disposable Ubuntu/kind
@@ -176,10 +188,10 @@ is not needed to complete these synthetic integration checks.
 1. [x] REL-01 Restore/reimplement and review missing code; attach fresh local evidence before requesting release approval.
 2. [x] REL-02 Publish exact candidate heads and pin all three Raphael cross-repository jobs to the same reviewed Ignis SHA for qualification. One validated shared resolver now feeds all three jobs, including Secret-kind. Candidate qualification uses a full immutable SHA override.
 3. [x] REL-03 Verify workflow triggers. Raphael core CI runs on `feature/**` pushes and PRs to main; cross-repository E2E does not run on this feature push alone. Ignis CI runs on main pushes/PRs to main. Pushing the branches does not prove all checks ran.
-4. [ ] REL-04 Run candidate cross-repo jobs: mock/wire/real-hooks/evals/report audit; real-kind remediation including the pending positive case; Secret-fixture kind. Retain `if: always()` artifact/cluster cleanup, dry-run publishing and no application publishing token.
-5. [ ] REL-05 Inspect artifacts, not just green summaries. Record skipped cases explicitly, fix failures and rerun on current heads. Complete the #13 matrix and #17 timing/denial coverage rather than substituting generic integration success.
-6. [ ] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
-7. [ ] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
+4. [x] REL-04 Run candidate cross-repo jobs: mock/wire/real-hooks/evals/report audit; real-kind remediation including the pending positive case; Secret-fixture kind. Retain `if: always()` artifact/cluster cleanup, dry-run publishing and no application publishing token.
+5. [x] REL-05 Inspect artifacts, not just green summaries. Record skipped cases explicitly, fix failures and rerun on current heads. Complete the #13 matrix and #17 timing/denial coverage rather than substituting generic integration success.
+6. [x] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
+7. [x] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
 8. [ ] REL-08 Restore required positive image proof in the consumer PR, remove obsolete candidate special cases, and run current-head core/contracts/Ignis and all paired hosted jobs on the released pair. Retain manual overrides for explicit qualification.
 9. [ ] REL-09 Obtain user review/merge approval. Record final post-merge CI/run URLs and immutable identities; rerun if merges or pins change relevant code.
 10. [ ] REL-10 Update both implementation reviews, Raphael handoff and each issue with delivered behavior, proof links and limits. Close each issue only after its own acceptance conditions above are met.
