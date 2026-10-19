@@ -63,27 +63,29 @@ class EvaluationHarnessTests(unittest.TestCase):
         }
         self.assertEqual(blocked, set())
 
-    def test_bad_image_without_provenance_is_an_expected_refusal(self):
+    def test_mock_image_without_healthy_baseline_is_an_expected_refusal(self):
         manifest = load_scenarios({"bad_image_reference"})[0]
         report = {
             field: [] for field in manifest["required_evidence"]["escalation_report"]["required_fields"]
         }
         report.update(
-            reason_code="image_pull_evidence_unverified",
-            what_happened="image_pull_evidence_unverified",
-            why_no_fix="Automatic fix not proposed for blocked failure classes",
+            reason_code="patch_value_unavailable",
+            what_happened="No verified healthy image exists for this repository, Deployment, and container",
+            why_no_fix="No safe file change can be justified by the observed signature",
         )
         runner = {
             "job_id": "image-job", "runner_exit_code": 0,
             "run_state": {
-                "diagnosis": {"classification": {"failure_class": "unknown"}},
-                "terminal_reason": "image_pull_evidence_unverified", "escalation_report": report,
+                "sandbox_backend": "mock",
+                "diagnosis": {"classification": {"failure_class": "bad_image_reference"}},
+                "terminal_reason": "patch_value_unavailable", "escalation_report": report,
             },
         }
+        signature = {"class": "bad_image_reference", "reproduced": True,
+                     "normalized": {"attributes": {"evidence_source": "mock_fixture", "image_pull_cause": "not_found"}}}
         records = [{
             "request": {"body": json.dumps({"kind": "result", "payload": {
-                "job_id": "image-job", "verb": "observe_failure",
-                "result": {"signature": {"class": "bad_image_reference", "reproduced": True}},
+                "job_id": "image-job", "verb": "observe_failure", "result": {"signature": signature},
             }})},
             "response": {"body": json.dumps({"messages": [{"kind": "terminal", "payload": {
                 "job_id": "image-job", "final_status": "escalated", "instructions": "discard_local_copy",
@@ -91,6 +93,15 @@ class EvaluationHarnessTests(unittest.TestCase):
         }]
         self.assertTrue(score_scenario(manifest, runner, records)["passed"])
         runner["run_state"]["terminal_reason"] = "budget_exhausted"
+        self.assertFalse(score_scenario(manifest, runner, records)["passed"])
+        runner["run_state"]["terminal_reason"] = "patch_value_unavailable"
+        runner["run_state"]["sandbox_backend"] = "kubectl"
+        self.assertFalse(score_scenario(manifest, runner, records)["passed"])
+        runner["run_state"]["sandbox_backend"] = "mock"
+        signature["normalized"]["attributes"]["evidence_source"] = "runtime"
+        records[0]["request"]["body"] = json.dumps({"kind": "result", "payload": {
+            "job_id": "image-job", "verb": "observe_failure", "result": {"signature": signature},
+        }})
         self.assertFalse(score_scenario(manifest, runner, records)["passed"])
 
     def _score(self, *, diagnosis_class: str = "probe_misconfiguration", terminal: str = "fix_finalized", patched: str | None = None, reproduced=True):

@@ -14,9 +14,9 @@
     "file_path": "deploy/manifests/app.yaml"
   },
   "expected": {
-    "failure_class": "unknown",
+    "failure_class": "bad_image_reference",
     "terminal_status": "escalated",
-    "terminal_reason": "image_pull_evidence_unverified"
+    "terminal_reason": "patch_value_unavailable"
   },
   "required_evidence": {
     "pre_fix_signature": true,
@@ -27,7 +27,7 @@
     "no_candidate_patch": true,
     "no_publish": true,
     "escalation_report": {
-      "reason_code": "image_pull_evidence_unverified",
+      "reason_code": "patch_value_unavailable",
       "required_fields": [
         "what_happened",
         "evidence_ids",
@@ -36,8 +36,14 @@
         "recommended_next_checks"
       ],
       "contains": [
-        "Automatic fix not proposed for blocked failure classes"
+        "No verified healthy image exists for this repository, Deployment, and container",
+        "No safe file change can be justified by the observed signature"
       ]
+    },
+    "image_pull": {
+      "evidence_source": "mock_fixture",
+      "image_pull_cause": "not_found",
+      "sandbox_backend": "mock"
     }
   },
   "category": "expected_escalation"
