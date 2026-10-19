@@ -13,6 +13,9 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from cluster import CONTEXT, kube, pods, ready, wait_for, cleanup_namespace
@@ -23,9 +26,7 @@ sys.path.insert(0, str(ROOT))
 from evals.run_evals import trace_evidence, patch_line_changes
 from raphael_agent.image_pull import image_pull_repair_allowed
 
-REQUIRED_KIND_CASES = ("probe", "image-without-provenance")
-PENDING_BAD_IMAGE_POSITIVE_CASE = "image-with-verified-provenance"
-PENDING_BAD_IMAGE_TRACKING = "Raphael #49; Ignis #19"
+REQUIRED_KIND_CASES = ("probe", "image-without-provenance", "image-with-verified-provenance", "healthy-sentinel")
 
 
 class CatalogFixture:
@@ -90,9 +91,19 @@ def commit_fixture(source, destination):
 
 
 def verify_case(label, result, records, initial_pod, final_ready):
-    assert not ready(initial_pod), "failure control was already Ready"
     state = result["run_state"]
     evidence = trace_evidence(records, result["job_id"])
+    if label == "healthy-sentinel":
+        assert ready(initial_pod), "healthy sentinel control was not Ready"
+        assert state.get("sandbox_backend") not in {None, "", "mock"}
+        assert evidence["observed_signature"]["class"] == "healthy"
+        assert evidence["observed_signature"]["reproduced"] is False
+        assert result["final_status"] == "escalated" and state["terminal_reason"] == "low_confidence"
+        assert not state.get("candidate_patches") and not state.get("pull_request_url")
+        assert not evidence["patch_files"] and evidence["validation"] is None
+        assert result["terminal"]["payload"]["instructions"] == "discard_local_copy"
+        return
+    assert not ready(initial_pod), "failure control was already Ready"
     expected_class = "probe_misconfiguration" if label == "probe" else "bad_image_reference"
     assert evidence["observed_signature"]["class"] == expected_class
     assert evidence["observed_signature"]["reproduced"] is True
@@ -100,13 +111,14 @@ def verify_case(label, result, records, initial_pod, final_ready):
     if state.get("pull_request_url"):
         assert state.get("publish", {}).get("dry_run") is True
         assert "/compare/" in state["pull_request_url"] and "raphael_dry_run=1" in state["pull_request_url"]
-    if label == "image-without-provenance":
-        assert result["final_status"] == "escalated"
-        assert not state.get("pull_request_url")
+    if label != "probe":
         signature = evidence["observed_signature"]
         assert state.get("sandbox_backend") not in {None, "", "mock"}
         assert signature["normalized"]["attributes"]["evidence_source"] == "runtime"
         assert image_pull_repair_allowed(signature, state["sandbox_backend"])
+    if label == "image-without-provenance":
+        assert result["final_status"] == "escalated"
+        assert not state.get("pull_request_url")
         assert state["terminal_reason"] == "patch_value_unavailable"
         assert not (state.get("localization_result") or {}).get("approved_image_replacement")
         assert not state.get("candidate_patches") and not evidence["patch_files"]
@@ -128,11 +140,55 @@ def verify_case(label, result, records, initial_pod, final_ready):
         assert approved["image"] == "hashicorp/http-echo:1.0"
 
 
+def verify_workload_identity(pod, replica_sets, deployments, signature, namespace):
+    """Bind a current Pod to the exact observed Deployment and regular container."""
+    metadata = pod["metadata"]
+    assert metadata["namespace"] == namespace
+    assert metadata["uid"]
+    owners = [o for o in metadata.get("ownerReferences", []) if o.get("controller") and o.get("kind") == "ReplicaSet"]
+    assert len(owners) == 1
+    owner = owners[0]
+    rs = next(x for x in replica_sets["items"] if x["metadata"]["name"] == owner["name"] and x["metadata"]["uid"] == owner["uid"] and x["metadata"]["namespace"] == namespace)
+    owners = [o for o in rs["metadata"].get("ownerReferences", []) if o.get("controller") and o.get("kind") == "Deployment"]
+    assert len(owners) == 1
+    owner = owners[0]
+    deployment = next(x for x in deployments["items"] if x["metadata"]["name"] == owner["name"] and x["metadata"]["uid"] == owner["uid"] and x["metadata"]["namespace"] == namespace)
+    normalized = signature["normalized"]
+    assert normalized["resource_kind"] == "Deployment" and normalized["resource_name"] == deployment["metadata"]["name"]
+    container = next(c for c in pod["spec"]["containers"] if c["name"] == normalized["container"])
+    assert container["image"] == normalized["attributes"]["image"]
+    return {"namespace": namespace, "pod_uid": metadata["uid"], "replica_set_uid": rs["metadata"]["uid"],
+            "deployment_uid": deployment["metadata"]["uid"], "container": container["name"], "image": container["image"]}
+
+
+def install_rollout_wrapper(out, real_kubectl):
+    rollout_pids = out / "rollout-pids"
+    bin_dir = out / "bin"
+    bin_dir.mkdir()
+    wrapper = bin_dir / "kubectl"
+    wrapper.write_text(f"#!{sys.executable}\nimport os, sys\n"
+                       f"if 'rollout' in sys.argv and 'status' in sys.argv:\n"
+                       f"    sys.argv[sys.argv.index('--timeout') + 1] = '30s'\n"
+                       f"    with open({str(rollout_pids)!r}, 'a') as stream: stream.write(str(os.getpid()) + '\\n')\n"
+                       f"os.execv({real_kubectl!r}, [{real_kubectl!r}] + sys.argv[1:])\n")
+    wrapper.chmod(0o755)
+    return bin_dir
+
+
 def run_case(label, fixture, sha, output, catalog=None):
     out = output / label
     out.mkdir(parents=True)
     gate, trace, result_path = out / "release", out / "trace.jsonl", out / "runner-result.json"
     env = dict(os.environ)
+    rollout_pids = out / "rollout-pids"
+    if label == "image-without-provenance":
+        # The wrapper execs the real kubectl at the same PID; no rollout response
+        # is mocked. Force the CLI timeout to 30s so a native short timeout cannot
+        # masquerade as process cancellation. Only controller children use this PATH.
+        real_kubectl = shutil.which("kubectl")
+        assert real_kubectl
+        bin_dir = install_rollout_wrapper(out, real_kubectl)
+        env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     for key in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY", "RAPHAEL_SECRET_FIXTURE_SET",
                 "GITHUB_TOKEN", "RAPHAEL_GITHUB_TOKEN", "RAPHAEL_GITHUB_APP_PRIVATE_KEY",
                 "RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH", "RAPHAEL_GITHUB_APP_ID", "RAPHAEL_GITHUB_INSTALLATION_ID"):
@@ -171,6 +227,10 @@ def run_case(label, fixture, sha, output, catalog=None):
             owned.add(namespace)
             def failed_pod():
                 for pod in pods(namespace):
+                    if label == "healthy-sentinel":
+                        if ready(pod):
+                            return pod
+                        continue
                     if ready(pod):
                         continue
                     if label == "probe":
@@ -184,6 +244,12 @@ def run_case(label, fixture, sha, output, catalog=None):
             initial = wait_for(failed_pod, "independent Kubernetes failure")
             (out / "initial-pod.json").write_text(json.dumps(initial, indent=2))
             (out / "initial-events.json").write_text(kube("get", "events", "-n", namespace, "-o", "json"))
+            replica_sets = json.loads(kube("get", "replicasets", "-n", namespace, "-o", "json"))
+            deployments = json.loads(kube("get", "deployments", "-n", namespace, "-o", "json"))
+            (out / "initial-replicasets.json").write_text(json.dumps(replica_sets, indent=2))
+            (out / "initial-deployments.json").write_text(json.dumps(deployments, indent=2))
+            if label == "image-without-provenance":
+                verify_rollout_deadline(sandbox, rollout_pids, out)
             gate.touch()
             deadline = time.monotonic() + 240
             while not result_path.exists():
@@ -193,7 +259,11 @@ def run_case(label, fixture, sha, output, catalog=None):
                 time.sleep(0.1)
             result = json.loads(result_path.read_text())
             assert process.wait(timeout=20) == 0
-            verify_case(label, result, trace_records(trace), initial, any(ready(pod) for pod in snapshots))
+            records = trace_records(trace)
+            verify_case(label, result, records, initial, any(ready(pod) for pod in snapshots))
+            if label in {"image-without-provenance", "image-with-verified-provenance"}:
+                identity = verify_workload_identity(initial, replica_sets, deployments, trace_evidence(records, result["job_id"])["observed_signature"], namespace)
+                (out / "verified-workload-identity.json").write_text(json.dumps(identity, indent=2))
             if catalog:
                 approved = result["run_state"]["localization_result"]["approved_image_replacement"]
                 for field in ("source_commit_sha", "repository", "service_name", "environment"):
@@ -216,22 +286,45 @@ def run_case(label, fixture, sha, output, catalog=None):
                 cleanup_namespace(namespace, owned)
 
 
+def verify_rollout_deadline(sandbox, pid_file, output):
+    """A real failing workload keeps real kubectl busy beyond an 8-second deadline."""
+    action_id = "owned-rollout-deadline-" + uuid.uuid4().hex
+    absolute = (datetime.now(timezone.utc) + timedelta(seconds=8)).isoformat()
+    request = Request(f"http://127.0.0.1:8090/v1/sandboxes/{sandbox}/validate", method="POST",
+                      data=json.dumps({"plan": {"commands": [], "health_checks": [
+                          {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True, "timeout_seconds": 30}]}}).encode(),
+                      headers={"Content-Type": "application/json", "x-raphael-action-deadline-at": absolute,
+                               "x-raphael-connector-action-id": action_id})
+    start = time.monotonic()
+    status, body = None, None
+    try:
+        with urlopen(request, timeout=15) as response:
+            status, body = response.status, json.load(response)
+    except HTTPError as error:
+        status, body = error.code, json.loads(error.read())
+    elapsed = time.monotonic() - start
+    (output / "rollout-deadline-response.json").write_text(json.dumps({"status": status, "body": body, "elapsed_seconds": elapsed}, indent=2))
+    assert status == 504, (status, body)
+    assert 6 < elapsed < 12, elapsed
+    assert pid_file.exists(), "real kubectl rollout never started; timeout alone is insufficient proof"
+    pids = [int(pid) for pid in pid_file.read_text().splitlines()]
+    assert pids
+    def stopped():
+        for pid in pids:
+            path = Path(f"/proc/{pid}/stat")
+            if path.exists() and path.read_text().split()[2] != "Z":
+                return False
+        return True
+    wait_for(stopped, "real kubectl cancellation", timeout=3)
+    (output / "rollout-deadline-proof.json").write_text(json.dumps({
+        "passed": True, "backend": "kind", "command": "real kubectl rollout status deployment/payments-api",
+        "action_id": action_id, "http_status": status, "elapsed_seconds": elapsed,
+        "kubectl_processes_stopped": True, "configured_rollout_seconds": 30, "absolute_budget_seconds": 8, "owned_wrapper_cli_timeout_seconds": 30}, indent=2))
+
+
 def selected_cases():
-    """Keep the positive provenance proof pending until Ignis #19 is released."""
-    include_pending = os.getenv("E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE", "false").lower() == "true"
-    if not include_pending:
-        print(
-            f"PENDING: {PENDING_BAD_IMAGE_POSITIVE_CASE} is excluded from required checks until reviewed, "
-            f"released Ignis #19 runtime evidence is pinned; tracked in {PENDING_BAD_IMAGE_TRACKING}.",
-            flush=True,
-        )
-        return REQUIRED_KIND_CASES
-    if os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch":
-        raise RuntimeError("the pending bad-image positive proof is manual-dispatch only")
-    ref = os.getenv("E2E_MANUAL_IGNIS_REF", "").strip()
-    if not re.fullmatch(r"(?:contracts-v\d+\.\d+\.\d+|[0-9a-fA-F]{40})", ref):
-        raise RuntimeError("manual pending proof requires an immutable contracts-vX.Y.Z tag or full commit SHA")
-    return (*REQUIRED_KIND_CASES, PENDING_BAD_IMAGE_POSITIVE_CASE)
+    """All released-pair controls are required for every supported CI event."""
+    return REQUIRED_KIND_CASES
 
 
 def main():
@@ -248,7 +341,7 @@ def main():
             source = Path(temp) / "proof-source"
             source.mkdir()
             shas = {name: commit_fixture(ROOT / "e2e/fixtures/kind-remediation" / name, source / name)
-                    for name in ("probe", "bad-image", "healthy")}
+                    for name in ("probe", "bad-image", "healthy", "healthy-sentinel")}
             kube("create", "namespace", namespace)
             owned.add(namespace)
             kube("apply", "-n", namespace, "-f", str(source / "healthy/deploy/manifests/app.yaml"))
@@ -265,6 +358,8 @@ def main():
             for label in cases:
                 if label == "probe":
                     run_case(label, source / "probe", shas["probe"], output)
+                elif label == "healthy-sentinel":
+                    run_case(label, source / "healthy-sentinel", shas["healthy-sentinel"], output)
                 elif label == "image-without-provenance":
                     run_case(label, source / "bad-image", shas["bad-image"], output)
                 else:

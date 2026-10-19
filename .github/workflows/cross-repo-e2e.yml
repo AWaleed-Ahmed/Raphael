@@ -24,11 +24,6 @@ on:
         required: false
         default: false
         type: boolean
-      pending_bad_image_positive:
-        description: "PENDING (#49; Ignis #19): opt in only after reviewed runtime evidence is released; provide its immutable Ignis tag or SHA"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -112,8 +107,6 @@ jobs:
       RAPHAEL_PUBLISH_MODE: dry_run
       GITHUB_TOKEN: ""
       RAPHAEL_GITHUB_TOKEN: ""
-      E2E_INCLUDE_PENDING_BAD_IMAGE_POSITIVE: ${{ inputs.pending_bad_image_positive || false }}
-      E2E_MANUAL_IGNIS_REF: ${{ inputs.ignis_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -121,15 +114,6 @@ jobs:
           python-version: "3.12"
       - name: Install Raphael
         run: python -m pip install -e agent -e dispatch
-      - name: Require an explicit Ignis pin for the pending positive proof
-        if: ${{ inputs.pending_bad_image_positive }}
-        env:
-          PENDING_IGNIS_REF: ${{ inputs.ignis_ref }}
-        run: |
-          if [[ ! "$PENDING_IGNIS_REF" =~ ^(contracts-v[0-9]+\.[0-9]+\.[0-9]+|[0-9a-fA-F]{40})$ ]]; then
-            echo "::error::The pending bad-image proof requires an immutable contracts-vX.Y.Z tag or full commit SHA containing reviewed Ignis #19 runtime evidence. See Raphael #49."
-            exit 1
-          fi
       - name: Test proof assertions and cleanup ownership
         run: python -m unittest e2e.test_kind_verification
       - uses: actions/checkout@v4
@@ -149,7 +133,9 @@ jobs:
         run: |
           docker pull hashicorp/http-echo:1.0
           kind load docker-image hashicorp/http-echo:1.0 --name raphael-remediation-proof
-      - name: Prove required probe repair and no-provenance controls
+          docker tag hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
+          kind load docker-image hashicorp/http-echo:missing-healthy-proof --name raphael-remediation-proof
+      - name: Prove required image repair, probe repair and refusal controls
         run: python -u e2e/run_kind_verification.py
       - name: Upload actual Kubernetes and real-hook proof
         if: always()
@@ -257,6 +243,9 @@ jobs:
           set -o pipefail
           python e2e/run_real_job.py 2>&1 | tee e2e/real-hooks.log
 
+      - name: Prove renewal denial during real controller validation
+        run: python -u e2e/run_lease_denial.py
+
       # §17.3 extends this existing cross-repository gate. It reuses the
       # production-hooks runner above for immutable scenario fixtures and
       # emits machine-scored evidence; it is not a separate CI system.
@@ -284,5 +273,6 @@ jobs:
           path: |
             e2e/*.jsonl
             e2e/*.log
+            e2e/lease-denial-out/**
             evals/out/**
             evals/evaluation.log

@@ -47,6 +47,7 @@ agent/.raphael-agent-data-*/
 e2e/kind-fixture-out/
 
 e2e/kind-remediation-out/
+e2e/lease-denial-out/
 
 # Historical plans and reviews are kept under docs/historical/
 /docs/byok-implementation-review-2026-10-06.md

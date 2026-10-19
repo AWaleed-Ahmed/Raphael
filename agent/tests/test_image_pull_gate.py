@@ -35,3 +35,12 @@ def test_legacy_signature_is_unverified():
     legacy = signature()
     legacy["normalized"]["attributes"] = {"image": "registry.example/app:v7"}
     assert image_pull_block_reason({"failure_signature": legacy}) == "image_pull_evidence_unverified"
+
+
+@pytest.mark.parametrize("field,value", [("owner_verified", False), ("container_type", "init")])
+def test_unverified_owner_and_init_targets_refuse_direct_patch(field, value):
+    unsafe = signature()
+    unsafe["normalized"]["attributes"][field] = value
+    assert not image_pull_repair_allowed(unsafe, "kubectl")
+    with pytest.raises(TemplateRefusal):
+        propose_patch({"failure_signature": unsafe, "sandbox_backend": "kubectl", "trigger": {"kind": "github_issue"}})

@@ -1,9 +1,19 @@
 # Raphael contributor map
 
-Latest recovery checkpoint: 2026-10-19, based on Raphael main `903370a` and Ignis preservation `9d88f47`. Released contract/runtime pin remains `contracts-v1.3.0` (`176a13e`).
+Latest qualification checkpoint: 2026-10-20. Ignis #22 is merged at `bc4250439c87c1f8cd85dc258b051141d3ad8d6c` and released as user-approved `contracts-v1.4.1`. Raphael #51 aligns the consumer pin on `test/qualify-11-13-17`.
 This page describes current implementation and proof; [prd.md](prd.md) defines the product, not completed work.
 
 ## Start here: where we stopped
+
+**#11/#13/#17 qualification:** remaining image/clone/lease controls are implemented
+in [Ignis #22](https://github.com/AWaleed-Ahmed/Ignis/pull/22) and
+[Raphael #51](https://github.com/AWaleed-Ahmed/Raphael/pull/51). Full local results:
+agent443/4skip, dispatch88, Rust92 plus seven tool controls in one integration
+test, contracts19, harness47, Linux matrix72 hosted, and paired denial cleanup.
+Four real-kind cases are required automatically. The [candidate CRLF run](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39278732657) passed all three jobs; inspected artifacts prove image controls, lease-denial cleanup and real kubectl cancellation. The approved runtime release is published and canonical sync/Check passes. Released-pair [automatic checks](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312614037), [core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312613954) and [CRLF qualification](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312629725) pass at runtime/pin head `ea7b313`; artifacts are inspected. Human review of Raphael #51 remains; no persistent hosting is needed.
+See [qualification review](docs/qualify-11-13-17-review-2026-10-19.md) and the
+[shared completion checklist](docs/ignis-11-13-17-completion-checklist.md).
+Older checkpoints below are history, not the current remaining implementation.
 
 **2026-10-19 CI/runtime alignment:** the user-approved annotated Ignis
 `contracts-v1.4.0` now points to reviewed merged `f1f3b2c858c6ce246308eae395e280856459d9a5`.
@@ -15,7 +25,7 @@ Legacy/unverified and real-backend mock refusals remain agent controls. This
 supersedes older descriptions of unstructured mock evidence, not the separate
 pending real-kind positive proof. Local results: agent441/4skip, dispatch88,
 workflow/eval/wire/kind assertions41, wire3, production-hook smoke and all7 evals.
-See [the CI repair record](docs/ci-repair-review-2026-10-19.md) for failed runs,
+See [the CI repair record](docs/historical/ci-repair-review-2026-10-19.md) for failed runs,
 release identity, reruns and hosted status links. D-20261019-02 records the choice.
 
 **2026-10-19 delivery correction:** final result-delivery errors now use journaled
@@ -23,7 +33,7 @@ cleanup after bounded cached-result retries. Identical committed terminal result
 replay their safe envelope after restart, subject to tenant/owner/fingerprint
 checks. The recheck findings are resolved and D-20261019-01 records the choices.
 Fresh local counts: agent441/4skip, dispatch88, Rust86, contracts19, harness31,
-checkout matrix36, paired mock3. See [cases/results and CI limits](docs/result-delivery-fix-review-2026-10-19.md).
+checkout matrix36, paired mock3. See [cases/results and CI limits](docs/historical/result-delivery-fix-review-2026-10-19.md).
 Reviewed contract release/pins and current-pair hosted qualification remain open.
 
 **2026-10-19 #13/#17 recovery implemented:** both persistent repositories use
@@ -34,8 +44,8 @@ expiry/result commit, total publication/server deadlines, heartbeat handover,
 cancellation and partial-journal recovery are implemented. Fresh local results:
 agent441/4skip, dispatch86, Rust82, contracts19, harness/evaluator31,
 checkout matrix36, paired mock scenarios3. Independent standards/spec rechecks
-have zero remaining findings. See the [plan](docs/restore-13-17-plan-2026-10-18.md),
-[detailed cases/results](docs/restore-13-17-review-2026-10-19.md) and
+have zero remaining findings. See the [plan](docs/historical/restore-13-17-plan-2026-10-18.md),
+[detailed cases/results](docs/historical/restore-13-17-review-2026-10-19.md) and
 [remaining qualification checklist](docs/ignis-11-13-17-completion-checklist.md).
 Authenticated clone, system-attribute/full fidelity controls, hosted deadline/
 denial/kind runs, reviewed contract release/pins and #11 positive repair remain.
@@ -52,7 +62,7 @@ dispatch77, evaluator/proof assertions27; focused BYOK100 is included in the
 agent total. All26 contract files match the pinned Ignis release. Live provider
 and current-head hosted qualification remain pending. See the
 [provider guide](docs/byok-provider-guide.md),
-[implementation record](docs/byok-provider-implementation-review-2026-10-18.md)
+[implementation record](docs/historical/byok-provider-implementation-review-2026-10-18.md)
 and [eight pilot-release milestones](docs/release-milestones-2026-10-18.md).
 This does not restore the lost #13/#17 commits or close those issues.
 
@@ -75,13 +85,13 @@ No issue is declared complete by this checkpoint.
 
 Earlier checkpoints below are historical; use this checkpoint and the open-work table for the next task.
 
-**2026-10-05 continuation:** PR #43 is merged at `9e652d9`; its post-merge core and E2E/kind runs are green. The next branch is `fix/escalation-report-fail-closed`: shared report validation returns a safe terminal rather than raising or ignoring schema errors, with persistence kept permissive. The newly found optional `patch_id: null` producer defect is corrected by omission, not schema weakening; safety tests now use valid reports without weakening their original assertions. Local tests: 327 agent passes / 4 skips and 77 dispatch passes; 10 evaluator unit tests. See D-20261005-02 and [the review](docs/escalation-fail-closed-review-2026-10-05.md). Seven-eval validating-wrapper proof still requires this branch's hosted run. Ignis Prompt B already merged in PR #18 (`176a13e`, annotated `contracts-v1.3.0`), consumed by Raphael PR #42; the older local Ignis draft is not the released implementation.
+**2026-10-05 continuation:** PR #43 is merged at `9e652d9`; its post-merge core and E2E/kind runs are green. The next branch is `fix/escalation-report-fail-closed`: shared report validation returns a safe terminal rather than raising or ignoring schema errors, with persistence kept permissive. The newly found optional `patch_id: null` producer defect is corrected by omission, not schema weakening; safety tests now use valid reports without weakening their original assertions. Local tests: 327 agent passes / 4 skips and 77 dispatch passes; 10 evaluator unit tests. See D-20261005-02 and [the review](docs/historical/escalation-fail-closed-review-2026-10-05.md). Seven-eval validating-wrapper proof still requires this branch's hosted run. Ignis Prompt B already merged in PR #18 (`176a13e`, annotated `contracts-v1.3.0`), consumed by Raphael PR #42; the older local Ignis draft is not the released implementation.
 
-**2026-10-05 review checkpoint:** PR #42 and Ignis PR #18 are merged, and post-merge main CI passed on Raphael `122d2d0`, pinned to annotated Ignis `contracts-v1.3.0` / `176a13e`. The old local Secret-coverage draft must not be merged over that release. A separate `test/escalation-reason-drift` branch adds complete report-vocabulary/source checks and reviews the report-validation gate that #42 enabled. Production persistence policy is unchanged on that branch and still requires review; see [the exact risks and remaining decisions](docs/escalation-persistence-review-2026-10-05.md). Older setup results below are historical snapshots, not the new branch's test counts.
+**2026-10-05 review checkpoint:** PR #42 and Ignis PR #18 are merged, and post-merge main CI passed on Raphael `122d2d0`, pinned to annotated Ignis `contracts-v1.3.0` / `176a13e`. The old local Secret-coverage draft must not be merged over that release. A separate `test/escalation-reason-drift` branch adds complete report-vocabulary/source checks and reviews the report-validation gate that #42 enabled. Production persistence policy is unchanged on that branch and still requires review; see [the exact risks and remaining decisions](docs/historical/escalation-persistence-review-2026-10-05.md). Older setup results below are historical snapshots, not the new branch's test counts.
 
 The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation chain works and is continuously tested. This is operational hardening and coverage work, not an architecture rebuild. The remaining limits below are deliberate claims about what has actually been tested.
 
-**Latest completed work:** Raphael [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) merged at `60c03cf`. Deterministic safety blocks now survive every model-refinement/patch entry point. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40) separately tracks the missing local inference runtime; a flag-on fallback must not be described as trained-model proof. Both post-merge hosted runs linked in the proof table are green. Current #30 local results are in [the implementation review](docs/implementation-review-2026-10-04-issue-30.md).
+**Latest completed work:** Raphael [PR #39](https://github.com/AWaleed-Ahmed/Raphael/pull/39) merged at `60c03cf`. Deterministic safety blocks now survive every model-refinement/patch entry point. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40) separately tracks the missing local inference runtime; a flag-on fallback must not be described as trained-model proof. Both post-merge hosted runs linked in the proof table are green. Current #30 local results are in [the implementation review](docs/historical/implementation-review-2026-10-04-issue-30.md).
 
 **Current task:** structural Secret-dependency detection, [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30). Prompt B investigation is complete. Implementation is reviewed: Raphael changes are in [PR #42](https://github.com/AWaleed-Ahmed/Raphael/pull/42) from `docs/contributor-handoff`; Ignis [PR #18](https://github.com/AWaleed-Ahmed/Ignis/pull/18) is merged and `contracts-v1.3.0` is published. The implementation review has corrected malformed-report handling, duplicate fixture names, and compatibility with current Ignis image fidelity. Local suites pass. Raphael contract/runtime pins are updated; hosted mock/kind proof passed in run 37217777910; the user has authorized pushing and merging reviewed changes. Prompt A's safety prerequisite is merged.
 
@@ -171,9 +181,9 @@ The fresh [cross-repo run 37185648403](https://github.com/AWaleed-Ahmed/Raphael/
 
 ## Open work, in order
 
-**Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/implementation-review-2026-10-04.md); hosted proof passed in run 37217777910; live Supabase baseline ingestion remains outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 is implemented and reviewed; Ignis PR #18 is merged and `contracts-v1.3.0` is released/pinned. Hosted Raphael mock/kind checks passed in run 37217777910; see its separate review note.
+**Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/historical/implementation-review-2026-10-04.md); hosted proof passed in run 37217777910; live Supabase baseline ingestion remains outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 is implemented and reviewed; Ignis PR #18 is merged and `contracts-v1.3.0` is released/pinned. Hosted Raphael mock/kind checks passed in run 37217777910; see its separate review note.
 
-**Next planned tasks:** Ignis #11 registry-backed detection and Ignis #13 clone line-ending policy. The [implementation plan](docs/next-three-implementation-plan.md) records scope, sequence, test cases, completion criteria, and coordination with #30. These Ignis tasks are not claimed here.
+**Next planned tasks:** Ignis #11 registry-backed detection and Ignis #13 clone line-ending policy. The [implementation plan](docs/historical/next-three-implementation-plan.md) records scope, sequence, test cases, completion criteria, and coordination with #30. These Ignis tasks are not claimed here.
 
 Claim status as of 2026-10-04. "Not claimed here" is not a claim that nobody elsewhere is working on it; check with the team before starting. Update this table when taking or releasing a task.
 
@@ -361,7 +371,7 @@ This docs update changes only three existing decision **status lines** to identi
 
 ### Review delivery checkpoint — 2026-10-04
 
-Reviewed #30 plus prior #33/#34/#37 integration and corrected schema/completeness, direct-entry gate, duplicate-fixture, and current-main integration issues. Results: **291 agent passed (4 skipped), 75 dispatch passed, 62 Ignis controller passed, 18 Ignis contract passed, 10 evaluator unit passed, 7 outcome evals passed, 3 wire scenarios passed, real-hooks smoke passed**. Local integration uses mock, not Kubernetes. See [#30 implementation review](docs/implementation-review-2026-10-04-issue-30.md) for commands, evidence and limitations. [Core CI 37217777993](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777993) and [cross-repo 37217777910](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777910) passed. Six kind controls verify covered, required-missing-object/key, optional-key, and image-digest behavior; required cases persist structural refusal with no patch. Delivery is in [PR #42](https://github.com/AWaleed-Ahmed/Raphael/pull/42).
+Reviewed #30 plus prior #33/#34/#37 integration and corrected schema/completeness, direct-entry gate, duplicate-fixture, and current-main integration issues. Results: **291 agent passed (4 skipped), 75 dispatch passed, 62 Ignis controller passed, 18 Ignis contract passed, 10 evaluator unit passed, 7 outcome evals passed, 3 wire scenarios passed, real-hooks smoke passed**. Local integration uses mock, not Kubernetes. See [#30 implementation review](docs/historical/implementation-review-2026-10-04-issue-30.md) for commands, evidence and limitations. [Core CI 37217777993](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777993) and [cross-repo 37217777910](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37217777910) passed. Six kind controls verify covered, required-missing-object/key, optional-key, and image-digest behavior; required cases persist structural refusal with no patch. Delivery is in [PR #42](https://github.com/AWaleed-Ahmed/Raphael/pull/42).
 
 Ignis #11 and #17 remain open/unimplemented. PR #15 was closed as superseded: PR #14 already fixed its contract problem; relabeling generic kubectl as kind was not a correct remaining change.
 
@@ -369,11 +379,11 @@ Ignis #11 and #17 remain open/unimplemented. PR #15 was closed as superseded: PR
 
 [PR #23](https://github.com/AWaleed-Ahmed/Raphael/pull/23) merged at `9b31e52` and implements environment-based Gemini/OpenAI/compatible-gateway calls for external diagnosis and patching. Per user instruction, an unspecified model is discovered and randomly selected for the configured key; HTTP 429 rotates to another candidate within eight attempts and a shared deadline. Explicit models remain pinned. Credentials stay outside durable run state. The shared structural Secret gate also stops external refinement before a provider call.
 
-Local results: 386 agent passed (4 existing skips), 77 dispatch passed, 58 focused BYOK passed, 10 evaluator passed. See [BYOK implementation review](docs/byok-implementation-review-2026-10-06.md) for cases, limits and sources. Final hosted core CI 37440594134 (plus push audit 37440587490) and cross-repo run 37440594100 passed; live Gemini connectivity is unverified because no key is configured. Native Anthropic/Azure and tenant key management remain outside this delivery. Local classifier #40 remains open. Real-kind remediation PR #32 will be reconciled separately.
+Local results: 386 agent passed (4 existing skips), 77 dispatch passed, 58 focused BYOK passed, 10 evaluator passed. See [BYOK implementation review](docs/historical/byok-implementation-review-2026-10-06.md) for cases, limits and sources. Final hosted core CI 37440594134 (plus push audit 37440587490) and cross-repo run 37440594100 passed; live Gemini connectivity is unverified because no key is configured. Native Anthropic/Azure and tenant key management remain outside this delivery. Local classifier #40 remains open. Real-kind remediation PR #32 will be reconciled separately.
 
 ### Real-kind remediation checkpoint — 2026-10-06
 
-PR #32 is reconciled with current main: obsolete rollout/backend fixes and shared mock-fixture edits are discarded. A hosted disposable proof now checks probe repair, no-provenance image refusal and image repair with a scoped catalog fixture verified from an actually Ready baseline Pod. Production AgentHooks remain in use. Local assertion/cleanup/backend tests pass (14), evaluator tests pass (10); hosted implementation proof passed in run 37442412528, with final-head checks required before merge. See [kind implementation review](docs/kind-remediation-review-2026-10-06.md). This does not prove live Supabase ingestion or resolve Ignis #11/#17.
+PR #32 is reconciled with current main: obsolete rollout/backend fixes and shared mock-fixture edits are discarded. A hosted disposable proof now checks probe repair, no-provenance image refusal and image repair with a scoped catalog fixture verified from an actually Ready baseline Pod. Production AgentHooks remain in use. Local assertion/cleanup/backend tests pass (14), evaluator tests pass (10); hosted implementation proof passed in run 37442412528, with final-head checks required before merge. See [kind implementation review](docs/historical/kind-remediation-review-2026-10-06.md). This does not prove live Supabase ingestion or resolve Ignis #11/#17.
 
 ### Verified kind delivery evidence
 
