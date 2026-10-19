@@ -10,7 +10,7 @@ in [Ignis #22](https://github.com/AWaleed-Ahmed/Ignis/pull/22) and
 [Raphael #51](https://github.com/AWaleed-Ahmed/Raphael/pull/51). Full local results:
 agent443/4skip, dispatch88, Rust92 plus seven tool controls in one integration
 test, contracts19, harness47, Linux matrix72 hosted, and paired denial cleanup.
-Four real-kind cases are required automatically. The [candidate CRLF run](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39278732657) passed all three jobs; inspected artifacts prove image controls, lease-denial cleanup and real kubectl cancellation. The approved runtime release is published and canonical sync/Check passes. Automatic checks on the updated consumer head and human review of Raphael #51 remain; no persistent hosting is needed.
+Four real-kind cases are required automatically. The [candidate CRLF run](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39278732657) passed all three jobs; inspected artifacts prove image controls, lease-denial cleanup and real kubectl cancellation. The approved runtime release is published and canonical sync/Check passes. Released-pair [automatic checks](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312614037), [core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312613954) and [CRLF qualification](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39312629725) pass at runtime/pin head `ea7b313`; artifacts are inspected. Human review of Raphael #51 remains; no persistent hosting is needed.
 See [qualification review](docs/qualify-11-13-17-review-2026-10-19.md) and the
 [shared completion checklist](docs/ignis-11-13-17-completion-checklist.md).
 Older checkpoints below are history, not the current remaining implementation.

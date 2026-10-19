@@ -1,6 +1,6 @@
 # Completion checklist: Ignis #11, #13 and #17
 
-Updated: **2026-10-20**. Status: **candidate hosted proof inspected; Ignis merged/released; updated Raphael head checks and human merge review pending**.
+Updated: **2026-10-20**. Status: **candidate and released-pair hosted proof inspected; Ignis merged/released; human Raphael merge review pending**.
 
 This is the shared delivery checklist for:
 
@@ -23,8 +23,10 @@ The user approved publication of contracts-v1.4.1 at that commit; the annotated
 tag is published. Canonical Raphael sync/Check uses the published tag, with no
 schema-byte changes. PR #51's earlier automatic mock job failed because v1.4.0
 lacked the qualified claim-redelivery correction. The consumer pin now selects
-v1.4.1; updated-head automatic checks and human review remain. See the qualification
-review for failed/passing runs, timings and proof limits.
+v1.4.1. Automatic core39312613954 and paired39312614037 pass; released-pair
+CRLF39312629725 also passes. All uploaded image/Secret/denial/deadline proofs were
+inspected; human review remains. The qualification review records full identities,
+failed/passing runs, timings and proof limits.
 
 ## Latest qualification checkpoint — 2026-10-19
 
@@ -101,7 +103,7 @@ must not be advertised as independent registry verification.
 ### Implementation and focused controls
 
 - [x] IMG-01 Audit/review the recovered Ignis runtime classifier and paired Raphael consumer: live evidence takes precedence, mock sentinels remain explicitly mock, and image names alone cannot authorize repair.
-- [ ] IMG-02 Prove an arbitrary nonexistent image/tag without sentinel words is detected from real current Pod pull failure evidence. A healthy image with a sentinel-like name must not become confirmed absence.
+- [x] IMG-02 Prove an arbitrary nonexistent image/tag without sentinel words is detected from real current Pod pull failure evidence. A healthy image with a sentinel-like name must not become confirmed absence.
 - [x] IMG-03 Verify exact namespace, current Pod UID, Pod→ReplicaSet→Deployment ownership UIDs, container name/type, current spec image and event freshness. Stale image/status/event, owner lookup denial, truncated/conflicting evidence and ambiguous multi-container attribution must refuse replacement.
 - [x] IMG-04 Verify auth denial/private ambiguous absence, DNS/TLS/network errors, throttling and backoff-only evidence cause no image replacement. Label parser fixtures separately from actual registry/cluster observations.
 - [x] IMG-05 Verify unsupported init targets refuse repair. A valid repair changes only the approved regular-container target and preserves unrelated workload content.
@@ -109,10 +111,10 @@ must not be advertised as independent registry verification.
 
 ### Hosted acceptance
 
-- [ ] IMG-07 Run the positive verified-provenance real-kind case against the exact reviewed Ignis candidate SHA. The candidate makes it required for every workflow event; retain this gate until final candidate and released-pair proof is inspected.
-- [ ] IMG-08 Inspect genuine pre-fix ErrImagePull/ImagePullBackOff evidence, selected workload/container, baseline identity, target-only patch, passed validation and independently Ready post-fix Pod. Require `fix_finalized` for the authorized positive case.
-- [ ] IMG-09 Run no-provenance refusal and existing probe repair, mock/eval/report-audit and Secret-fixture regressions on the same delivered pair. Record what negative controls were real Kubernetes versus deterministic fixtures.
-- [ ] IMG-10 After reviewed runtime release/pin alignment, restore the positive case to required automatic checks. It must not remain optional when #11 is declared complete.
+- [x] IMG-07 Run the positive verified-provenance real-kind case against the exact reviewed Ignis candidate SHA. The candidate makes it required for every workflow event; retain this gate until final candidate and released-pair proof is inspected.
+- [x] IMG-08 Inspect genuine pre-fix ErrImagePull/ImagePullBackOff evidence, selected workload/container, baseline identity, target-only patch, passed validation and independently Ready post-fix Pod. Require `fix_finalized` for the authorized positive case.
+- [x] IMG-09 Run no-provenance refusal and existing probe repair, mock/eval/report-audit and Secret-fixture regressions on the same delivered pair. Record what negative controls were real Kubernetes versus deterministic fixtures.
+- [x] IMG-10 After reviewed runtime release/pin alignment, restore the positive case to required automatic checks. It must not remain optional when #11 is declared complete.
 
 **Close #11 only when:** runtime evidence and refusal cases pass, positive
 provenance repair is required and green on the released pair, and the issue
@@ -134,7 +136,7 @@ summary states the actual registry-verification limits.
 - [x] CLN-07 Run each relevant case through both fetch and fallback; assert identical policy, correct commit and cleanup.
 - [x] CLN-08 Prove retained helper/proxy/CA configuration with synthetic values and a local authenticated HTTP fixture clone using synthetic credentials. Merely reading helper config does not establish authenticated cloning.
 - [x] CLN-09 Apply one localized repair to an attributed CRLF file; assert only the intended line/file changes. Run render LF/wire-output assertions separately from clone fidelity.
-- [ ] CLN-10 Run hosted CRLF/render/remediation regression checks plus the repeatable Linux matrix. The existing `crlf_checkouts` workflow flag exercises Ubuntu with Windows-style Git preferences, not native Windows.
+- [x] CLN-10 Run hosted CRLF/render/remediation regression checks plus the repeatable Linux matrix. The existing `crlf_checkouts` workflow flag exercises Ubuntu with Windows-style Git preferences, not native Windows.
 - [x] CLN-11 If native Windows is supported, qualify both checkout paths and owned child/descendant termination there. Otherwise explicitly document Linux execution support and native Windows as unqualified.
 
 **Close #13 only when:** the policy is documented, implementation follows it,
@@ -192,7 +194,7 @@ is not needed to complete these synthetic integration checks.
 5. [x] REL-05 Inspect artifacts, not just green summaries. Record skipped cases explicitly, fix failures and rerun on current heads. Complete the #13 matrix and #17 timing/denial coverage rather than substituting generic integration success.
 6. [x] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
 7. [x] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
-8. [ ] REL-08 Restore required positive image proof in the consumer PR, remove obsolete candidate special cases, and run current-head core/contracts/Ignis and all paired hosted jobs on the released pair. Retain manual overrides for explicit qualification.
+8. [x] REL-08 Restore required positive image proof in the consumer PR, remove obsolete candidate special cases, and run current-head core/contracts/Ignis and all paired hosted jobs on the released pair. Retain manual overrides for explicit qualification.
 9. [ ] REL-09 Obtain user review/merge approval. Record final post-merge CI/run URLs and immutable identities; rerun if merges or pins change relevant code.
 10. [ ] REL-10 Update both implementation reviews, Raphael handoff and each issue with delivered behavior, proof links and limits. Close each issue only after its own acceptance conditions above are met.
 
