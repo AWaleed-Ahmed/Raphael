@@ -1,6 +1,6 @@
 # Completion checklist: Ignis #11, #13 and #17
 
-Updated: **2026-10-20**. Status: **candidate and released-pair hosted proof inspected; Ignis merged/released; human Raphael merge review pending**.
+Updated: **2026-10-20**. Status: **complete on supported Linux execution; reviewed runtime and consumer merged, released-pair qualification passed**.
 
 This is the shared delivery checklist for:
 
@@ -14,7 +14,25 @@ for the delivered pair has been attached here. Existing code is not proof of
 completion. The user reviews merges and releases; pushing these branches does
 not authorize either.
 
-## Hosted correction checkpoint — 2026-10-20
+## Final completion checkpoint — 2026-10-20
+
+Ignis #11, #13 and #17 satisfy their declared Linux completion gates. #11 and #13 were already closed; #17 is being closed with the evidence below. This checkpoint supersedes historical pending-delivery statements later in this document.
+
+Delivered identities: Ignis `2bfcc644f278da3e16845d6e4408ee9b6048922d`, published annotated `contracts-v1.4.2`; Raphael `08accd56189171fcc779a858ba7e6f7558924b89` after consumer PR #56. Ignis #22 / Raphael #51 delivered the three feature fixes; Ignis #20 and Raphael #55/#56 preserve them while delivering the Secret-coverage follow-up. Canonical contract sync and Check pass, with no schema-byte changes in v1.4.2.
+
+| Acceptance | Evidence and inspected outcome |
+| --- | --- |
+| Ignis post-merge Rust, Secret scan and clone policy | [CI39363877121](https://github.com/AWaleed-Ahmed/Ignis/actions/runs/39363877121) passes. Both matrix artifacts pass: 36 cases each, 72 total, shallow/fallback paths, eight byte/SHA256-checked files and authenticated HTTP clones. |
+| Released-pair automatic and CRLF qualification | [Automatic39364079510](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39364079510) and [CRLF39364091364](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39364091364) pass against contracts-v1.4.2. All 12 proof.json files per run pass: four remediation, six Secret, mock Secret aggregate and lease denial. |
+| Consumer post-merge core/contracts | [Core39365164405](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39365164405) passes at the delivered Raphael main commit. |
+| Consumer post-merge paired checks | [Pair39365164480](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39365164480) verifies the delivered main with the released pin. See its artifacts for fixture SHAs, tool versions, backend and sanitized expected/actual records. |
+| #11 image acceptance | Required real-kind cases prove arbitrary absent-image evidence, refusal without provenance, target-only repair with verified owned baseline and independently Ready post-fix Pod, plus healthy sentinel-like image refusal. |
+| #13 clone acceptance | Owned absent/conflicting system attributes, ambient checkout preferences, both clone paths and authenticated HTTP pass. Repository attributes define checkout policy; arbitrary filters/encodings are outside a universal blob-byte guarantee. |
+| #17 deadline/lease acceptance | Short-lease restart/wire controls pass. Both released-pair denial proofs record zero late results and successful owned cleanup. CRLF real-kubectl proof records HTTP504 at 8.001s against an 8s absolute budget and confirms kubectl stopped (native CLI timeout forced to 30s). |
+
+Supported execution is Linux. CRLF preferences on Ubuntu do not qualify native Windows. Image evidence is Kubernetes-observed pull evidence, not independent authenticated registry lookup; seeded baseline proof is not live Supabase ingestion. Publishing remains dry-run in owned disposable fixtures/clusters. No persistent public hosting, domain or production cluster is needed for these three completion gates. Earlier failed attempts and their corrections remain recorded below.
+
+## Historical hosted correction checkpoint — 2026-10-20
 
 Candidate CRLF run39278732657 passed all three paired jobs; four remediation
 controls, six Secret-kind controls, lease denial and real kubectl deadline artifacts
@@ -87,11 +105,11 @@ are locally satisfied; broader hosted/release controls stay open. See
 
 ## 1. Shared completion rules
 
-- [ ] ALL-01 Record full Raphael and Ignis SHAs, Git/tool versions, backend, fixture SHAs, configuration, and contract version for every qualification run.
+- [x] ALL-01 Record full Raphael and Ignis SHAs, Git/tool versions, backend, fixture SHAs, configuration, and contract version for every qualification run.
 - [x] ALL-02 Review the complete diff against current main: standards, issue acceptance, merge conflicts, contracts, and preserved safety gates. Resolve actionable findings before release.
 - [x] ALL-03 Run current-head Python agent/dispatch/evaluator suites, Ignis Rust suite, contract harness and affected harness assertions. A compilation check is not a behavioral pass.
-- [ ] ALL-04 Keep remote publishing in dry-run mode and use disposable, owned clusters/fixtures. Never introduce customer credentials/kubeconfig into hosted qualification.
-- [ ] ALL-05 Sanitize tokens, claim credentials and sensitive workload data before uploading traces. Save expected/actual outcomes, cleanup evidence and initial failures with corrected reruns.
+- [x] ALL-04 Keep remote publishing in dry-run mode and use disposable, owned clusters/fixtures. Never introduce customer credentials/kubeconfig into hosted qualification.
+- [x] ALL-05 Sanitize tokens, claim credentials and sensitive workload data before uploading traces. Save expected/actual outcomes, cleanup evidence and initial failures with corrected reruns.
 - [x] ALL-06 Choose and document the supported execution platforms. Linux proof does not qualify native Windows process cancellation or checkout behavior.
 
 ## 2. #11 — trustworthy image-pull evidence
@@ -195,8 +213,8 @@ is not needed to complete these synthetic integration checks.
 6. [x] REL-06 Review the additive contract diff (including deployment budget and restored lease/HTTP contracts), schema snapshots, auth/status semantics and compatibility. Obtain approval for Ignis merge/release and choose an immutable version using repository conventions; never retarget an existing tag.
 7. [x] REL-07 After the approved release exists, sync Raphael using `tools/sync-sandbox-contracts.ps1`, update `CONTRACTS_VERSION` and every runtime/workflow default to that exact reviewed release. `-Check` must pass; do not bypass it or hand-edit snapshots to mask drift.
 8. [x] REL-08 Restore required positive image proof in the consumer PR, remove obsolete candidate special cases, and run current-head core/contracts/Ignis and all paired hosted jobs on the released pair. Retain manual overrides for explicit qualification.
-9. [ ] REL-09 Obtain user review/merge approval. Record final post-merge CI/run URLs and immutable identities; rerun if merges or pins change relevant code.
-10. [ ] REL-10 Update both implementation reviews, Raphael handoff and each issue with delivered behavior, proof links and limits. Close each issue only after its own acceptance conditions above are met.
+9. [x] REL-09 Obtain user review/merge approval. Record final post-merge CI/run URLs and immutable identities; rerun if merges or pins change relevant code.
+10. [x] REL-10 Update both implementation reviews, Raphael handoff and each issue with delivered behavior, proof links and limits. Close each issue only after its own acceptance conditions above are met.
 
 Useful workflow inputs for an authorized manual candidate run:
 `ignis_ref=<FULL_REVIEWED_SHA>` and `crlf_checkouts=true`. The positive case is
