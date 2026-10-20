@@ -10,7 +10,7 @@ import raphael_agent.diagnosis.llm as llm_module
 from raphael_agent.diagnosis.analyzers import analyze_run
 from raphael_agent.graph import nodes
 from raphael_agent.graph.state import initial_run_state
-from raphael_agent.model_gateway import ModelGateway
+from raphael_agent.model_gateway import ModelGateway, model_error
 
 
 BLOCK_CASES = [
@@ -188,6 +188,9 @@ def test_node_patch_terminal_status_guard_is_independent_of_diagnosis(monkeypatc
     assert state == before
 
 
-def test_model_enabled_default_remains_on(monkeypatch):
+def test_model_enabled_default_is_off(monkeypatch):
     monkeypatch.delenv("RAPHAEL_MODEL_ENABLED", raising=False)
-    assert ModelGateway().enabled is True
+    gateway = ModelGateway()
+    assert gateway.enabled is False
+    assert gateway.classify_failure({}) is None
+    assert model_error(gateway) == "disabled_by_environment"

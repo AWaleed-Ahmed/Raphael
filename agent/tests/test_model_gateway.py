@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from raphael_agent.model_gateway import ModelGateway
+import pytest
+
+import raphael_agent.model_gateway as model_gateway
+from raphael_agent.model_gateway import ModelGateway, model_error
 
 
 def _state():
@@ -83,3 +86,34 @@ def test_patch_input_adapter_selects_bounded_template(monkeypatch):
     result = gateway.select_patch(_state())
     assert result["safe_template"] == "fix_probe_port_mismatch"
     assert result["requires_sandbox_validation"] is True
+
+
+@pytest.mark.parametrize("capability", [
+    "classify_failure", "trace_anomaly", "similar_incidents", "rank_candidates", "select_patch",
+])
+def test_missing_runtime_falls_back_for_each_capability(monkeypatch, tmp_path, capability):
+    monkeypatch.setenv("RAPHAEL_MODEL_ENABLED", "1")
+    monkeypatch.setattr(model_gateway, "MODEL_SCRIPT", tmp_path / "missing_predict.py")
+    gateway = ModelGateway()
+    if capability == "rank_candidates":
+        result = gateway.rank_candidates(_state(), [{"path": "src/app.py", "line": 1}], [])
+    else:
+        result = getattr(gateway, capability)(_state())
+    assert result is None
+    assert model_error(gateway) == "predict_script_missing:raphael/model/predict.py is not packaged"
+
+
+def test_disabled_trace_status_is_recorded_by_graph(monkeypatch):
+    from raphael_agent.graph import nodes
+    from raphael_agent.graph.state import initial_run_state
+
+    monkeypatch.delenv("RAPHAEL_MODEL_ENABLED", raising=False)
+    monkeypatch.setattr(nodes, "collect_evidence", lambda state: [])
+    state = initial_run_state({
+        "run_id": "disabled-trace", "tenant_id": "local-dev", "trigger": {"kind": "fixture"},
+        "repository": {"owner": "acme", "name": "checkout"}, "commit_sha": "abcdef1234567",
+    })
+    updates = nodes.node_evidence(state)
+    assert updates["model_results"]["trace_anomaly"] == {
+        "available": False, "reason": "disabled_by_environment",
+    }

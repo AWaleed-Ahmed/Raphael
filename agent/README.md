@@ -84,23 +84,26 @@ Priors nudge diagnosis confidence / escalate sooner on chronically rejected clas
 
 ### Local ML model adapters
 
-The lightweight local classifiers are connected to the graph through
-`raphael_agent.model_gateway.ModelGateway`. The gateway adapts provider-neutral
-APM/Kubernetes state into the five model inputs and converts predictions back
-into `RunState`, diagnosis, fault-candidate, and patch-template contracts.
-Deterministic analyzers, patch policy, and sandbox validation remain
-authoritative; unavailable artifacts or dependencies automatically fall back to
-the deterministic path.
+The local model artifacts are not currently runnable through a packaged
+inference runtime. The prediction implementation lives under the ignored
+`raphael/model/` training directory and is absent from fresh checkouts and
+installed agent packages. Local inference is therefore deferred and disabled
+by default; deterministic diagnosis, ranking, and patch behavior remain active.
+Setting `RAPHAEL_MODEL_ENABLED=1` while the runtime is unavailable does not
+stop normal execution. Each attempted graph capability records its unavailable
+reason in `model_results` or the audit trail.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `RAPHAEL_MODEL_ENABLED` | `1` | Set to `0` to disable local ML inference |
-| `RAPHAEL_MODEL_ROOT` | repository `models/` | Directory containing model subdirectories and `model.joblib` files |
+| `RAPHAEL_MODEL_ENABLED` | `0` | Opt in to local inference; currently unavailable in a clean checkout |
+| `RAPHAEL_MODEL_ROOT` | repository `models/` in a source checkout | Directory containing model subdirectories and `model.joblib` files; set explicitly for an installed package |
 
-Install the agent with `pip install -e .` after pulling the repository so the
-`joblib`, `numpy`, `scipy`, and `scikit-learn` runtime dependencies are present.
-Model outputs are recorded under the run's `model_results` field for audit and
-are never sufficient to publish without sandbox validation.
+Five trained artifact bundles are tracked under `models/`; their manifests list
+Python 3.12.3 and joblib 1.5.3, NumPy 2.5.2, SciPy 1.18.0, and scikit-learn
+1.9.0. Artifact presence and offline training metrics do not demonstrate live
+inference. See
+[`docs/local-inference-resolution-2026-10-20.md`](../docs/local-inference-resolution-2026-10-20.md)
+for the resolution and acceptance plan.
 
 ### Optional external model (BYOK)
 

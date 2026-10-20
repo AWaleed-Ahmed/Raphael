@@ -38,8 +38,8 @@ class ModelGateway:
     """Load model inference once and expose layer-specific adapters.
 
     Direct imports are used when the agent environment has the lightweight
-    model dependencies installed.  Setting ``RAPHAEL_MODEL_ENABLED=0``
-    disables all inference and preserves the deterministic-only path.
+    model dependencies installed. Local inference is disabled by default;
+    ``RAPHAEL_MODEL_ENABLED=1`` explicitly opts in to an available runtime.
     """
 
     def __init__(self, model_root: Path | str | None = None) -> None:
@@ -51,7 +51,7 @@ class ModelGateway:
 
     @property
     def enabled(self) -> bool:
-        return os.environ.get("RAPHAEL_MODEL_ENABLED", "1").strip().lower() not in {
+        return os.environ.get("RAPHAEL_MODEL_ENABLED", "0").strip().lower() not in {
             "0",
             "false",
             "no",
@@ -65,7 +65,7 @@ class ModelGateway:
         if self._predict_module is not None:
             return self._predict_module
         if not MODEL_SCRIPT.is_file():
-            self._load_error = f"predict_script_missing:{MODEL_SCRIPT}"
+            self._load_error = "predict_script_missing:raphael/model/predict.py is not packaged"
             return None
         try:
             # predict.py intentionally has dependency-light sibling imports
