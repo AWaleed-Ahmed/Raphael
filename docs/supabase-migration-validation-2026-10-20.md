@@ -140,3 +140,20 @@ and the qualification harness with a fake catalog and no executor. Frozen case
 labels, candidate pools and scorer weights were unchanged. Final replay: 4 ranking
 wins / 15 ties / 1 catalog-outage regression; expected images 2/2, negative refusals
 6/6, unsafe approvals 0. These are simulated results, not new live evidence.
+
+## CI fixture correction — 2026-10-20
+
+[Cross-repository run 39405584054](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39405584054)
+passed contracts, mock integration and Secret-kind controls but failed positive
+real-kind image repair at the fix_finalized assertion. Its artifact showed
+patch_value_unavailable, localization operation deploy, and baseline_count zero.
+The catalog fixture omitted operation, so the new exact-scope checks correctly
+rejected it. Contract renewal was unnecessary; the contracts check passed.
+
+The fixture builder now includes operation deploy. A loopback-REST/real-graph
+regression failed before this correction (baseline_count 0) and passed afterward,
+including exact approved-image selection. Production gates and contract pins are
+unchanged. Focused kind-harness, graph-localization and image-provenance tests:
+**52 passed, 13 subtests passed**. git diff --check passed. No new real cluster or
+Supabase requests were made for this correction. Per user instruction, delivery
+stops after commit/push without waiting for the new hosted CI run.

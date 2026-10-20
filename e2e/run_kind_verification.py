@@ -81,6 +81,17 @@ class CatalogFixture:
         return f"http://127.0.0.1:{self.server.server_port}"
 
 
+def catalog_baseline(source_commit):
+    """Catalog identity for the independently verified Ready fixture release."""
+    return {"healthy_trace_id": "kind-verified-baseline", "company_id": "proof-company",
+            "client_id": "proof-client", "service_name": "raphael-e2e-fixture", "environment": "kind-proof",
+            "operation": "deploy",
+            "repository": "proof-source/raphael-e2e-fixture", "verified_healthy": True,
+            "is_last_known_good": True, "source_commit_sha": source_commit,
+            "runtime_identity": {"resource_kind": "Deployment", "resource_name": "payments-api",
+                                 "container_images": {"api": "hashicorp/http-echo:1.0"}}}
+
+
 def commit_fixture(source, destination):
     shutil.copytree(source, destination)
     for args in (["git", "init"], ["git", "add", "."],
@@ -361,12 +372,7 @@ def main():
             healthy = wait_for(lambda: next((pod for pod in pods(namespace) if ready(pod)), None), "verified healthy baseline")
             assert healthy["spec"]["containers"][0]["image"] == "hashicorp/http-echo:1.0"
             assert healthy["status"]["containerStatuses"][0]["imageID"]
-            baseline = {"healthy_trace_id": "kind-verified-baseline", "company_id": "proof-company",
-                        "client_id": "proof-client", "service_name": "raphael-e2e-fixture", "environment": "kind-proof",
-                        "repository": "proof-source/raphael-e2e-fixture", "verified_healthy": True,
-                        "is_last_known_good": True, "source_commit_sha": shas["healthy"],
-                        "runtime_identity": {"resource_kind": "Deployment", "resource_name": "payments-api",
-                                             "container_images": {"api": "hashicorp/http-echo:1.0"}}}
+            baseline = catalog_baseline(shas["healthy"])
             (output / "baseline.json").write_text(json.dumps({"catalog_row": baseline, "ready_pod": healthy}, indent=2))
             for label in cases:
                 if label == "probe":
