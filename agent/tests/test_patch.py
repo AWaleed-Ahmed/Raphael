@@ -52,6 +52,24 @@ def test_policy_rejects_privilege():
     assert any(v["rule"] == "privilege_escape" for v in violations)
 
 
+def test_policy_rejects_delete_until_delivery_supports_it():
+    proposal = {
+        "files": [
+            {
+                "path": "deploy/obsolete.yaml",
+                "action": "delete",
+                "content": None,
+            }
+        ]
+    }
+    result = apply_policy(proposal)
+    assert result["policy_status"] == "rejected"
+    assert any(
+        violation["rule"] == "unsupported_delete_action"
+        for violation in result["policy_violations"]
+    )
+
+
 def test_propose_probe_fix_minimal(monkeypatch):
     monkeypatch.setenv("RAPHAEL_LLM_DIAGNOSIS", "0")
     run = {
