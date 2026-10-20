@@ -234,3 +234,7 @@ def test_counterfactual_sandbox_intervention_and_delta_debugging():
 
     minimal = controller.delta_debug_minimize_hunks(all_hunks, delta_deploy)
     assert minimal == ["hunk_causal"]
+
+
+def test_identical_trace_is_not_reported_as_divergence():
+    assert extract_trace_divergence_anchor([{'name': 'http'}, {'name': 'pay'}], ['http', 'pay']) is None

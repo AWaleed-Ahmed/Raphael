@@ -1,0 +1,741 @@
+{
+  "label": "SYNTHETIC OFFLINE REPLAY; no database or sandbox requests",
+  "revision": "f66a514d92115417a41fdbd1637ed01a9470a0ba",
+  "fixture_sha256": "0db6a547950afed0b22d7c74a3c9033c8ca2cac8b1fcc3d6bc7b57371fe8eac8",
+  "scorer_sha256": "b212493efed6a2f0da31d65e27fb6b112ee9a3cab896bc7c7378542c060bf86a",
+  "graph_sha256": "ab89ee8af236748c776b1ee4bcae146955aad171646652cba455927b5edbffd7",
+  "source_sha256": {
+    "agent/raphael_agent/graph/nodes.py": "ab89ee8af236748c776b1ee4bcae146955aad171646652cba455927b5edbffd7",
+    "agent/raphael_agent/localization/candidates.py": "b212493efed6a2f0da31d65e27fb6b112ee9a3cab896bc7c7378542c060bf86a",
+    "agent/raphael_agent/localization/anchors.py": "c1f32bb5894fedd7005665e07d09ceb9177053c4b99f2757c019aab59ad2e10d",
+    "agent/raphael_agent/localization/supabase_catalog.py": "f1359f06bfc6618c9764c407f86315042a77765af62895c601aaf6493185a215",
+    "agent/raphael_agent/patch/image_provenance.py": "48aff666427713b050f5112ffb821d4b2c41d70e740a436bd29e268cf4623915",
+    "agent/raphael_agent/patch/templates.py": "97c09ae6ad3deca05ace4414d5550c7a0a0d6f19271b721a11bd6946669e60f5"
+  },
+  "off_definition": "Same deterministic graph/scorer with no healthy catalog rows; candidate path pool is fixed",
+  "sandbox_validated_repairs": {
+    "status": "NOT RUN",
+    "attempts": 0,
+    "successes": null
+  },
+  "live_catalog_latency": null,
+  "summary": {
+    "off": {
+      "cases": 20,
+      "top1": 16,
+      "top3": 16,
+      "mrr": 0.85,
+      "correct_approved_images": 0,
+      "positive_image_cases": 2,
+      "correct_refusals": 6,
+      "negative_image_cases": 6,
+      "unsafe_approvals": 0,
+      "catalog_covered_cases": 0,
+      "catalog_failures": 0,
+      "mean_replay_ms": 2.636
+    },
+    "on": {
+      "cases": 20,
+      "top1": 19,
+      "top3": 19,
+      "mrr": 0.95,
+      "correct_approved_images": 2,
+      "positive_image_cases": 2,
+      "correct_refusals": 6,
+      "negative_image_cases": 6,
+      "unsafe_approvals": 0,
+      "catalog_covered_cases": 14,
+      "catalog_failures": 1,
+      "mean_replay_ms": 2.523
+    }
+  },
+  "paired_localization": {
+    "wins": [
+      "payment-timeout",
+      "inventory-shortfall",
+      "shipping-rate",
+      "tax-rounding"
+    ],
+    "regressions": [
+      "catalog-outage"
+    ],
+    "ties": 15
+  },
+  "cases": [
+    {
+      "id": "payment-timeout",
+      "kind": "source",
+      "truth": "src/payments.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py",
+          "src/payments.py"
+        ],
+        "rank": 4,
+        "rr": 0.25,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 5.845
+      },
+      "on": {
+        "ranking": [
+          "src/payments.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.498
+      }
+    },
+    {
+      "id": "inventory-shortfall",
+      "kind": "source",
+      "truth": "src/inventory.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py",
+          "src/inventory.py"
+        ],
+        "rank": 4,
+        "rr": 0.25,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.382
+      },
+      "on": {
+        "ranking": [
+          "src/inventory.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.456
+      }
+    },
+    {
+      "id": "shipping-rate",
+      "kind": "source",
+      "truth": "src/shipping.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py",
+          "src/shipping.py"
+        ],
+        "rank": 4,
+        "rr": 0.25,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.351
+      },
+      "on": {
+        "ranking": [
+          "src/shipping.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.372
+      }
+    },
+    {
+      "id": "tax-rounding",
+      "kind": "source",
+      "truth": "src/tax.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py",
+          "src/tax.py"
+        ],
+        "rank": 4,
+        "rr": 0.25,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.299
+      },
+      "on": {
+        "ranking": [
+          "src/tax.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.395
+      }
+    },
+    {
+      "id": "order-validation",
+      "kind": "source",
+      "truth": "src/orders.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/orders.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.584
+      },
+      "on": {
+        "ranking": [
+          "src/orders.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 3.288
+      }
+    },
+    {
+      "id": "refund-timeout",
+      "kind": "source",
+      "truth": "src/refunds.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/refunds.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.54
+      },
+      "on": {
+        "ranking": [
+          "src/refunds.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.958
+      }
+    },
+    {
+      "id": "stock-update",
+      "kind": "source",
+      "truth": "src/stock.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/stock.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.433
+      },
+      "on": {
+        "ranking": [
+          "src/stock.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 3.051
+      }
+    },
+    {
+      "id": "invoice-parse",
+      "kind": "source",
+      "truth": "src/invoice.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/invoice.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.453
+      },
+      "on": {
+        "ranking": [
+          "src/invoice.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.394
+      }
+    },
+    {
+      "id": "misleading-wrapper-span",
+      "kind": "source",
+      "truth": "src/checkout.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/checkout.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.355
+      },
+      "on": {
+        "ranking": [
+          "src/checkout.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.521
+      }
+    },
+    {
+      "id": "misleading-route-map",
+      "kind": "source",
+      "truth": "src/discount.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/discount.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.73
+      },
+      "on": {
+        "ranking": [
+          "src/discount.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.843
+      }
+    },
+    {
+      "id": "wrong-company-baseline",
+      "kind": "source",
+      "truth": "src/customer.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/customer.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.453
+      },
+      "on": {
+        "ranking": [
+          "src/customer.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.417
+      }
+    },
+    {
+      "id": "catalog-outage",
+      "kind": "source",
+      "truth": "src/session.py",
+      "expected_approval": null,
+      "off": {
+        "ranking": [
+          "src/session.py",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.391
+      },
+      "on": {
+        "ranking": [],
+        "rank": null,
+        "rr": 0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "error",
+        "milliseconds": 0.59
+      }
+    },
+    {
+      "id": "image-approved-api",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": true,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.492
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": "registry.example/checkout@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.72
+      }
+    },
+    {
+      "id": "image-approved-worker",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": true,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.643
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": "registry.example/checkout@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.545
+      }
+    },
+    {
+      "id": "image-unverified",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.429
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.641
+      }
+    },
+    {
+      "id": "image-no-commit",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.704
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.878
+      }
+    },
+    {
+      "id": "image-wrong-client",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.461
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.646
+      }
+    },
+    {
+      "id": "image-wrong-container",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.431
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 1,
+        "status": "completed",
+        "milliseconds": 2.477
+      }
+    },
+    {
+      "id": "image-conflicting-approvals",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.408
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 2,
+        "status": "completed",
+        "milliseconds": 2.479
+      }
+    },
+    {
+      "id": "image-missing-baseline",
+      "kind": "image",
+      "truth": "deploy/app.yaml",
+      "expected_approval": false,
+      "off": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.328
+      },
+      "on": {
+        "ranking": [
+          "deploy/app.yaml",
+          "src/http.py",
+          "src/cache.py",
+          "src/queue.py"
+        ],
+        "rank": 1,
+        "rr": 1.0,
+        "approved_image": null,
+        "baseline_count": 0,
+        "status": "completed",
+        "milliseconds": 2.296
+      }
+    }
+  ]
+}

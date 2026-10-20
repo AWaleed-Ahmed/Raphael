@@ -278,3 +278,16 @@ needed. Remove only the pilot root you created after inspecting it and confirmin
 no owned jobs/processes remain. Real-backend namespaces must be cleaned up by the
 owned executor/harness procedure before discarding its recovery journal; do not
 substitute arbitrary production `kubectl delete` operations.
+
+## 9. Supabase localization qualification boundary
+
+Leave `RAPHAEL_HEALTHY_CATALOG_ENABLED=0` for the basic pilot. Setting Supabase
+credentials does not qualify or enable healthy-baseline localization. Explicit
+opt-in additionally requires both fixed backend `RAPHAEL_COMPANY_ID` and
+`RAPHAEL_CLIENT_ID`; request-supplied scope cannot override them. Live ingestion,
+actual JWT HTTP access, image repair and production localization benefit remain
+deferred. SQL-role tenant isolation passed the
+[database checks](supabase-migration-validation-2026-10-20.md) with simulated claims.
+The [dated qualification procedure](supabase-localization-qualification-2026-10-20.md)
+provides test-project migration/JWT/workload inputs, a credential-gated harness,
+and exact cleanup. Its direct fixture seeding is not production ingestion.

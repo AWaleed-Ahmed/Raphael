@@ -17,6 +17,13 @@ REPO = Path(__file__).resolve().parents[2]
 PROBE_WS = REPO / "agent" / "fixtures" / "scenarios" / "probe_port_mismatch"
 
 
+@pytest.fixture(autouse=True)
+def catalog_patch_scope(monkeypatch):
+    monkeypatch.setenv("RAPHAEL_HEALTHY_CATALOG_ENABLED", "1")
+    monkeypatch.setenv("RAPHAEL_COMPANY_ID", "company-a")
+    monkeypatch.setenv("RAPHAEL_CLIENT_ID", "client-a")
+
+
 def test_path_allowlist():
     assert path_allowed("deploy/manifests/app.yaml")
     assert path_allowed(".github/workflows/deploy.yml")
@@ -97,6 +104,7 @@ def _image_signature(name="target", container="app"):
 
 def _image_run(signature, rendered_files):
     return {
+        "company_id": "company-a", "client_id": "client-a",
         "failure_signature": signature,
         "rendered_files": rendered_files,
         "repository": {"owner": "acme", "name": "app"},
@@ -109,6 +117,7 @@ def _image_run(signature, rendered_files):
                 "container_name": "app",
                 "source": {
                     "kind": "verified_healthy_trace",
+                    "company_id": "company-a", "client_id": "client-a",
                     "healthy_trace_id": "healthy-1",
                     "source_commit_sha": "b" * 40,
                     "repository": "acme/app",
@@ -398,3 +407,19 @@ def test_apply_policy_sets_rejected():
     }
     updated = apply_policy(proposal)
     assert updated["policy_status"] == "rejected"
+
+
+@pytest.mark.parametrize('field,value', [('company_id', 'other'), ('client_id', 'other'), ('namespace', 'other'), ('cluster', 'other')])
+def test_image_patch_rechecks_scope_after_localization(field, value):
+    run = _image_run(_image_signature(), _rendered('''kind: Deployment
+metadata: {name: target}
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: ghcr.io/acme/app:does-not-exist
+'''))
+    run['localization_result']['approved_image_replacement']['source'][field] = value
+    with pytest.raises(TemplateRefusal):
+        fix_bad_image(run)

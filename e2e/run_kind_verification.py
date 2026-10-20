@@ -45,7 +45,7 @@ class CatalogFixture:
                 fixture.requests.append({"path": path.path, "query": query})
                 rows = []
                 if path.path.endswith("/raphael_clients") and query.get("client_id") == ["eq.proof-client"]:
-                    rows = [{"client_id": "proof-client", "company_id": "proof-company", "client_name": "kind-proof"}]
+                    rows = [{"client_id": "proof-client", "company_id": "proof-company", "client_name": "kind-proof", "status": "active"}]
                 elif path.path.endswith("/raphael_healthy_traces") and all(
                     query.get(key) == ["eq." + baseline[key]]
                     for key in ("company_id", "client_id", "service_name", "environment")
@@ -205,7 +205,7 @@ def run_case(label, fixture, sha, output, catalog=None):
     if label == "probe":
         env["RAPHAEL_SECRET_FIXTURE_SET"] = "payments-test"
     if catalog:
-        env.update(SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
+        env.update(RAPHAEL_HEALTHY_CATALOG_ENABLED="1", SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
                    RAPHAEL_CLIENT_ID="proof-client", RAPHAEL_COMPANY_ID="proof-company",
                    RAPHAEL_DEFAULT_ENVIRONMENT="kind-proof")
     namespace = None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import re
 from typing import Any
 
@@ -239,7 +240,17 @@ def fix_bad_image(run: dict[str, Any]) -> list[dict[str, Any]] | None:
     repo = run.get("repository") or {}
     expected_repo = "/".join(part for part in (repo.get("owner"), repo.get("name")) if part)
     if (
-        replacement.get("resource_name") != name
+        os.environ.get("RAPHAEL_HEALTHY_CATALOG_ENABLED", "0").lower() not in {"1", "true", "yes", "on"}
+        or not os.environ.get("RAPHAEL_COMPANY_ID")
+        or not os.environ.get("RAPHAEL_CLIENT_ID")
+        or source.get("company_id") != os.environ.get("RAPHAEL_COMPANY_ID")
+        or source.get("client_id") != os.environ.get("RAPHAEL_CLIENT_ID")
+        or run.get("company_id") != source.get("company_id")
+        or run.get("client_id") != source.get("client_id")
+        or any(source.get(field) != norm.get(field) for field in ("namespace", "cluster")
+               if source.get(field) is not None or norm.get(field) is not None)
+        or (run.get("target_environment") is not None and run.get("target_environment") != source.get("environment"))
+        or replacement.get("resource_name") != name
         or replacement.get("container_name") != norm.get("container")
         or not isinstance(replacement.get("image"), str)
         or not replacement.get("image")

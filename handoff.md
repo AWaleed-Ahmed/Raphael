@@ -1,5 +1,16 @@
 # Raphael contributor map
 
+**Supabase migrations — 2026-10-20:** user-authorized run applied telemetry,
+client-scope RLS, and API privilege restriction migrations to Raphael. All seven
+versions now match remotely; 31 live SQL checks passed. Public Flask repository
+identity fixtures used synthetic tenants and simulated issuer claims, not observed
+healthy deployments. Zero fixture rows remain; existing row hashes match. Actual
+JWT HTTP access, ingestion and sandbox repair remain deferred. See
+[migration validation](docs/supabase-migration-validation-2026-10-20.md). Delivery
+is isolated on `fix/supabase-localization-qualification` from main `52e5305`;
+unrelated working-tree edits are excluded. Agent/kind-harness tests: 524 passed,
+4 skipped. The earlier investigation below predates the authorized database run.
+
 **Issue reconciliation — 2026-10-20:** #30 structural Secret coverage, #33 observed
 signature identity, #34 replacement-image provenance policy, and #37 image-gap
 presentation meet their original acceptance criteria on GitHub main `0dc46c4`
@@ -336,3 +347,27 @@ PR #32 is reconciled with current main: obsolete rollout/backend fixes and share
 ### Verified kind delivery evidence
 
 [Core 37442412446](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37442412446) and [cross-repo 37442412528](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37442412528) passed on the corrected implementation. Three new real-kind controls establish probe repair, no-provenance image refusal and seeded-provenance image repair; existing mock and six Secret-kind controls also passed. The review records fixture/baseline SHAs, expected/actual outcomes, the initial fixture correction and retained artifact names. Live BYOK calls and real Supabase ingestion remain unverified; Ignis #11/#17 and local classifier #40 remain open.
+
+### Supabase localization prove-or-defer — 2026-10-20
+
+**Deferred from pilot claims:** live healthy ingestion/retrieval, live tenant isolation,
+Supabase-backed approved-image sandbox validation, and measured production localization
+benefit. The local `.env` has Supabase configuration, but disposable-project authorization,
+migration permission, scoped test JWTs, an authorized executor/workload and independent
+healthy deployment observations were not supplied. No live database request, migration
+or sandbox mutation occurred. There is no production healthy-baseline writer: existing
+methods and fake scripts perform direct backend writes only.
+
+Catalog assistance now defaults off and opt-in binds company/client to backend configuration.
+The adapter and graph recheck scope before consuming baseline fields; image resolution and
+templates recheck tenant/release/runtime provenance. Opaque Supabase secret headers,
+bounded/sanitized REST errors, structured-span comparison and false divergence bonuses
+were corrected. A new client-PK/client-scoped RLS migration is prepared but not applied.
+A runnable credential-gated fixture/RLS harness and exact-row cleanup procedure are in
+[the qualification record](docs/supabase-localization-qualification-2026-10-20.md).
+The 20-case synthetic paired replay reports 4 wins / 15 ties / 1 outage regression,
+Top-1 16/20 → 19/20, MRR .85 → .95, and zero unsafe image approvals; this is not a
+real incident/repair study. The full local run had 437 passes, 4 skips and one pre-existing
+local-inference escalation-reason scanner failure; relevant safety tests pass. Unrelated
+worktree edits were preserved. No issues were closed, and no commit/push/PR was made for
+this task.

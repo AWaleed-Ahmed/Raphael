@@ -1,0 +1,1 @@
+{"upToDate":false,"dryRun":false,"migrations":["20260819000000_create_raphael_telemetry.sql","20261020000000_scope_catalog_clients.sql","20261020000001_restrict_catalog_privileges.sql"],"seeds":[],"roles":[],"message":"Finished supabase db push."}

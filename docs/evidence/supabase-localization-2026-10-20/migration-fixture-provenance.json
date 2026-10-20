@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/pallets/flask",
+  "release": "3.1.2",
+  "commit": "2c1b30d0503cfb064f1cb252e6614a06915a362a",
+  "source_url": "https://github.com/pallets/flask/blob/2c1b30d0503cfb064f1cb252e6614a06915a362a/examples/tutorial/flaskr/__init__.py#L29",
+  "source_sha256": "ecfe54451a0cb1cfb8aac26d0f65bdfc4b1fc5ccd7148f4ad38829a8ba26f03a",
+  "source_path": "examples/tutorial/flaskr/__init__.py",
+  "source_line": 29,
+  "source_symbol": "hello",
+  "route": "GET /hello",
+  "fixture_kind": "real public source identity; synthetic tenant and trace/health assertions; no observed deployment",
+  "test_sql_sha256": "6ffcdeba2448deb4dbb7a7f999f7fea83487457afa796f99bcf57d59467d4a2c",
+  "migration_sha256": {
+    "20260815000000_create_raphael_catalog.sql": "42f2ee20e6293d0344d5807e441d50b4c7b604ec7ba0ceb99f46c7bd6db83218",
+    "20260816000000_grant_raphael_catalog_privileges.sql": "367b07f03519e790428d17dc1142aee0d4c6582065913ff669927abfd5c3eae8",
+    "20260816000001_normalize_catalog_identity.sql": "3050df40ef19aa1b6ec12d052b1bb911f05820a59a92f1bb667a9eacc345a997",
+    "20260816000002_normalize_upsert_identity.sql": "9f2232ebe0cb318a091d2a3254a3cb5d587905f2b2bc9a3d077685892cca0f28",
+    "20260819000000_create_raphael_telemetry.sql": "295667279c85cdd336fc616dca9edf193bbb7e3992cfc958353f53a2c084a320",
+    "20261020000000_scope_catalog_clients.sql": "70bac21f60257f1670f64adcefdcd1b9b6fd961f4f457255ac82c687819a8dfe",
+    "20261020000001_restrict_catalog_privileges.sql": "391782ca3812c2ba933a0f77b05550f43e0f66ea1a50cfcf412437bd04e18a35"
+  }
+}

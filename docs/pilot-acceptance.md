@@ -46,3 +46,17 @@ or completed customer-pilot result is implied.
 Horizontal SaaS scaling, other CI hosts and generalized failure-class coverage
 remain future work. Local inference is deferred by merged #59; #40 remains open. Learning is off
 pending measured benefit. Production mutation and automatic merge remain prohibited.
+
+## Supabase localization cut — 2026-10-20
+
+Defer live healthy ingestion, real-JWT tenant access, approved-image sandbox repair
+and measured production localization benefit. The authorized
+[database migration checks](supabase-migration-validation-2026-10-20.md) passed
+31 assertions under SQL roles with simulated claims; fixture cleanup was verified. Catalog assistance defaults
+off (`RAPHAEL_HEALTHY_CATALOG_ENABLED=0`); credentials alone do not enable it.
+The 20-case synthetic replay had 4 wins, 15 ties and 1 regression, with zero unsafe
+image approvals; it is not live ingestion or deployment evidence. Opt-in requires
+an authorized test project plus fixed backend company/client scope. Missing or
+wrong-scope baselines must continue to refuse image repair. See the
+[qualification record](supabase-localization-qualification-2026-10-20.md) for verdicts,
+controls, outstanding inputs and the runnable live procedure.
