@@ -45,6 +45,22 @@ def _request(client: httpx.Client, config: BYOKConfig, method: str, url: str,
     with client.stream(method, url, headers={**auth, "Content-Type": "application/json"},
                        content=encoded, timeout=min(remaining, config.timeout_seconds)) as response:
         if response.status_code == 429:
+            if config.provider == LLMProvider.OPENAI:
+                raw_error = bytearray()
+                for chunk in response.iter_bytes():
+                    raw_error.extend(chunk)
+                    if len(raw_error) > MAX_RESPONSE_BYTES:
+                        raise BYOKError("response_too_large")
+                try:
+                    error = json.loads(raw_error).get("error", {})
+                except (ValueError, AttributeError):
+                    error = {}
+                code = error.get("code") if isinstance(error, dict) else None
+                is_rate_limit = code in {"rate_limit_exceeded", "slow_down"} or (
+                    code is None and isinstance(error, dict) and error.get("type") == "rate_limit_error"
+                )
+                if not is_rate_limit:
+                    raise BYOKError("provider_http_429")
             raise BYOKError("provider_quota_or_rate_limit")
         if response.status_code != 200:
             raise BYOKError(f"provider_http_{response.status_code}")
@@ -75,6 +91,10 @@ def _text_model(name: str, provider: LLMProvider) -> bool:
         return name.startswith(("gpt-", "chatgpt-", "o1", "o3", "o4")) and "-pro" not in name
     if provider == LLMProvider.ANTHROPIC:
         return name.startswith("claude-")
+    if provider == LLMProvider.GEMINI:
+        return name.startswith("gemini-") and not any(
+            part in name.lower() for part in ("banana", "omni", "robotics", "computer-use")
+        )
     return True
 
 

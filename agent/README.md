@@ -130,12 +130,21 @@ Keys are resolved only after enable/safety checks. Missing keys skip the optiona
 invalid configuration, network/provider errors or invalid output fail closed. HTTPS is
 required except for an explicitly configured loopback OpenAI-compatible endpoint.
 URLs cannot contain embedded credentials, query strings or fragments. Redirects are disabled;
-automatic mode rotates only on quota/rate-limit responses. Explicit models never rotate. Credentials and raw provider responses
+automatic mode rotates on 429 responses for non-OpenAI providers; qualify custom endpoint error semantics individually. For OpenAI it
+rotates only when the documented error type/code identifies a rate limit, not
+billing/account quota. Explicit models never rotate. Credentials and raw provider responses
 are not added to RunState or telemetry. Responses echoing the configured key are rejected.
 
 For Gemini, set `RAPHAEL_LLM_PROVIDER=gemini`, supply `GEMINI_API_KEY` locally, and
 optionally set `RAPHAEL_LLM_MODEL` to pin a model available to that account.
 The default endpoint follows [Google's compatibility documentation](https://ai.google.dev/gemini-api/docs/openai).
+The 2026-10-20 Linux qualification verified authenticated discovery and a pinned
+`gemini-3.1-flash-lite` one-line synthetic patch through `try_llm_patch`, using
+255 prompt and 98 output tokens. Automatic smoke selected an incompatible
+catalog candidate and failed safely; the candidate filter was tightened and
+verified offline. Pin the demonstrated model for reproducibility; corrected
+automatic selection has not been rerun live. The 128-token qualification cap
+was specific to this tiny fixture, not a general diagnosis/patch output budget.
 
 Local example (Ollama):
 
@@ -159,10 +168,14 @@ Anthropic uses `/models?limit=1000` and the native Messages protocol; JSON is
 prompt-requested and strictly parsed locally. Compatible models must support
 chat and JSON-object output; catalog visibility does not prove compatibility
 or authorization. Public gateway catalogs are not key-specific entitlement lists.
+Live qualification observations for the earlier three-provider snapshot are in
+[`docs/byok-live-qualification-2026-10-20.md`](../docs/byok-live-qualification-2026-10-20.md).
 
 An opt-in synthetic connectivity smoke is available after configuring a key:
-`python -m raphael_agent.scripts.byok_smoke --live`. It sends one synthetic request
-and does not prove diagnosis correctness, patch policy or live publication. Routine CI
+`python -m raphael_agent.scripts.byok_smoke --live`. It invokes one JSON operation;
+automatic mode can send a catalog GET plus up to eight completion attempts.
+Pin a model for one completion attempt. It does not prove diagnosis correctness,
+patch policy or live publication. Routine CI
 uses stubbed responses and needs no live provider key.
 
 Live draft PR only when: `PARTNER_MODE=allowlist` **and** `PUBLISH_MODE=live` **and** class allowlisted **and** token present.

@@ -110,7 +110,7 @@ def test_transport_request_and_response(monkeypatch):
     assert config.api_key not in repr(result)
 
 
-@pytest.mark.parametrize("status", [301, 401, 403, 429, 500])
+@pytest.mark.parametrize("status", [301, 401, 403, 404, 429, 500])
 def test_provider_errors_do_not_echo_payload_or_credentials(monkeypatch, status):
     config = configured(monkeypatch)
     mock_transport(monkeypatch, lambda r: httpx.Response(status, text=config.api_key))
@@ -134,6 +134,7 @@ def test_transport_exceptions_are_sanitized(monkeypatch, error, code):
     ({}, "invalid_provider_response"),
     ({"choices": []}, "invalid_provider_response"),
     ({"choices": [{"message": {"content": "not json"}}]}, "invalid_provider_response"),
+    ({"choices": [{"message": {"content": ""}}]}, "invalid_provider_response"),
     ({"choices": [{"message": {"content": "[]"}}]}, "json_object_required"),
     ({"choices": [{"message": {"content": None}}]}, "invalid_content"),
 ])
@@ -285,6 +286,7 @@ def test_gemini_discovery_filters_and_rotates_on_quota(monkeypatch):
             assert config.api_key not in str(request.url)
             return httpx.Response(200, json={"models": [
                 {"name": "models/gemini-a", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-a", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-b", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/embedding-model", "supportedGenerationMethods": ["embedContent"]},
                 {"name": "models/gemini-image", "supportedGenerationMethods": ["generateContent"]}]})
@@ -297,6 +299,56 @@ def test_gemini_discovery_filters_and_rotates_on_quota(monkeypatch):
     assert result.model == "gemini-b"
     assert len(calls) == 3
     assert [json.loads(r.content)["model"] for r in calls[1:]] == ["gemini-a", "gemini-b"]
+
+
+def test_gemini_discovery_excludes_specialized_generation_models(monkeypatch):
+    stable_order(monkeypatch)
+    config = replace(configured(monkeypatch), model=None)
+    # Names observed in the authenticated 2026-10-20 catalog; generateContent alone
+    # did not make antigravity compatible with this chat/JSON request.
+    names = ["antigravity-preview-09-2026", "gemini-3.1-flash-lite",
+             "gemini-nano-banana-2.1", "gemini-omni-1.1-flash",
+             "gemini-robotics-er-2-preview", "gemini-2.5-computer-use-preview-10-2025",
+             "lyria-3.5", "gemma-4-31b-it", "nano-banana-pro-preview"]
+    attempted = []
+    def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"models": [
+                {"name": "models/" + name, "supportedGenerationMethods": ["generateContent"]}
+                for name in names]})
+        attempted.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json=response({"ok": True}))
+    mock_transport(monkeypatch, handle)
+    assert client.complete_json(config, system="JSON", payload={}).model == "gemini-3.1-flash-lite"
+    assert attempted == ["gemini-3.1-flash-lite"]
+
+
+@pytest.mark.parametrize("error,rotates", [
+    ({"type": "rate_limit_error", "code": "rate_limit_exceeded"}, True),
+    ({"type": "rate_limit_error", "code": "insufficient_quota"}, False),
+    ({"type": "insufficient_quota", "code": "insufficient_quota"}, False),
+])
+def test_openai_429_rotation_only_for_rate_limit(monkeypatch, error, rotates):
+    stable_order(monkeypatch)
+    config = BYOKConfig(api_key="synthetic-openai-key", provider="openai")
+    attempted = []
+    def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": [{"id": "gpt-a"}, {"id": "gpt-b"}]})
+        model = json.loads(request.content)["model"]
+        attempted.append(model)
+        if model == "gpt-a":
+            return httpx.Response(429, json={"error": error})
+        return httpx.Response(200, json=response({"ok": True}))
+    mock_transport(monkeypatch, handle)
+    if rotates:
+        result = client.complete_json(config, system="JSON", payload={})
+        assert result.model == "gpt-b"
+        assert attempted == ["gpt-a", "gpt-b"]
+    else:
+        with pytest.raises(client.BYOKError, match="provider_http_429"):
+            client.complete_json(config, system="JSON", payload={})
+        assert attempted == ["gpt-a"]
 
 
 @pytest.mark.parametrize("provider", [LLMProvider.OPENAI, LLMProvider.CUSTOM_OPENAI])
@@ -359,6 +411,17 @@ def test_no_compatible_models_stops_without_completion(monkeypatch, data):
     mock_transport(monkeypatch, handle)
     with pytest.raises(client.BYOKError, match="no_compatible_models_available"):
         client.complete_json(replace(configured(monkeypatch), model=None), system="test", payload={})
+
+
+def test_discovery_quota_failure_stops_without_completion(monkeypatch):
+    calls = []
+    def handle(request):
+        calls.append(request.method)
+        return httpx.Response(429)
+    mock_transport(monkeypatch, handle)
+    with pytest.raises(client.BYOKError, match="provider_quota_or_rate_limit"):
+        client.complete_json(replace(configured(monkeypatch), model=None), system="test", payload={})
+    assert calls == ["GET"]
 
 
 def test_non_quota_failure_does_not_rotate(monkeypatch):
@@ -425,7 +488,9 @@ def test_named_providers_reuse_completion_and_quota_rotation(monkeypatch, provid
     stable_order(monkeypatch)
     config = BYOKConfig(api_key="private-fixture-key", provider=provider,
                         model=None if automatic else "pinned-model")
-    models = ["claude-a", "claude-b"] if provider == LLMProvider.ANTHROPIC else ["gpt-a", "gpt-b"]
+    models = (["claude-a", "claude-b"] if provider == LLMProvider.ANTHROPIC
+              else ["gemini-a", "gemini-b"] if provider == LLMProvider.GEMINI
+              else ["gpt-a", "gpt-b"])
     attempts = []
     catalogs = []
 
@@ -461,7 +526,8 @@ def test_named_providers_reuse_completion_and_quota_rotation(monkeypatch, provid
             assert request.url.path.endswith("/chat/completions")
             assert body["response_format"] == {"type": "json_object"}
         if automatic and len(attempts) == 1:
-            return httpx.Response(429)
+            return httpx.Response(429, json={"error": {"type": "rate_limit_error",
+                                                       "code": "rate_limit_exceeded"}})
         result = anthropic_response() if provider == LLMProvider.ANTHROPIC else response({"ok": True})
         return httpx.Response(200, json=result)
 
