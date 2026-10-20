@@ -1,171 +1,98 @@
-# Pilot week runbook (5 days)
+# Pilot milestone runbook
 
-Actionable day-by-day plan for a design partner. Builds on:
+Updated 2026-10-20. Gates replace the expired five-day schedule. Start with the
+[canonical installation](pilot-install.md), [permission matrix](permission-matrix.md)
+and [acceptance checklist](pilot-acceptance.md). No partner timeline is committed.
 
-- [`pilot-install.md`](pilot-install.md)
-- [`permission-matrix.md`](permission-matrix.md)
-- [`pilot-acceptance.md`](pilot-acceptance.md)
+## Gate 1 — Access and selected pilot cut
 
-**Hard rules:** partner `dry_run` until go; no auto-merge; no production writes; no Secret payload reads; empty live allowlist ⇒ no live PRs.
+Record the authorized staging repository, immutable revision, webhook ownership,
+permission profile, sandbox context and optional provider/catalog choices. Obtain
+webhook HMAC and any backend credentials through the partner's secrets manager.
+Review customer App/PAT permissions; do not assume App auth or event intake is
+missing merely because customer provisioning has not been qualified.
 
----
+Exit: partner approves read-only production evidence access, sandbox isolation,
+retention and no Secret payload reads. No infrastructure is provisioned by this runbook.
 
-## Day 0 — Access & secrets (before kickoff)
+## Gate 2 — Install and local proof
 
-- [ ] Partner provides: staging GitHub repo, webhook URL reachability, optional PAT (draft PR scopes only)
-- [ ] Set `RAPHAEL_GITHUB_WEBHOOK_SECRET` (required in partner env; optional only for local unsigned curl)
-- [ ] Confirm production evidence SA cannot get Secret `data` / cannot patch workloads ([permission-matrix](permission-matrix.md))
-- [ ] Clone Raphael; `cd agent && pip install -e .`
-- [ ] Run go/no-go:
+Follow the canonical guide's exact pair and explicit environment profile. Confirm
+combined core plus embedded connector health/auth, durable stores and dry-run
+recorded smoke. Compare results with [local preflight](pilot-local-preflight.md).
+A local `go=True` checks configuration only.
 
-```bash
-cd agent
-# Windows PowerShell
-$env:RAPHAEL_PARTNER_MODE="dry_run"
-$env:RAPHAEL_LLM_DIAGNOSIS="0"
-python -m raphael_agent.scripts.pilot_go_nogo
-```
+Exit: installed revisions and executed commands are recorded; blocked steps name
+the missing prerequisite. Keep all publication, comments, labels and Checks off.
 
-Expect `go=True`.
+## Gate 3 — Optional integration qualification
 
----
+Only enable the integrations chosen and authorized in Gate 1:
 
-## Day 1 — Install + local proof
-
-- [ ] Start sandbox mock (or kind if available) per install doc
-- [ ] `python -m raphael_agent.scripts.demo_partner` → `success_draft_pr_ready` + `raphael_dry_run=1`
-- [ ] `pytest -q` in `agent/`
-- [ ] `python -m raphael_agent.scripts.metrics`
-- [ ] Point GitHub webhook at `POST /v1/webhooks/github` for `workflow_run`, `check_run`, `pull_request`, and **`issue_comment`**
-- [ ] For each pilot repository, record repository owner/name, default branch, webhook delivery IDs, and the GitHub App/PAT permission profile before enabling commands
-
-- [ ] Leave GitHub-native knobs **off** until the smoke below: `RAPHAEL_GITHUB_COMMANDS=0`, `RAPHAEL_GITHUB_CHECK_RUNS=0` (`AUTO_COMMENTS` unset inherits commands)
-- [ ] Also subscribe `issues` if using Route B (`raphael:fix`)
-
-### Dry-run GitHub command smoke (GH-M1/M2)
-
-Keep `RAPHAEL_PARTNER_MODE=dry_run`. Enable parse only for this smoke:
-
-```powershell
-$env:RAPHAEL_GITHUB_COMMANDS="1"
-# AUTO_COMMENTS unset → follows COMMANDS (terminal comments/labels/sticky)
-# Do not set RAPHAEL_GITHUB_CHECK_RUNS=1 unless Checks write is granted and still not required for merge
-```
-
-On a fixture Issue/PR linked to a finished dry-run (or pass an explicit `run_id`):
-
-- [ ] `/raphael help` — lists implemented verbs + partner/publish mode; no secrets
-- [ ] `/raphael status` (or `/raphael status run-…`) — `run_id`, class, confidence, mode
-- [ ] `/raphael feedback rejected` — FR-065 event in `feedback.jsonl` (never merges)
-- [ ] `/raphael retry` as admin/team — new `run_id` + `parent_run_id`; **never a live PR** under `PARTNER_MODE=dry_run` even if `RAPHAEL_PUBLISH_MODE=live` is mis-set
-
-Local (no token; assert markdown on the webhook JSON):
+- Signed GitHub traffic: configure `/v1/webhooks/github`, HMAC and event subscriptions;
+  record delivery IDs and confirm deduplication. GitHub commands/comments/Checks
+  can mutate GitHub even when patch publication is dry-run; review permissions first.
+- Supabase: use an approved disposable test project, migrations and backend keys.
+  From the Raphael root with the venv active and environment explicitly loaded:
 
 ```bash
-cd agent
-pytest -q tests/test_github_commands.py tests/test_github_check_runs.py
+export RAPHAEL_CLIENT_ID="fake-telemetry-client"
+export RAPHAEL_FAKE_RUN_ID="fake-telemetry-run-001"
+python agent/scripts/test_supabase_telemetry.py
 ```
 
-`cancel` / `diagnose` / `fix` are implemented with permission checks and safety gates. Keep `RAPHAEL_GITHUB_CHECK_RUNS=0` unless advisory Checks are explicitly approved; never require Raphael for merging.
+This writes persistent fake rows. Check company/client/project/repository/run
+scope and plan approved cleanup. The generic trace smoke does not qualify the
+image baseline pipeline; qualify ingestion, provenance, wrong-scope rejection
+and repair/refusal separately before claiming live catalog acceptance.
 
-### Fake telemetry verification before partner data
+- BYOK: provider adapter presence is not live qualification. Obtain explicit call
+  budget approval and pin the model; preserve schema/policy checks and failure controls.
+- Kubernetes: qualify only an owned sandbox context and selected workload; existing
+  Linux kind proof is not certification of the partner's infrastructure.
 
-Run the credential-gated smoke test with backend-only Supabase credentials. It creates or reuses a fake client, uploads one redacted terminal outcome, and queries it back by company, client, project, and run ID while asserting the repository identity:
+Exit: each selected integration has actual evidence or is explicitly excluded
+from the pilot cut. Do not silently enable unqualified localization or learning.
 
-```powershell
-$env:RAPHAEL_CLIENT_ID="fake-telemetry-client"
-$env:RAPHAEL_FAKE_RUN_ID="fake-telemetry-run-001"
-python -m raphael_agent.scripts.test_supabase_telemetry
-```
+## Gate 4 — At least five real dry-run failures
 
-The output must contain exactly the expected `company_id`, `client_id`, `project_name`, repository owner/name, run ID, and at least one matching row. Do not print or paste Supabase service-role credentials into tickets, logs, or pull requests.
+Keep `RAPHAEL_PARTNER_MODE=dry_run`, `RAPHAEL_PUBLISH_MODE=dry_run` and an empty
+live allowlist. Record ≥5 real eligible failures: delivery ID, run ID, repository,
+SHA, class, bounded evidence, candidate patch, sandbox/cleanup results, terminal
+reason, reviewer judgment and false positives. An escalation is labelled as such.
 
----
-
-## Day 2–3 — Dry-run ≥5 real GitHub failures
-
-Use at least five failures from real partner repositories, but keep every run in `RAPHAEL_PARTNER_MODE=dry_run`. Start with ordinary CI/workflow failures and do not include production clusters or repositories containing secrets in captured evidence. For each failure, preserve the webhook delivery ID, repository, commit SHA, failure class, diagnosis, candidate fix, sandbox result, terminal status, and human judgment. Never post a PR or issue fix during this phase.
-
-- [ ] Keep `RAPHAEL_PARTNER_MODE=dry_run` (forces dry-run even if someone sets `PUBLISH_MODE=live`)
-- [ ] Capture ≥5 eligible failures into RunStore / triage sheet:
-
-| # | run_id | repo/sha | failure_class | terminal | false positive? | notes |
-|---|--------|----------|---------------|----------|-----------------|-------|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| 3 | | | | | | |
-| 4 | | | | | | |
-| 5 | | | | | | |
-
-- [ ] Record human judgment:
+Manual feedback example (replace the quoted example IDs with actual IDs):
 
 ```bash
-python -m raphael_agent.scripts.record_feedback `
-  --outcome rejected `
-  --run-id <run_id> `
-  --result-id <result_id> `
+python -m raphael_agent.scripts.record_feedback \
+  --outcome rejected \
+  --run-id "example-run-id" \
+  --result-id "example-result-id" \
   --notes "false positive: probe flapping"
 ```
 
-Or `POST /v1/feedback` with the same fields.
+This writes local feedback; it is not a model-training or improvement proof.
+The HTTP alternative is `POST /v1/feedback`; webhook feedback uses authorized
+`pull_request` events. Review metrics with:
 
----
-
-## Day 4 — Triage + go/no-go for live allowlist
-
-- [ ] Re-run `python -m raphael_agent.scripts.pilot_go_nogo`
-- [ ] Security review of PAT scopes + SA deny list
-- [ ] **GO** only if: ≥5 dry-runs reviewed, false-positive rate acceptable, narrow class chosen
-
-### Live allowlist flip (optional, single class)
-
-```powershell
-$env:RAPHAEL_PARTNER_MODE="allowlist"
-$env:RAPHAEL_PUBLISH_MODE="live"
-$env:RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES="probe_misconfiguration"
-$env:RAPHAEL_GITHUB_TOKEN="ghp_..."
+```bash
+python -m raphael_agent.scripts.metrics
 python -m raphael_agent.scripts.pilot_go_nogo
 ```
 
-**NO-GO if:** empty allowlist, missing token, `RAPHAEL_AUTO_MERGE` set, broad allowlist (>3 classes), LLM left on without review.
+Exit: partner reviews all runs and false positives; unmet PRD benchmark/accuracy/
+timing targets remain visible rather than inferred from fixture counts.
 
----
+## Gate 5 — Separate approval for live drafts
 
-## Day 5 — Limited live drafts + feedback
+Only after explicit partner/security approval, change the operator-owned service
+profile to partner `allowlist`, publish `live`, one proven failure class and scoped
+GitHub write credentials. Reload/restart the services that read those settings.
+An environment command in another terminal does not reconfigure a running server.
+Run go/no-go, verify draft-only behavior and retain human merge control. Empty
+allowlist, missing credentials, auto-merge or unreviewed model use is a no-go.
+Advisory Checks must never become required merge checks.
 
-- [ ] Allowlist live for **one** class only (recommend `probe_misconfiguration`)
-- [ ] Confirm PRs are **draft**; humans merge
-- [ ] On accept/reject/merge, ensure feedback lands:
-
-```bash
-python -m raphael_agent.scripts.record_feedback --outcome accepted --run-id ... --pr-url ...
-python -m raphael_agent.scripts.record_feedback --outcome merged --run-id ... --pr-number ...
-```
-
-Webhook `pull_request` closed/merged also appends to `feedback.jsonl` under `RAPHAEL_AGENT_DATA_DIR`.
-
-- [ ] Decide deferred engineering (Option B): K8s watcher, App JWT, full FR-065 learning — only from real gaps
-
----
-
-## Guardrail regression (run anytime)
-
-```bash
-cd agent
-pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mode.py tests/test_feedback.py tests/test_github_commands.py
-```
-
-These encode the permission-matrix deny list in code.
-
----
-
-## Related commands
-
-| Command | Purpose |
-|---------|---------|
-| `python -m raphael_agent.scripts.demo_partner` | Happy-path dry-run demo |
-| `python -m raphael_agent.scripts.pilot_go_nogo` | Env go/no-go |
-| `python -m raphael_agent.scripts.record_feedback` | Manual FR-065 event |
-| `python -m raphael_agent.scripts.metrics` | RunStore aggregates |
-| `GET /v1/pilot/go-nogo` | Same verdict over HTTP |
-| `POST /v1/feedback` | HTTP feedback ingest |
+Exit: accepted/rejected/merged outcomes recorded, owned resources cleaned up and
+remaining acceptance gaps assigned. Use the canonical shutdown procedure; keep
+recovery journals until owned work and cleanup are confirmed terminal.

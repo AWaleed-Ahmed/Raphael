@@ -1,19 +1,39 @@
 # Raphael: Self-Healing Deployment Agent
 
-**Document status:** Draft for implementation  
-**Product stage:** MVP / demo-first pilot  
+**Document status:** Product requirements with implementation status reconciled 2026-10-20
+**Product stage:** MVP implementation; partner acceptance pending
 **Primary users:** Platform engineers, SREs, DevOps engineers, and forward-deployed engineers  
 **Initial platform:** Kubernetes, GitHub, and GitHub Actions  
 **Delivery model:** Two-person engineering team
 
-> **Current implementation:** See [handoff.md](handoff.md) for verified status, proof limits, open work, and contributor setup. Probe repair is proven to `fix_finalized` in mock evals. Bad-image repair is gated on verified pull evidence; the mock refuses, and no positive end-to-end proof under the current gate exists. A real kind repair with genuine `ErrImagePull` and approved provenance is pending under [issue #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49). Its positive case is retained as manual-dispatch-only until reviewed Ignis #19 runtime evidence is released and pinned, then returns to required checks in the consumer PR. Missing-config is a proven refusal, not a safe automated fix. See D-20261015-01.
+> **Current delivery:** [Release milestones](docs/release-milestones-2026-10-18.md)
+> identify shipped Raphael `a614d47` and Ignis `contracts-v1.4.2` / `2bfcc64`,
+> acceptance evidence and remaining gates. Use the [canonical pilot guide](docs/pilot-install.md).
+> Requirements below are targets unless explicitly supported by scoped evidence.
 
-**Known gaps against this spec:**
+**Implementation and proof limits:**
 
-- Structural Secret-dependency coverage: [Raphael #30](https://github.com/AWaleed-Ahmed/Raphael/issues/30) shipped but is not complete against the approved safety design: unsupported forms, bundled fixtures, redaction and covered-remediation/sentinel proofs need follow-up. See D-20261005-03 and the handoff; textual and recognized structural refusals must not be mistaken for universal dependency detection.
-- Signature identity and trustworthy replacement-image provenance: [#33](https://github.com/AWaleed-Ahmed/Raphael/issues/33), [#34](https://github.com/AWaleed-Ahmed/Raphael/issues/34); registry-backed detection: [Ignis #11](https://github.com/AWaleed-Ahmed/Ignis/issues/11).
-- Trained-model runtime and empirical confidence/localization/learning proof: [#40](https://github.com/AWaleed-Ahmed/Raphael/issues/40), §§17.4, 17.6, 17.8. Forbidden-patch safety remains gated by §17.8.
-- General real-Kubernetes qualification, drift-input authorization, and the real partner pilot remain open; the hosted kind proof is limited to synthetic Secret consumption and image digests. See [handoff's scoped proof/work list](handoff.md#proven-today-with-limits).
+- #30/#33/#34/#37 are completed and closed: structural Secret coverage, observed
+  identity, replacement-image provenance policy and image-gap presentation.
+  [Reconciliation](docs/issue-closure-reconciliation-2026-10-20.md) links inspected evidence.
+- Linux kind verifies synthetic Secret controls and genuine missing-image
+  observation plus an image-only repair with independent Ready validation.
+  Probe and image deterministic repairs have fixture evidence; missing config
+  refuses without inventing values. This is not general Kubernetes/registry qualification.
+  #49 remains open for mock refusal wording reconciliation, not missing positive kind proof.
+- Local inference runtime is unavailable in clean installations. Merged
+  [#59](https://github.com/AWaleed-Ahmed/Raphael/pull/59) defaults it off with
+  explicit unavailable diagnostics; pilot instructions also set `0`. #40 remains open
+  despite delivery of the authorized deferral path; no trained inference is claimed.
+- Main implements ten BYOK provider identifiers, including native Anthropic.
+  External diagnosis/patch paths default off. Earlier pinned Gemini helper
+  qualification is narrow; [#58](https://github.com/AWaleed-Ahmed/Raphael/pull/58)
+  merged the filtering/rotation fixes. No general live-provider acceptance is claimed.
+- Localization/catalog adapters and seeded controls exist; live Supabase
+  healthy-baseline write/read/repair, empirical calibration and learning benefit
+  remain unqualified. The image provenance policy fails closed without a trusted baseline.
+- Partner permissions, at least five real eligible dry-run failures, the ≥4/5
+  correct-patch target and repeated timed full demos remain acceptance work.
 
 ## 1. Executive Summary
 
@@ -107,7 +127,7 @@ Approves access and deployment. Wants least-privilege credentials, tenant isolat
 
 ## 6. MVP Scope
 
-### 6.1 Supported stack
+### 6.1 Target supported stack
 
 - **Source control:** GitHub repositories and pull requests.
 - **CI:** GitHub Actions via `workflow_run` events and check-run APIs.
@@ -117,9 +137,10 @@ Approves access and deployment. Wants least-privilege credentials, tenant isolat
 - **Artifacts:** Existing container images from the customer's registry; Raphael does not rebuild application source unless the proposed fix requires it and CI credentials permit it.
 - **Agent orchestration:** LangGraph-based diagnosis → reproduction → fix → validation workflow.
 
-### 6.2 Supported failure classes
+### 6.2 Target failure classes
 
-The first release should target failures that are common, demonstrable, and safe to remediate through Git:
+These are product targets, not a claim of qualification for every row. Current
+proof scope is summarized above and in §17.5. The release should target failures that are common, demonstrable, and safe to remediate through Git:
 
 | Failure class | Example evidence | Candidate repository fix |
 |---|---|---|
@@ -217,7 +238,7 @@ If the evidence is insufficient, reproduction fails, confidence is below thresho
 
 ### 8.5 Fix generation
 
-**Release alignment — 2026-09-27:** PR #28 merged at `bd95ca2`, pinning runtime and contract snapshot to Ignis `contracts-v1.1.2` (`ded0dbd`). Fresh main default run 36255524251 and forced-CRLF run 36255526533 passed. See D-20260927-01.
+**Historical release alignment — 2026-09-27 (current pair: see opening status):** PR #28 merged at `bd95ca2`, pinning runtime and contract snapshot to Ignis `contracts-v1.1.2` (`ded0dbd`). Fresh main default run 36255524251 and forced-CRLF run 36255526533 passed. See D-20260927-01.
 
 **Render fidelity checkpoint — 2026-09-26 (historical):** Ignis #4's YAML CRLF normalization merged in PR #12 (`ded0dbd`); #4 closed after merge. Under forced Windows-style checkout settings, cross-repo run [36252140897](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36252140897) verified LF-only render/patch payloads and minimal real fixture diffs (probe/image: one removed plus one added line; ConfigMap: one added line). The ConfigMap line was later found to fabricate an unevidenced value, so this is render-fidelity evidence, **not** a third safe remediation proof; see D-20260930-01. Preserve the evaluator's rejection of inflated output. Checkout-level byte fidelity (Ignis #13) and other renderers are not claimed fixed; see D-20260926-02.
 
@@ -384,7 +405,13 @@ The PR must disclose material fidelity gaps. A run cannot claim full validation 
 
 ## 11. System Architecture
 
-### 11.1 Components
+### 11.1 Logical components and ownership
+
+These logical responsibilities span two services. The Python Raphael core owns
+ingest, LangGraph diagnosis, policy, credentials, dispatch, persistence and
+publication. The separate Rust Ignis executor owns sandbox operations and its
+embedded outbound HTTP connector. Public versioned contracts are the runtime
+boundary; no core import or shell call into Ignis is required.
 
 1. **Event Gateway**
    - Verifies webhook signatures.
@@ -432,20 +459,24 @@ The PR must disclose material fidelity gaps. A run cannot claim full validation 
     - Stores state transitions, evidence metadata, model/tool activity, policy decisions, and results.
     - Powers operator timelines and evaluation.
 
-### 11.2 Suggested implementation stack
+### 11.2 Current implementation stack
 
-- Rust for the core service, event ingestion, and infrastructure orchestration.
-- Python 3.12 for the agentic layer.
-- Axum or Actix Web (Rust) for webhook and run APIs.
-- LangGraph (Python) for durable agent orchestration.
-- PostgreSQL for tenant, configuration, run, and audit metadata.
-- Object storage for encrypted logs and artifacts.
-- Redis or a managed queue for event buffering and background work.
-- Kubernetes API client plus Helm/Kustomize command adapters.
-- OpenTelemetry for traces, logs, and metrics.
-- GitHub App authentication for repository-scoped access.
+- Python 3.12+ with Starlette and LangGraph for the Raphael core.
+- Root `python run.py` combines agent and dispatch around one orchestrator,
+  including dispatch startup restore and lease reaping.
+- Separate Rust Ignis controller/embedded connector, built from the verified
+  immutable release, communicates over HTTP using versioned contracts.
+- Agent JSON or SQLite stores and Ignis's separate SQLite/recovery journal
+  support single-instance persistence. Generated executable patch bytes remain
+  ephemeral; restart can fail closed rather than reconstruct an unsafe patch.
+- Optional Supabase catalog/telemetry needs backend credentials and migrations.
+  It is not required for the basic mock probe smoke.
+- GitHub publication supports scoped credentials and opt-in controls; dry-run
+  is the pilot default. Customer App/permission provisioning still needs review.
+- The optional Vite console uses demo data or a reviewed API proxy.
 
-The exact persistence and queue choices may be simplified for a local demo, but interfaces should preserve a path to multi-tenant deployment.
+PostgreSQL/queues/object storage and horizontal scaling remain deployment/product
+requirements to qualify, not prerequisites silently supplied by the local setup.
 
 ## 12. Configuration Contract
 
@@ -558,7 +589,7 @@ Use separate identities for separate capabilities:
 - Use references to managed credentials, not credentials embedded in graph state or prompts.
 - Prevent secrets from appearing in commits, PR bodies, model traces, or exported audit logs.
 
-**Implementation and verification — 2026-09-26 (PR #27, historical):** Connector patch inputs remain ephemeral. Durable JSON/SQLite run records must also exclude generated file bodies and diffs from candidate proposals, pending actions, and finalized records; removing only `rendered_files` is insufficient. Policy-rejected proposals must be stripped before append. Tests must search the entire persisted record for a seeded secret after real patch generation, including SQLite payloads and JSON mirrors. Cross-repo [run 36236583521](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36236583521) passed on `111f42a`, including Scenario 3's whole-Ignis restart, real hooks, and what were then counted as three positive evaluations. The missing-config result was later found unsafe (D-20260930-01); at that time, probe and bad-image were counted as safe fixes. PR #47 later added the verified-pull gate and superseded the bad-image claim; see D-20261015-01. Scenario 3 does not substitute for the local dispatch-reconstruction tests of patch-input recovery.
+**Implementation and verification — 2026-09-26 (PR #27, historical):** Connector patch inputs remain ephemeral. Durable JSON/SQLite run records must also exclude generated file bodies and diffs from candidate proposals, pending actions, and finalized records; removing only `rendered_files` is insufficient. Policy-rejected proposals must be stripped before append. Tests must search the entire persisted record for a seeded secret after real patch generation, including SQLite payloads and JSON mirrors. Cross-repo [run 36236583521](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/36236583521) passed on `111f42a`, including Scenario 3's whole-Ignis restart, real hooks, and what were then counted as three positive evaluations. The missing-config result was later found unsafe (D-20260930-01); only probe and bad-image remain proven safe fixes. Scenario 3 does not substitute for the local dispatch-reconstruction tests of patch-input recovery.
 
 Restart behavior is explicit: before patch generation, re-fetch manifests through an unpatched `deploy_revision` on the same sandbox without consuming a patch attempt; missing refreshed input escalates as `patch_input_unavailable`. After generated patch bytes are lost, fail closed as `patch_context_lost_on_restart`, never replay a stripped action. This is not a guarantee of post-patch dispatch restart resumability or comprehensive redaction of arbitrary metadata/logs. See D-20260926-01.
 
@@ -696,11 +727,16 @@ The harness must compute the §17.2 scoring dimensions from machine-readable ass
 
 The existing cross-repository E2E workflow is the required regression gate for implemented scenarios. New evaluation scenarios extend that workflow and publish their traces as artifacts; they must not create a separate, parallel CI system with different runtime assumptions.
 
-**Report-validation policy — 2026-10-05 (D-20261005-02, merged in PR #44 at `78c5e0e`):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates. Best-effort storage error handling remains a separate open decision.
+**Report-validation policy — 2026-10-05 (D-20261005-02, merged in [PR #44](https://github.com/AWaleed-Ahmed/Raphael/pull/44)):** Validate private escalation reports at graph/dispatch transitions, before publication. Invalid reports must produce a safe terminal with reason `escalation_report_invalid`, a minimal valid replacement, and a schema-path-only audit/error log; rejected values must not be retained. Persistence remains permissive rather than causing validation failures in connector requests. Test-only audits must expose report and full durable-run schema drift separately; a green test suite alone is not proof that every persisted shape validates.
 
 The first automated safety scenarios should be drawn from §17.1’s non-remediation cases: secret-required escalation, prompt-injection resistance, security-control weakening policy block, and non-reproducible failure with no PR.
 
 ### 17.4 Confidence calibration and escalation quality
+
+**Historical checkpoints:** The dated results below describe their original
+release. Current structural coverage and Linux image proof supersede the older
+open-gap statements; see the [current roadmap](docs/release-milestones-2026-10-18.md).
+They do not constitute empirical confidence calibration.
 
 **Structural-secret prerequisite — 2026-09-27:** PR #31 adds a narrow hosted-kind
 fixture-consumption proof and missing-fixture control before designing #30.
@@ -736,9 +772,9 @@ terminal status/reason, paths, and added/removed-line strings for a manifest
 comment with LLM disabled. Whole-file bytes, hunk coordinates, other evidence
 channels, and enabled-LLM behavior are not covered by that comparison.
 
-**Delivery status — 2026-09-27 (historical, superseded in part):** The evidence-boundary branch passed six real-hook/mock-backend fixture evaluations and activated the injection, secret-required, and unreproducible cases after proof. At the time, the three remediation fixtures were counted as positive fixes; the missing-config fixture's purported fix was later found to fabricate a value and is superseded by D-20260930-01. The bad-image positive result also predates PR #47's verified-pull gate and is no longer a current positive proof; see D-20261015-01. Probe remains the current mock `fix_finalized` baseline, while missing-config is proven to refuse correctly. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
+**Delivery status — 2026-09-27 (historical):** The evidence-boundary branch passed six real-hook/mock-backend fixture evaluations and activated the injection, secret-required, and unreproducible cases after proof. At the time, the three remediation fixtures were counted as positive fixes; the missing-config fixture's purported fix was later found to fabricate a value and is superseded by D-20260930-01. Only probe and bad-image are proven to reach `fix_finalized` safely; missing-config is now proven to refuse correctly. Bridge propagation is separately tested; this does not add evidence collection to an empty ingest run. LLM paths remain disabled in these proofs. Forbidden-patch rejection stays deferred under §17.8 until a real generative path requires it; no synthetic unsafe generator is introduced. See D-20260927-01.
 
-**Correction merged — 2026-10-01 (historical; bad-image claim superseded by D-20261015-01):** The earlier three-positive-fixture count included an unsafe ConfigMap patch that invented a `DATABASE_URL` value. PR #35 made the same immutable missing-config fixture correctly expect `escalated`/`patch_value_unavailable` with no candidate patch or validation attempt. At that time, probe and bad-image finalized after exact structural resource matching. Its final-head hosted Python, contracts, cross-repo E2E/evals, and disposable-kind checks passed. The bad-image result predates PR #47's verified-pull gate and does not prove current behavior. See D-20260930-01 and D-20261015-01.
+**Correction merged — 2026-10-01:** The earlier three-positive-fixture count included an unsafe ConfigMap patch that invented a `DATABASE_URL` value. PR #35 now makes the same immutable missing-config fixture correctly expect `escalated`/`patch_value_unavailable` with no candidate patch or validation attempt. Probe and bad-image still finalize after exact structural resource matching. Its final-head hosted Python, contracts, cross-repo E2E/evals, and disposable-kind checks passed. See D-20260930-01. The bad-image replacement-image provenance question remains separately tracked.
 
 **Multi-resource evaluation under review — 2026-10-01:** A new immutable two-Deployment fixture places a healthy Deployment first and the probe-port defect second. Pre-PR #35 Raphael escalated after three empty-marker attempts; post-merge main produced one two-line change in the second Deployment and reached `fix_finalized`. The full seven-scenario local real-process evaluation passed. This adds an exact-target E2E regression case, not general Kubernetes multi-resource qualification; see D-20261001-01.
 
@@ -760,20 +796,25 @@ This prevents a superficially safe system from appearing successful merely by es
 
 ### 17.5 Detection-coverage roadmap
 
-Extend coverage in order of expected real-world value, and require every newly supported class to ship with at least one versioned evaluation scenario before being claimed as supported:
+Current probe and image repairs have deterministic fixture evidence. Linux kind
+also verifies a genuine nonexistent image using runtime `not_found` and workload
+identity, then an exact image-only repair using a trusted baseline. This is not
+an independent authenticated registry lookup or proof for arbitrary deployments.
+Missing configuration is a correct refusal (`patch_value_unavailable`). Labelled
+mock image evidence and real-kind evidence must remain distinguishable.
 
-1. Resource constraints, including deterministic OOM and bounded requests/limits cases.
-2. Service/port mismatch.
-3. Helm/Kustomize render errors.
-4. Deployment regression tied to a relevant deployment commit.
-
-Probe misconfiguration is the current mock-eval `fix_finalized` baseline. The missing ConfigMap-key fixture is a correct-refusal baseline (`escalated`/`patch_value_unavailable`). Bad-image `fix_finalized` runs are historical pre-PR #47 evidence only: the current provenance gate makes the mock refuse as `unknown` / `image_pull_evidence_unverified`. A kind repair with genuine `ErrImagePull` and approved provenance remains unproven; see D-20261015-01.
-
-Service/port mismatch must remain marked blocked from end-to-end remediation until the known schema issue in D-20260830-01 is resolved: the current scalar-port assumptions conflict with `container_ports` array-shaped evidence. An evaluation scenario may document the expected escalation before that fix, but it must not claim `fix_finalized`.
+Resource constraints, broad Service/port repair, Helm/Kustomize errors and
+commit-specific deployment regressions remain expansion targets. Each needs a
+versioned scenario, correct/refusal expectations, patch scope, validation and
+cleanup evidence before being claimed as supported. See the
+[current milestone gaps](docs/release-milestones-2026-10-18.md).
 
 ### 17.6 Localization prove-or-cut gate
 
-`node_localize` has not yet been demonstrated with real Supabase credentials and currently fails open. Before treating it as a production capability:
+`node_localize` and catalog comparison are implemented with seeded/unit evidence,
+but have not been qualified against live Supabase healthy-baseline ingestion.
+Missing catalog configuration skips optional localization; image replacement
+provenance still fails closed. Before treating localization as a proven production capability:
 
 1. Run the same versioned evaluation subset with localization disabled and enabled.
 2. Compare detection correctness, root-cause correctness, patch correctness, unnecessary escalation, runtime, and cost.
@@ -901,66 +942,30 @@ Primary responsibilities:
 
 ### 20.4 Integration discipline
 
-- Define typed API contracts in week 1.
+- Keep typed API contracts versioned and verify release-pair compatibility.
 - Maintain deterministic fixtures for all cross-component calls.
-- Run an end-to-end scenario at least daily from week 2 onward.
+- Run the existing end-to-end gates on each relevant change.
 - Treat sandbox reproduction result and validation result as machine-readable contracts, not prose.
 
 ## 21. Delivery Plan
 
-### Phase 0: Product skeleton and contracts — Days 1–3
+The previous Days 1–3 / Weeks 1–6 sequence was an initial planning estimate,
+not a current delivery schedule. The active [release milestones](docs/release-milestones-2026-10-18.md)
+record status, delivered scope, acceptance gap, dependencies, concrete exit
+criteria and source evidence for each gate:
 
-- Repository layout, CI, local development environment, and coding standards.
-- Run state, configuration schema, failure signature, patch, and validation contracts.
-- Seed demo application and three intentionally broken deployment variants.
-- Threat model and permission matrix.
+1. Single-instance recovery — delivered, with explicit patch/restart limits.
+2. Structural Secret coverage — delivered and scoped Linux proof complete.
+3. Image remediation/clone lease safety — scoped Linux proof complete; #49 wording reconciliation remains.
+4. Runtime/contract release pair — independently verified at v1.4.2.
+5. Hosted release gates — green on the linked shipped revisions; rerun for future changes.
+6. BYOK and healthy-baseline qualification — partial; choose and qualify the pilot cut.
+7. Installation/staging — clean local checks passed; customer permissions and deployment remain.
+8. Partner pilot — pending permission approval, ≥5 eligible dry-runs, human judgments and measured product targets.
 
-**Exit criteria:** Both engineers can run contract tests and a stubbed event can traverse a no-op graph.
-
-### Phase 1: Observe and reproduce — Week 1
-
-- GitHub webhook intake and Kubernetes watcher.
-- Evidence collection with redaction.
-- Sandbox creation, manifest rendering, deployment, observation, and cleanup.
-- Deterministic failure signatures for the first three scenarios.
-
-**Exit criteria:** A failed deployment event creates a run and the same failure is reproduced in an isolated sandbox.
-
-### Phase 2: Diagnose and patch — Week 2
-
-- LangGraph nodes, persistence, and terminal states.
-- Known-signature analyzers and structured hypothesis generation.
-- Constrained patch workspace.
-- Static validation and initial policy checks.
-
-**Exit criteria:** Raphael generates the correct minimal patch for at least two seeded scenarios without accessing production secrets.
-
-### Phase 3: Validate and publish — Week 3
-
-- Before/after reproduction comparison.
-- Health tests and regression checks.
-- GitHub App branch and draft PR flow.
-- Structured PR body and run audit trail.
-
-**Exit criteria:** A webhook-to-PR demo completes in under 15 minutes and includes reproducible evidence.
-
-### Phase 4: Harden and evaluate — Week 4
-
-- Attempt/cost/time budgets, cancellation, deduplication, and stale-run handling.
-- Expanded policy engine and prompt-injection tests.
-- Twelve-scenario evaluation suite.
-- Operator controls, metrics, and cleanup reconciler.
-
-**Exit criteria:** All blocked scenarios stop safely, no test leaks secrets, and benchmark targets are measured.
-
-### Phase 5: Pilot readiness — Weeks 5–6
-
-- Installation path for a design partner.
-- Repository mapping and sandbox fidelity configuration.
-- Dry-run period with diagnosis-only reports.
-- Review pilot findings and enable draft PRs for allowlisted failure classes.
-
-**Exit criteria:** The design partner approves the permission model and at least five real eligible failures have been evaluated in dry-run mode.
+Future failure classes, measured localization/calibration gains and learning
+remain requirements. Neither fixture counts nor a recorded smoke establish
+§23's ≥5 reproduced failures, ≥4/5 correct patches or repeated timed demos.
 
 ## 22. Demo Specification
 
@@ -1030,7 +1035,7 @@ The MVP is complete when all of the following are true:
 - Automated issue creation for cases that cannot safely produce a PR.
 - Progressive canary validation in a dedicated non-production environment.
 - ChatOps approval and guided investigation.
-- GitHub-native interactive commands and IDE/Cursor plugin (PRDs under [`interface/`](interface/prd.md); I0 API lock [`interface/prd-i0-api.md`](interface/prd-i0-api.md); implementation deferred).
+- Expanded interactive workflows and IDE/Cursor plugin. GitHub-native commands and the I0 API/console already exist; their full customer journey still needs qualification. See [`interface/`](interface/prd.md) and the [I0 API](interface/prd-i0-api.md).
 - Policy-approved runtime mitigations such as a rollback or restart, always behind explicit customer controls.
 - Fleet analytics identifying repeated failure patterns across repositories.
 - Learning from accepted, edited, rejected, reverted, and successful fixes.

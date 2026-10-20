@@ -1,9 +1,33 @@
 # Raphael contributor map
 
-Latest qualification checkpoint: 2026-10-20. Ignis #11/#13/#17 are complete on Linux. Delivered pair: Ignis `2bfcc644f278da3e16845d6e4408ee9b6048922d` / `contracts-v1.4.2`, Raphael `08accd56189171fcc779a858ba7e6f7558924b89`. Both implementation and consumer PRs are merged. See the [completion checklist](docs/ignis-11-13-17-completion-checklist.md) for evidence and limits.
-This page describes current implementation and proof; [prd.md](prd.md) defines the product, not completed work.
+**Issue reconciliation — 2026-10-20:** #30 structural Secret coverage, #33 observed
+signature identity, #34 replacement-image provenance policy, and #37 image-gap
+presentation meet their original acceptance criteria on GitHub main `0dc46c4`
+with released Ignis `contracts-v1.4.2` / `2bfcc64`. All four issues are now closed
+as completed with linked evidence. #49 remains open: its positive kind proof passes, but the original
+mock refusal wording must be reconciled with PR #50 / D-20261019-02. Live
+Supabase baseline ingestion remains a separate unqualified milestone; closing
+#34 certifies the scoped provenance policy. See the
+[reconciliation and inspected evidence](docs/issue-closure-reconciliation-2026-10-20.md).
+This checkpoint supersedes older pending-status statements for these four
+issues; older checkpoints below describe their recorded dates.
 
-## Start here: where we stopped
+**Current baseline — 2026-10-20:** Raphael main `a614d47` with Ignis
+`contracts-v1.4.2` / `2bfcc64`; all 29 contract blobs match. Start with the
+[current release milestones](docs/release-milestones-2026-10-18.md),
+[canonical installation](docs/pilot-install.md), and
+[executed local checks](docs/pilot-local-preflight.md). PR #58 (BYOK corrections)
+and #59 (default-off local inference deferral) are merged. #40 remains open;
+trained inference is still unavailable. Current-main [core](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39369470746)
+and [paired E2E](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39369470736) are green.
+The current working branch may retain older pins; select the verified checkout
+rather than editing pins to make instructions match.
+
+The dated checkpoints below retain their historical results. They do not define
+current open work or current test counts. [prd.md](prd.md) distinguishes product
+requirements from delivery evidence.
+
+## Historical contributor checkpoints (October 4–5)
 
 **2026-10-20 #30 completion follow-up:** `fix/structural-secret-dependencies` preserves validated Secret metadata, orders direct live observation before diagnosis/model refinement, names required gaps and cleans up on refusal. Ignis #20 is reconciled with current deadlines/leases and recomputes bundled fixture inventory per deployment. Local and hosted candidate acceptance controls pass, including covered-Secret probe repair on real kind; see [Raphael #55](https://github.com/AWaleed-Ahmed/Raphael/pull/55) and the linked review for exact runs. Raphael #55 and Ignis #20 are now merged. User-approved `contracts-v1.4.2` is published at `2bfcc644f278da3e16845d6e4408ee9b6048922d`; Raphael #56 is merged and pins that release; automatic and CRLF released-pair verification pass. See [completion plan](docs/issue-30-completion-plan.md) and [case-by-case review](docs/issue-30-completion-review.md). Older #30 checkpoints below remain historical.
 
@@ -111,7 +135,7 @@ The core dispatch -> connector -> sandbox -> diagnosis -> patch -> validation ch
 
 Do not resume from the old Desktop checkout. `C:\dev\raphael` has separate local docs/history-script changes: preserve them, rather than assuming that checkout is clean or replacing them. These are local conveniences, not paths the CI runner requires.
 
-### Latest literal setup verification
+### Historical setup verification (2026-10-04)
 
 On 2026-10-04, setup/build/run commands were executed from fresh Linux-native clones, not just read:
 
@@ -136,7 +160,7 @@ The versioned public sandbox schemas, including connector-v1 envelopes, are the 
 
 Delivery is human-controlled: dry-run by default, approved live delivery as a draft PR, never auto-merge or production-cluster access from Ignis.
 
-## Architecture, processes, and pins
+## Architecture, processes, and historical pins
 
 ```text
 GitHub / workload webhook
@@ -160,7 +184,7 @@ GitHub / workload webhook
 - **Schema snapshot:** [CONTRACTS_VERSION](CONTRACTS_VERSION) pins `contracts-v1.3.0`, including bounded reference-level Secret coverage. Sync/check with [tools/sync-sandbox-contracts.ps1](tools/sync-sandbox-contracts.ps1).
 - **Single-instance recovery, not horizontal scaling:** valid persisted pending actions resume unchanged; stale leases fail immediately. Before patch generation, missing ephemeral manifests are re-fetched in the same sandbox. After generated patch bytes are lost, dispatch fails closed with `patch_context_lost_on_restart`; failed re-fetch uses `patch_input_unavailable`. See [dispatch/README.md](dispatch/README.md).
 
-## Previous baseline proof (before #30/#33/#34/#37)
+## Historical baseline proof (before #30/#33/#34/#37)
 
 The fresh [cross-repo run 37185648403](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185648403) passed all mock scenarios, seven real-hook evals, and four kind cases. [Core CI 37185648453](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/37185648453) passed agent (259, four existing skips), dispatch (72), and contract checks; evaluator unit tests passed 9/9 in the cross-repo job.
 
@@ -181,7 +205,7 @@ The fresh [cross-repo run 37185648403](https://github.com/AWaleed-Ahmed/Raphael/
 
 **Exists, not a full end-to-end UI proof:** [frontend/src/main.js](frontend/src/main.js) calls run APIs when configured and falls back to demo data. GitHub commands exist and are opt-in ([agent/README.md](agent/README.md)); neither is described here as an unimplemented feature or a proven full user journey.
 
-## Open work, in order
+## Historical open-work snapshot (October 4–5)
 
 **Completed locally:** #33 observed identity, #34 image-provenance enforcement, and #37 image-gap presentation are implemented on this branch. Review fixes now reject image provenance when the run target and observed environments conflict. Latest checks are recorded in the [implementation review](docs/historical/implementation-review-2026-10-04.md); hosted proof passed in run 37217777910; live Supabase baseline ingestion remains outstanding. The bad-image evaluator expects refusal without verified baseline provenance; the earlier hosted demo-image success remains historical proof. #30 is implemented and reviewed; Ignis PR #18 is merged and `contracts-v1.3.0` is released/pinned. Hosted Raphael mock/kind checks passed in run 37217777910; see its separate review note.
 
@@ -245,104 +269,20 @@ Do not weaken redaction, restore raw manifests to durable run state, read produc
 
 ## Run locally
 
-Use WSL2/Linux with Python 3.12+, Rust/Cargo, Git, and access to the private Raphael repo.
-On this Windows machine, native pytest temp ACLs and the MSVC linker were unreliable; WSL2 is the proven path. Prefer a Linux-native clone/venv. Existing Windows checkouts can be used from WSL with `TMPDIR=/tmp`; Windows-created Git worktrees may need explicit Git directory mapping.
+Use the [canonical pilot installation](docs/pilot-install.md). It owns the
+release pair, clone/build commands, explicit shell profile, combined `python
+run.py` startup, Ignis embedded connector, auth, optional console proxy and
+cleanup. See [local verification](docs/pilot-local-preflight.md) for exactly
+which commands were executed and [acceptance](docs/pilot-acceptance.md) for
+unmet partner gates. The earlier pin and proof tables above are historical.
 
-The setup assumes `~/src/raphael` and `~/src/ignis` do not already exist. If they do, use your existing clean checkout or choose new paths consistently; never delete someone's checkout to make these commands work. Private clone access must be configured for **Git inside WSL**, not just a Windows CLI login (this machine already has a working Windows Git Credential Manager helper).
+## Current work, in order
 
-```bash
-mkdir -p ~/src ~/venvs
-cd ~/src
-git clone https://github.com/AWaleed-Ahmed/Raphael.git raphael
-git clone https://github.com/AWaleed-Ahmed/Ignis.git ignis
-python3.12 -m venv ~/venvs/raphael-dispatch
-source ~/venvs/raphael-dispatch/bin/activate
-cd ~/src/raphael
-python -m pip install -e agent -e dispatch
-git -C ~/src/ignis checkout contracts-v1.3.0
-cargo build --release --locked --manifest-path ~/src/ignis/controller/Cargo.toml
-```
-
-If prerequisites are missing, ask before installing with elevated privileges. Use fresh main branches for development; the tag checkout above is for reproducing the pinned binary.
-
-**Terminal 1: combined Raphael** (local mock development, not a public deployment):
-
-```bash
-source ~/venvs/raphael-dispatch/bin/activate
-cd ~/src/raphael
-unset GITHUB_TOKEN RAPHAEL_GITHUB_TOKEN RAPHAEL_GITHUB_APP_ID RAPHAEL_GITHUB_INSTALLATION_ID RAPHAEL_GITHUB_APP_PRIVATE_KEY RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH
-export RAPHAEL_PARTNER_MODE=dry_run RAPHAEL_PUBLISH_MODE=dry_run
-export RAPHAEL_LLM_DIAGNOSIS=0 RAPHAEL_LLM_PATCH=0 RAPHAEL_LEARNING=0
-export RAPHAEL_AGENT_LISTEN=127.0.0.1:8091 RAPHAEL_DISPATCH_BRIDGE_ENABLED=1
-export RAPHAEL_AGENT_DATA_DIR="$HOME/.local/share/raphael-dev"
-export RAPHAEL_DISPATCH_TOKENS='{"dev-producer":{"tenant_id":"local-dev","role":"producer"},"dev-connector":{"tenant_id":"local-dev","role":"connector"}}'
-TMPDIR=/tmp python run.py
-```
-
-**Terminal 2: Ignis** (these token strings are local examples, never production credentials):
-
-```bash
-cd ~/src/ignis
-export RAPHAEL_CLUSTER_BACKEND=mock RAPHAEL_LISTEN=127.0.0.1:8090
-export RAPHAEL_DATA_DIR="$HOME/.local/share/ignis-dev"
-export RAPHAEL_CONNECTOR_DISPATCH_URL=http://127.0.0.1:8091
-export RAPHAEL_CONNECTOR_CONTROLLER_URL=http://127.0.0.1:8090
-export RAPHAEL_CONNECTOR_TENANT_ID=local-dev RAPHAEL_CONNECTOR_TOKEN=dev-connector
-./controller/target/release/raphael-sandbox-controller
-```
-
-Check `curl http://127.0.0.1:8091/health` and `curl http://127.0.0.1:8090/health`.
-A health response is not a submitted job. For verified fixture jobs, stop both manually started services with Ctrl+C in their terminals, then use the owned-process harness below; don't kill unrelated processes to free a port. Webhook setup/auth details are in [agent/README.md](agent/README.md).
-
-### Tests and hosted kind proof
-
-```bash
-source ~/venvs/raphael-dispatch/bin/activate
-cd ~/src/raphael
-(cd agent && TMPDIR=/tmp python -m pytest -q)
-(cd dispatch && TMPDIR=/tmp python -m pytest -q)
-python -m unittest evals.test_run_evals
-export E2E_IGNIS_BIN="$HOME/src/ignis/controller/target/release/raphael-sandbox-controller"
-unset GITHUB_TOKEN RAPHAEL_GITHUB_TOKEN RAPHAEL_GITHUB_APP_ID RAPHAEL_GITHUB_INSTALLATION_ID RAPHAEL_GITHUB_APP_PRIVATE_KEY RAPHAEL_GITHUB_APP_PRIVATE_KEY_PATH
-export RAPHAEL_PARTNER_MODE=dry_run RAPHAEL_PUBLISH_MODE=dry_run
-TMPDIR=/tmp python -u e2e/run_e2e.py
-TMPDIR=/tmp python -u e2e/run_real_job.py
-TMPDIR=/tmp python -u evals/run_evals.py
-cd ~/src/ignis/controller
-cargo fmt --check
-cargo check --locked
-cargo test --locked
-```
-
-The wire harness uses mock AgentHooks; smoke/evals use real hooks. All three launch/own their processes and clean them up. Reports include real traces/logs; eval output is `evals/out/eval-results.json`. Do not upload private or live-secret traces.
-
-The separate contract drift script requires PowerShell 7 (`pwsh`), not ordinary Bash. It is installed in the hosted `core-ci / contracts` job; if absent in WSL, run `pwsh -File tools/sync-sandbox-contracts.ps1 -Check` from a Windows-native Raphael checkout in PowerShell 7, or use that hosted check. The literal review found `pwsh: command not found` in WSL and an unsigned-script policy rejection against the WSL UNC checkout; the same command passed in a fresh Windows-native worktree. Do not weaken execution policy or install with elevated privileges merely to get past that.
-
-For the real-cluster proof, open **Actions -> Cross-repository E2E -> Run workflow** on the reviewed branch/main. The kind job creates its own disposable cluster and runs six controls; artifacts are `secret-fixture-kind-<run-id>` and `cross-repo-e2e-<run-id>`. It runs on Raphael pushes/PRs, nightly, and repository-dispatch events. The manual `ignis_ref` override affects the mock job; **kind's pin is separately set in YAML**. Never point the job at a customer cluster. Ask before running local cluster creation/deletion or `sudo`.
-
-### Correct environment names
-
-| Variable | Owner / default | Purpose |
-|---|---|---|
-| `RAPHAEL_AGENT_LISTEN` | Raphael / `127.0.0.1:8091` | Combined server bind address. |
-| `RAPHAEL_AGENT_DATA_DIR` | Raphael / `.raphael-agent-data` in cwd | Run records/evidence; do not confuse with Ignis storage. |
-| `RAPHAEL_DISPATCH_BRIDGE_ENABLED` | Raphael / `0` | Same-process webhook-to-dispatch bridge. |
-| `RAPHAEL_DISPATCH_TOKENS` | Raphael / unset | JSON token -> tenant/role mapping; producer and connector tokens differ. |
-| `RAPHAEL_LEASE_REAP_INTERVAL_SECONDS` | Raphael / `10` | Automatic lease-reaper cadence. |
-| `RAPHAEL_LISTEN` | Ignis / `127.0.0.1:8090` | Controller bind address. |
-| `RAPHAEL_DATA_DIR` | Ignis / `.raphael-data` in cwd | Sandbox/connector/mock recovery records. |
-| `RAPHAEL_CLUSTER_BACKEND` | Ignis / `mock` | `mock`, `kind`, `kubectl`, `kubeconfig`; real backends require an approved sandbox-only kubeconfig/context. |
-| `RAPHAEL_CONNECTOR_DISPATCH_URL` | Ignis / unset | Enables embedded outbound connector. |
-| `RAPHAEL_CONNECTOR_CONTROLLER_URL` | Ignis / `http://127.0.0.1:8090` | Local executor HTTP target. |
-| `RAPHAEL_CONNECTOR_TOKEN` / `RAPHAEL_CONNECTOR_TENANT_ID` | Ignis / token required, tenant `connector` | Must match dispatch's connector-role mapping. |
-| `RAPHAEL_CONNECTOR_POLL_INTERVAL_MS` / `RAPHAEL_CONNECTOR_HTTP_TIMEOUT_SECONDS` | Ignis / `1000`, `30` | Poll cadence and **dispatch** request timeout; not local deploy timeout (#17). |
-| `RAPHAEL_SECRET_FIXTURE_SET` / `RAPHAEL_FIXTURES_DIR` | Raphael selection unset; Ignis fixture path defaults to its bundled fixtures | Explicit synthetic fixture selection; no selection means no fixtures, not automatic coverage. |
-| `RAPHAEL_PARTNER_MODE` / `RAPHAEL_PUBLISH_MODE` | Raphael / `dry_run` | Keep both dry-run in automated tests. |
-| `RAPHAEL_LLM_DIAGNOSIS` / `RAPHAEL_LLM_PATCH` / `RAPHAEL_LEARNING` | Raphael / `0` | Optional external-model/learning paths; existing code is not proof of effective behavior. |
-| `RAPHAEL_MODEL_ENABLED` | Raphael / `0` | Local inference is disabled by default; runtime deferral (#40). |
-| `E2E_IGNIS_BIN` | Harness / required absolute path | Explicit built external binary, never rely on ambient executable resolution. |
-
-Common wrong names: `RAPHAEL_STORAGE_DIR` and `RAPHAEL_BIND_ADDR` do **not** configure Ignis; use `RAPHAEL_DATA_DIR` and `RAPHAEL_LISTEN`. Runtime tokens, webhook signature secrets, interface tokens, and GitHub publishing credentials are different settings.
+Follow [release milestones 1–8](docs/release-milestones-2026-10-18.md): reconcile
+#49's mock wording with shipped behavior; retain the merged #58/#59 safety controls; select the
+pilot cut for BYOK, localization and healthy-baseline ingestion; qualify an
+authorized staging installation; then collect at least five real dry-run
+failures and human approval before enabling any live draft class.
 
 ## Working rules and decisions
 

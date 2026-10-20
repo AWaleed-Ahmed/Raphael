@@ -1,12 +1,20 @@
 # Raphael Supabase setup
 
-The migration creates exactly two application tables:
+The migration creates three application tables:
 
 - `public.raphael_clients`: one row per customer/company.
 - `public.raphael_healthy_traces`: verified healthy stack traces, source mappings, release identity, span baselines, and invariants.
 - `public.raphael_telemetry_events`: redacted model-call and run-outcome events scoped by company, client, and project.
 
-## Create and link a project
+## Optional project prerequisites
+
+Supabase is not required for the [basic pilot installation](../docs/pilot-install.md).
+Live catalog ingestion/repair remains unqualified; fixture-backed REST evidence
+is not a successful live Supabase run. Obtain backend credentials and migration
+approval from the project owner. Python does not automatically load `.env`;
+source an operator-owned profile explicitly in each service terminal.
+
+## Create and link a project (separate authorization required)
 
 Install the Supabase CLI, authenticate, and create a project from the Supabase dashboard or CLI:
 
@@ -18,8 +26,8 @@ supabase init
 
 ```bash
 supabase login
-supabase projects create raphael-prod --org-id <organization-id> --region <region>
-supabase link --project-ref <project-ref>
+supabase projects create raphael-pilot --org-id "example-organization-id" --region "example-region"
+supabase link --project-ref "example-project-ref"
 ```
 
 If the project already exists, only run `supabase link`.
@@ -51,7 +59,12 @@ export RAPHAEL_CLIENT_NAME="Demo Client"
 python3 agent/scripts/test_supabase_healthy_trace.py
 ```
 
-The script upserts a fake client, inserts one verified healthy stack trace, queries it back by company/client, and verifies the stored stack fingerprint. It is intentionally credential-gated and does not delete rows.
+Run only against an explicitly authorized disposable/test project. These examples
+were inspected, not executed in this refresh. The script upserts a fake client, inserts one verified healthy stack trace, queries it back by company/client, and verifies the stored stack fingerprint. It is intentionally credential-gated and does not delete rows.
+
+This generic trace smoke is not the #34 image provenance acceptance pipeline.
+Image replacement also requires matching workload/runtime identity, source
+revision and approved baseline provenance; missing proof must refuse.
 
 ## Generate types
 
@@ -63,13 +76,13 @@ The backend must still enforce the same company/client scope when querying the c
 
 ## Compare a failing trace with the healthy catalog
 
-After the migration and `.env` are configured, run the provider-neutral comparison smoke test:
+After the migration and an operator-owned environment profile are configured, run the provider-neutral comparison smoke test:
 
 ```bash
 set -a
-source .env
+source "$RAPHAEL_PILOT_ROOT/supabase.env"
 set +a
-agent/.venv/bin/python agent/scripts/test_supabase_catalog_compare.py
+python agent/scripts/test_supabase_catalog_compare.py
 ```
 
 The comparison scopes by `company_id`, `client_id`, service, environment, and operation. It canonicalizes string and structured span representations, detects fingerprint/stack/span divergence, and reports whether the source anchor is shared with the healthy baseline.
