@@ -1,5 +1,11 @@
 # Raphael issue #40: local inference resolution
 
+> **Release status — 2026-10-20:** [PR #59](https://github.com/AWaleed-Ahmed/Raphael/pull/59)
+> merged at `e9a3c66`. The default-off deferral below is shipped; the trained
+> inference runtime remains unavailable. #40 is still open. Refer to the
+> [canonical guide](pilot-install.md) for the selected release pair.
+
+
 ## Outcome
 
 **Chosen path: explicit deferral.** Local inference is disabled by default with `RAPHAEL_MODEL_ENABLED=0`. Deterministic diagnosis, localization ranking, patch policy, and sandbox validation remain the active path. Setting `RAPHAEL_MODEL_ENABLED=1` is non-fatal; attempted calls in a clean checkout/package report that the prediction runtime is not packaged. This does not claim trained inference.

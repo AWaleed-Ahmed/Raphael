@@ -24,22 +24,27 @@ supabase/    Telemetry migrations and integration documentation
 
 ## Quick start
 
-Install the agent and dispatch dependencies in their respective package directories, then configure the agent to use an authorized sandbox URL. The existing test suites can be run independently with `pytest -q` from `agent/` and `dispatch/`.
+Follow the [canonical pilot installation](docs/pilot-install.md) for the selected
+Raphael/Ignis pair, source access, virtual environment, explicit environment
+loading, connector authentication, persistence, checks and cleanup.
 
-To verify the contract snapshot:
+With installation and configuration complete, start the combined agent and
+dispatch service from the repository root:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/sync-sandbox-contracts.ps1 -Check
+```bash
+source .venv/bin/activate
+python run.py
 ```
 
-To run the agent HTTP service locally:
+Start Ignis separately using the guide. Agent-only uvicorn does not provide the
+combined pilot deployment. The optional console defaults to demo data; use the
+guide's local proxy for API access and keep backend credentials out of its bundle.
 
-```powershell
-cd agent
-python -m uvicorn raphael_agent.http_api.app:app --host 127.0.0.1 --port 8091
-```
+For contributor contract checks, see [CONTRIBUTING.md](CONTRIBUTING.md); use the
+PowerShell 7 checker without overriding script execution policy.
 
-The dispatch service listens on port `8092` when started through its package entry point. It validates connector-v1 envelopes, coordinates agent-owned diagnosis and patch nodes, enforces existing budgets and leases, handles idempotent results, and emits typed actions or terminal messages. The connector runtime remains in Ignis.
+See the [current release milestones](docs/release-milestones-2026-10-18.md)
+for delivered scope, acceptance evidence and remaining partner gates.
 
 ## Safety principles
 

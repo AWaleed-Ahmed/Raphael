@@ -1,5 +1,8 @@
 # Dispatch operational notes
 
+For the complete service pair, use the [canonical pilot installation](../docs/pilot-install.md).
+Current delivery and qualification are tracked in the [release milestones](../docs/release-milestones-2026-10-18.md).
+
 ## Synthetic Secret fixture selection
 
 Set `RAPHAEL_SECRET_FIXTURE_SET=payments-test` (or another Ignis-local fixture
@@ -12,8 +15,9 @@ This deployment-level option is not per-tenant fixture authorization.
 
 The separate `secret-fixture-kind` CI job checks the actual connector path
 against disposable Kubernetes, with identical workload manifests for covered
-and uncovered cases. It does not implement structural-secret diagnosis or
-claim general real-backend validation. See `e2e/run_secret_fixture_kind.py`.
+and uncovered cases. Current released structural coverage and Linux kind controls are documented
+in the release milestones. The historical fixture-consumption proof alone
+did not establish structural diagnosis or general backend qualification. See `e2e/run_secret_fixture_kind.py`.
 
 Diagnosis receives scoped, bounded, redacted manifest excerpts derived from
 the ephemeral patch store, never its raw content. These safe excerpts are
@@ -34,7 +38,9 @@ Connector deployments use `RAPHAEL_DISPATCH_TOKENS`, a JSON object mapping each
 Bearer token to `{ "tenant_id": "...", "role": "producer"|"connector" }`.
 Producer tokens submit unchanged connector-v1 job envelopes to
 `POST /v1/tenants/{tenant_id}/jobs`; connector tokens poll
-`GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token.
+`GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token. Connectors may set an explicit
+`connector_id` in the trusted token mapping; otherwise identity is derived from
+the token. Use distinct credentials for independent connectors.
 The first poll returns a persisted claim alongside the action. Connector clients
 can renew it with `POST /v1/tenants/{tenant_id}/jobs/{job_id}/lease` and JSON
 `{"action_id":"…","claim_id":"…","renewal_sequence":1}`. Renewal

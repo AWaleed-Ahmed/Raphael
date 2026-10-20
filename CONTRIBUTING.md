@@ -8,32 +8,16 @@ the safety and coding rules. The public executor lives in
 
 ## Setup
 
-Use Python 3.12+ and Rust/Cargo in Linux or WSL2. WSL2 avoids the native
-Windows pytest-temp ACL and linker problems seen on this machine. Ask before
-privileged installation or destructive operations.
+Use the [canonical pilot installation](docs/pilot-install.md) for prerequisites,
+Git authentication, the verified source pair, editable package installation,
+locked Ignis build and combined service startup. It explicitly loads the
+operator's environment; Python does not automatically read `.env`.
 
-The commands assume new `~/src/raphael` and `~/src/ignis` directories. If
-you already have them, use a clean checkout or choose other paths consistently;
-do not delete existing work. Configure private-repo Git authentication inside
-WSL before cloning; a Windows CLI login alone is not a guarantee it is wired.
-
-```bash
-mkdir -p ~/src ~/venvs
-cd ~/src
-git clone https://github.com/AWaleed-Ahmed/Raphael.git raphael
-git clone https://github.com/AWaleed-Ahmed/Ignis.git ignis
-python3.12 -m venv ~/venvs/raphael-dispatch
-source ~/venvs/raphael-dispatch/bin/activate
-cd ~/src/raphael
-python -m pip install -e agent -e dispatch
-git -C ~/src/ignis checkout contracts-v1.4.2
-cargo build --release --locked --manifest-path ~/src/ignis/controller/Cargo.toml
-```
-
-The Ignis tag above reproduces the pinned binary. For Ignis development,
-branch from fresh main instead. Use [handoff's run instructions](handoff.md#run-locally)
-for the combined `run.py` app, connector token configuration, dry-run evals,
-and the hosted disposable-kind job. Do not use production credentials.
+Use a clean checkout for that release pair and preserve existing work. For
+feature development, branch from current main; check its `CONTRACTS_VERSION`
+and workflow runtime references before using another executor. Do not change
+pins merely to match an older local installation. The [release roadmap](docs/release-milestones-2026-10-18.md)
+separates shipped behavior from acceptance still required.
 
 ## Checks before a PR
 
