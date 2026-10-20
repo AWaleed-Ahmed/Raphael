@@ -45,7 +45,7 @@ class CatalogFixture:
                 fixture.requests.append({"path": path.path, "query": query})
                 rows = []
                 if path.path.endswith("/raphael_clients") and query.get("client_id") == ["eq.proof-client"]:
-                    rows = [{"client_id": "proof-client", "company_id": "proof-company", "client_name": "kind-proof"}]
+                    rows = [{"client_id": "proof-client", "company_id": "proof-company", "client_name": "kind-proof", "status": "active"}]
                 elif path.path.endswith("/raphael_healthy_traces") and all(
                     query.get(key) == ["eq." + baseline[key]]
                     for key in ("company_id", "client_id", "service_name", "environment")
@@ -79,6 +79,17 @@ class CatalogFixture:
     @property
     def url(self):
         return f"http://127.0.0.1:{self.server.server_port}"
+
+
+def catalog_baseline(source_commit):
+    """Catalog identity for the independently verified Ready fixture release."""
+    return {"healthy_trace_id": "kind-verified-baseline", "company_id": "proof-company",
+            "client_id": "proof-client", "service_name": "raphael-e2e-fixture", "environment": "kind-proof",
+            "operation": "deploy",
+            "repository": "proof-source/raphael-e2e-fixture", "verified_healthy": True,
+            "is_last_known_good": True, "source_commit_sha": source_commit,
+            "runtime_identity": {"resource_kind": "Deployment", "resource_name": "payments-api",
+                                 "container_images": {"api": "hashicorp/http-echo:1.0"}}}
 
 
 def commit_fixture(source, destination):
@@ -205,7 +216,7 @@ def run_case(label, fixture, sha, output, catalog=None):
     if label == "probe":
         env["RAPHAEL_SECRET_FIXTURE_SET"] = "payments-test"
     if catalog:
-        env.update(SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
+        env.update(RAPHAEL_HEALTHY_CATALOG_ENABLED="1", SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
                    RAPHAEL_CLIENT_ID="proof-client", RAPHAEL_COMPANY_ID="proof-company",
                    RAPHAEL_DEFAULT_ENVIRONMENT="kind-proof")
     namespace = None
@@ -361,12 +372,7 @@ def main():
             healthy = wait_for(lambda: next((pod for pod in pods(namespace) if ready(pod)), None), "verified healthy baseline")
             assert healthy["spec"]["containers"][0]["image"] == "hashicorp/http-echo:1.0"
             assert healthy["status"]["containerStatuses"][0]["imageID"]
-            baseline = {"healthy_trace_id": "kind-verified-baseline", "company_id": "proof-company",
-                        "client_id": "proof-client", "service_name": "raphael-e2e-fixture", "environment": "kind-proof",
-                        "repository": "proof-source/raphael-e2e-fixture", "verified_healthy": True,
-                        "is_last_known_good": True, "source_commit_sha": shas["healthy"],
-                        "runtime_identity": {"resource_kind": "Deployment", "resource_name": "payments-api",
-                                             "container_images": {"api": "hashicorp/http-echo:1.0"}}}
+            baseline = catalog_baseline(shas["healthy"])
             (output / "baseline.json").write_text(json.dumps({"catalog_row": baseline, "ready_pod": healthy}, indent=2))
             for label in cases:
                 if label == "probe":

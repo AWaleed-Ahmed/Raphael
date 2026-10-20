@@ -149,6 +149,31 @@ class KindProofTests(unittest.TestCase):
             with urlopen(catalog.url + "/rest/v1/raphael_healthy_traces?" + query.replace("eq.test-service", "eq.other")) as response:
                 self.assertEqual(json.load(response), [])
 
+    def test_verified_catalog_fixture_is_accepted_by_scoped_graph(self):
+        from raphael_agent.graph.nodes import node_localize
+        from raphael_agent.graph.state import initial_run_state
+        baseline = proof.catalog_baseline("a" * 40)
+        _, evidence = self.case("image-with-verified-provenance")
+        signature = evidence["observed_signature"]
+        signature["normalized"].update(resource_name="payments-api", container="api")
+        signature["normalized"]["attributes"]["image"] = "hashicorp/http-echo:missing"
+        state = initial_run_state({"run_id": "kind-catalog-regression", "tenant_id": "proof",
+            "company_id": "proof-company", "client_id": "proof-client",
+            "trigger": {"kind": "fixture"}, "commit_sha": "b" * 40,
+            "repository": {"owner": "proof-source", "name": "raphael-e2e-fixture"}},
+            sandbox_mode="recorded_stub")
+        state.update(failure_signature=signature, sandbox_backend="kubectl")
+        with proof.CatalogFixture(baseline) as catalog, patch.dict(proof.os.environ, {
+            "SUPABASE_URL": catalog.url, "SUPABASE_SERVICE_ROLE_KEY": "synthetic-key",
+            "RAPHAEL_COMPANY_ID": "proof-company", "RAPHAEL_CLIENT_ID": "proof-client",
+            "RAPHAEL_DEFAULT_ENVIRONMENT": "kind-proof", "RAPHAEL_HEALTHY_CATALOG_ENABLED": "1",
+            "RAPHAEL_MODEL_ENABLED": "0",
+        }, clear=True):
+            result = node_localize(state)["localization_result"]
+        self.assertEqual(result["operation"], "deploy")
+        self.assertEqual(result["baseline_count"], 1)
+        self.assertEqual(result["approved_image_replacement"]["image"], "hashicorp/http-echo:1.0")
+
     def test_cleanup_is_exact_and_owned(self):
         with patch.object(cluster, "kube") as kube:
             with self.assertRaises(ValueError):

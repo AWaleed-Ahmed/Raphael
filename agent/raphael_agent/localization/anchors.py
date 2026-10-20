@@ -175,9 +175,8 @@ def extract_trace_divergence_anchor(
                 first_divergent_span = span
                 break
 
-    # If no explicit divergence found, pick first span with highest latency or first span
-    if not first_divergent_span and current_spans:
-        first_divergent_span = current_spans[0]
+    if not first_divergent_span:
+        return None
 
     attrs = first_divergent_span.get("attributes") or first_divergent_span
     file_path = str(attrs.get("code.file.path") or attrs.get("code.filepath") or "src/service.py")

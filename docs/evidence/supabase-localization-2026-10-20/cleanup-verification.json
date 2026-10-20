@@ -1,0 +1,10 @@
+{
+  "existing_data_unchanged": true,
+  "fixture_rows_remaining": 0,
+  "method": "Full ordered row hashes and counts match before/after across all three tables",
+  "counts": {
+    "clients_count": 2,
+    "telemetry_count": 1,
+    "traces_count": 1
+  }
+}

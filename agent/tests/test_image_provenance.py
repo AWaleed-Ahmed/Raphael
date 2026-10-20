@@ -16,6 +16,7 @@ def _signature():
 def _baseline(**overrides):
     row = {
         "healthy_trace_id": "healthy-1",
+        "company_id": "company-a", "client_id": "client-a",
         "verified_healthy": True,
         "is_last_known_good": True,
         "source_commit_sha": "a" * 40,
@@ -36,7 +37,7 @@ def _baseline(**overrides):
 
 def _resolve(baselines):
     return resolve_approved_image_replacement(
-        _signature(), baselines, repository="acme/payments",
+        _signature(), baselines, company_id="company-a", client_id="client-a", repository="acme/payments",
         service_name="payments", environment="staging",
     )
 
@@ -93,3 +94,23 @@ def test_malformed_rows_do_not_hide_a_valid_baseline():
                  _baseline(runtime_identity={'container_images': 'invalid'})]
     assert _resolve(malformed + [_baseline()]) is not None
     assert _resolve(malformed) is None
+
+
+def test_rejects_missing_or_wrong_tenant_and_conflicting_commit():
+    for field in ('company_id', 'client_id'):
+        assert _resolve([_baseline(**{field: 'other'})]) is None
+        assert _resolve([_baseline(**{field: None})]) is None
+    assert _resolve([_baseline(), _baseline(source_commit_sha='c' * 40)]) is None
+
+
+def test_rejects_conflicting_namespace_or_cluster_identity():
+    for field in ('namespace', 'cluster'):
+        baseline = _baseline()
+        baseline['runtime_identity'][field] = 'other'
+        assert _resolve([baseline]) is None
+
+
+def test_rejects_malformed_trace_id_and_conflicting_release_commit():
+    for identity in (None, {}, 42, ''):
+        assert _resolve([_baseline(healthy_trace_id=identity)]) is None
+    assert _resolve([_baseline(git_sha='c' * 40)]) is None

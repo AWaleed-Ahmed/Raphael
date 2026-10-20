@@ -34,6 +34,7 @@ from raphael_agent.localization import (
     load_coverage,
     resolve_anchor,
 )
+from raphael_agent.localization.supabase_catalog import span_name
 from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.sandbox_config import secret_fixture_args
@@ -548,7 +549,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
     credentials are absent, it records a skipped localization result and leaves
     the existing diagnosis/template path intact.
     """
-    if state.get("status") in {"failed_closed", "escalated"}:
+    if state.get("status") in {"failed_closed", "escalated", "blocked"}:
         return {"updated_at": utc_now()}
     halt = _budget_halt_updates(state, "localize")
     if halt:
@@ -556,6 +557,22 @@ def node_localize(state: RunState) -> dict[str, Any]:
     updates = _touch(state, "localize")
     updates["healthy_trace_comparisons"] = []
     updates["fault_candidates"] = []
+
+    if os.environ.get("RAPHAEL_HEALTHY_CATALOG_ENABLED", "0").lower() not in {"1", "true", "yes", "on"}:
+        updates["localization_result"] = {"status": "skipped", "reason": "catalog_disabled"}
+        return updates
+    # One backend deployment is bound to one catalog scope. Request fields do
+    # not establish authorization; the interface bearer is not a tenant JWT.
+    client_id = os.environ.get("RAPHAEL_CLIENT_ID", "").strip()
+    company_id = os.environ.get("RAPHAEL_COMPANY_ID", "").strip()
+    observation = _localization_observation(state)
+    if not company_id or not client_id or any(
+        record.get(field) is not None and record.get(field) != expected
+        for record in (state, observation)
+        for field, expected in (("company_id", company_id), ("client_id", client_id))
+    ):
+        updates["localization_result"] = {"status": "skipped", "reason": "catalog_scope_rejected"}
+        return updates
 
     # Historical similarity is useful even when the customer healthy catalog
     # is temporarily unavailable; keep its result separate from the canonical
@@ -585,23 +602,13 @@ def node_localize(state: RunState) -> dict[str, Any]:
         )
         return updates
 
-    client_id = str(state.get("client_id") or os.environ.get("RAPHAEL_CLIENT_ID") or "").strip()
-    company_id = str(state.get("company_id") or os.environ.get("RAPHAEL_COMPANY_ID") or "").strip()
     client_name = state.get("client_name")
-    if not client_id:
-        updates["localization_result"] = {
-            "status": "skipped",
-            "reason": "client_scope_missing",
-        }
-        updates["audit_events"] = append_audit(
-            {**state, **updates}, "localize", "skipped", "client_scope_missing"
-        )
-        return updates
 
     try:
         client = store.get_client(client_id)
-        if not client:
-            raise SupabaseCatalogError(f"client not found: {client_id}")
+        if (not isinstance(client, dict) or client.get("client_id") != client_id
+                or client.get("status") != "active"):
+            raise SupabaseCatalogError("catalog_client_unavailable")
         resolved_company_id = str(client["company_id"])
         if company_id and company_id != resolved_company_id:
             raise SupabaseCatalogError("company_id does not match the client registry")
@@ -626,16 +633,26 @@ def node_localize(state: RunState) -> dict[str, Any]:
             observation.get("operation")
             or correlation.get("operation")
             or correlation.get("check_name")
+            or ("deploy" if (state.get("failure_signature") or {}).get("class") == "bad_image_reference" else None)
             or "unknown"
         )
-        query_operation = None if operation == "unknown" else operation
         baselines = store.list_healthy_traces(
             company_id=company_id,
             client_id=client_id,
             service_name=service_name,
             environment=environment,
-            operation=query_operation,
+            operation=operation,
+        ) if operation != "unknown" else []
+        repository_info = state.get("repository") or {}
+        repository_name = "/".join(
+            part for part in (repository_info.get("owner"), repository_info.get("name")) if part
         )
+        expected_scope = {"company_id": company_id, "client_id": client_id,
+                          "service_name": service_name, "environment": environment,
+                          "operation": operation, "repository": repository_name}
+        baselines = [row for row in baselines if isinstance(row, dict)
+                     and row.get("verified_healthy") is True
+                     and all(row.get(field) == value for field, value in expected_scope.items())]
 
         unhealthy = dict(observation)
         unhealthy.setdefault("operation", operation)
@@ -680,10 +697,11 @@ def node_localize(state: RunState) -> dict[str, Any]:
 
         anchors = list(stack_anchors)
         spans = observation.get("span_sequence") or observation.get("spans") or []
+        trace_anchor = None
         if isinstance(spans, list) and spans and baselines:
             golden = baselines[0].get("span_sequence") or []
             trace_anchor = extract_trace_divergence_anchor(
-                spans, [str(item) for item in golden], "ev-localize-trace"
+                spans, [span_name(item) for item in golden], "ev-localize-trace"
             )
             if trace_anchor:
                 anchors.append(trace_anchor)
@@ -740,7 +758,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
                 anchors=anchors,
                 changed_diff_hunks=changed_hunks,
                 failure_class=failure_class,
-                first_divergent_anchor=anchors[0] if anchors else None,
+                first_divergent_anchor=trace_anchor,
                 workspace_path=state.get("workspace_path"),
             )
         canonical_candidates = [candidate.to_dict() for candidate in candidates]
@@ -778,6 +796,8 @@ def node_localize(state: RunState) -> dict[str, Any]:
         approved_image = resolve_approved_image_replacement(
             state.get("failure_signature") or {},
             baselines,
+            company_id=company_id,
+            client_id=client_id,
             repository=repository_name,
             service_name=service_name,
             environment=environment,
@@ -802,10 +822,12 @@ def node_localize(state: RunState) -> dict[str, Any]:
         updates["localization_result"] = {
             "status": "error",
             "reason": "localization_failed",
-            "message": str(exc),
+            "message": str(exc) if isinstance(exc, SupabaseCatalogError) else type(exc).__name__,
         }
+        updates["healthy_trace_comparisons"] = []
+        updates["fault_candidates"] = []
         updates["audit_events"] = append_audit(
-            {**state, **updates}, "localize", "error", str(exc)
+            {**state, **updates}, "localize", "error", "localization_failed"
         )
     return updates
 

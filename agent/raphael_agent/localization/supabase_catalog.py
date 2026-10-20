@@ -9,11 +9,29 @@ from __future__ import annotations
 
 import json
 import os
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlencode, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+urlopen = build_opener(_NoRedirect()).open
+MAX_CATALOG_BYTES = 1_048_576
+
+
+def backend_headers(key: str) -> dict[str, str]:
+    """Opaque Supabase secrets are API keys, not JWT access tokens."""
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    if not key.startswith("sb_secret_"):
+        headers["Authorization"] = f"Bearer {key}"
+    return headers
 
 
 class SupabaseCatalogError(RuntimeError):
@@ -45,7 +63,7 @@ def _span_attributes(span: Any) -> dict[str, Any]:
     return attrs if isinstance(attrs, dict) else span
 
 
-def _span_name(span: Any) -> str:
+def span_name(span: Any) -> str:
     if isinstance(span, str):
         return span.strip()
     attrs = _span_attributes(span)
@@ -84,7 +102,7 @@ def _first_span_divergence(healthy: list[Any], unhealthy: list[Any]) -> int | No
         current = unhealthy[index]
         if _span_is_error(current):
             return index
-        if _span_name(healthy[index]) != _span_name(current):
+        if span_name(healthy[index]) != span_name(current):
             return index
     return None
 
@@ -174,7 +192,7 @@ def compare_trace_to_healthy(
         span_diverged=span_diverged,
         first_divergent_span_index=span_index,
         source_anchor_match=source_anchor_match,
-        confidence=round(min(1.0, score), 4),
+        confidence=round(min(1.0, score), 4) if same_scope else 0.0,
         reasons=reasons,
     )
 
@@ -188,18 +206,26 @@ class SupabaseHealthyCatalogStore:
         self.timeout = timeout
         if not self.base_url or not self.service_role_key:
             raise SupabaseCatalogError("SUPABASE_URL and a backend-only Supabase secret key are required")
+        try:
+            parsed = urlsplit(self.base_url)
+            _ = parsed.port
+        except ValueError:
+            raise SupabaseCatalogError("invalid_supabase_url") from None
+        if (not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment
+                or (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}))):
+            raise SupabaseCatalogError("invalid_supabase_url")
+        if not math.isfinite(timeout) or not 0 < timeout <= 60:
+            raise SupabaseCatalogError("invalid_supabase_timeout")
 
     def _request(
         self, method: str, path: str, body: dict[str, Any] | None = None, prefer: str | None = None
     ) -> list[dict[str, Any]]:
-        headers = {
-            "apikey": self.service_role_key,
-            "Authorization": f"Bearer {self.service_role_key}",
-            "Content-Type": "application/json",
-        }
+        headers = backend_headers(self.service_role_key)
         if prefer:
             headers["Prefer"] = prefer
         payload = json.dumps(body).encode("utf-8") if body is not None else None
+        if payload is not None and len(payload) > MAX_CATALOG_BYTES:
+            raise SupabaseCatalogError("supabase_request_too_large")
         request = Request(
             f"{self.base_url}/rest/v1/{path}",
             data=payload,
@@ -208,13 +234,19 @@ class SupabaseHealthyCatalogStore:
         )
         try:
             with urlopen(request, timeout=self.timeout) as response:
-                raw = response.read().decode("utf-8")
-        except (HTTPError, URLError) as exc:
-            detail = exc.read().decode("utf-8", errors="replace") if isinstance(exc, HTTPError) else str(exc)
-            raise SupabaseCatalogError(f"Supabase catalog request failed: {detail}") from exc
-        decoded = json.loads(raw) if raw else []
-        if not isinstance(decoded, list):
-            raise SupabaseCatalogError("Supabase catalog returned a non-list response")
+                raw = response.read(MAX_CATALOG_BYTES + 1)
+        except HTTPError as exc:
+            raise SupabaseCatalogError(f"supabase_http_{exc.code}") from None
+        except (URLError, TimeoutError, OSError):
+            raise SupabaseCatalogError("supabase_transport_error") from None
+        if len(raw) > MAX_CATALOG_BYTES:
+            raise SupabaseCatalogError("supabase_response_too_large")
+        try:
+            decoded = json.loads(raw) if raw else []
+        except (ValueError, UnicodeError):
+            raise SupabaseCatalogError("supabase_invalid_response") from None
+        if not isinstance(decoded, list) or any(not isinstance(row, dict) for row in decoded):
+            raise SupabaseCatalogError("supabase_invalid_response")
         return decoded
 
     def get_client(self, client_id: str) -> dict[str, Any] | None:
@@ -236,6 +268,9 @@ class SupabaseHealthyCatalogStore:
         operation: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
+        if not all(isinstance(value, str) and value.strip() and value != "unknown"
+                   for value in (company_id, client_id, service_name, environment)):
+            raise SupabaseCatalogError("catalog_scope_missing")
         filters = {
             "select": "*",
             "company_id": f"eq.{company_id}",
@@ -249,7 +284,13 @@ class SupabaseHealthyCatalogStore:
         if operation:
             filters["operation"] = f"eq.{operation}"
         query = urlencode(filters, quote_via=quote)
-        return self._request("GET", f"raphael_healthy_traces?{query}")
+        rows = self._request("GET", f"raphael_healthy_traces?{query}")
+        expected = {"company_id": company_id, "client_id": client_id,
+                    "service_name": service_name, "environment": environment}
+        if operation:
+            expected["operation"] = operation
+        return [row for row in rows if row.get("verified_healthy") is True
+                and all(row.get(name) == value for name, value in expected.items())]
 
     def record_healthy_trace(self, trace: dict[str, Any]) -> dict[str, Any]:
         required = (

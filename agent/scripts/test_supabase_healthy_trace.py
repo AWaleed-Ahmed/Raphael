@@ -17,9 +17,7 @@ import hashlib
 import json
 import os
 import sys
-from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
 
 
 def _request(
@@ -30,23 +28,9 @@ def _request(
     body: dict | None = None,
     prefer: str | None = None,
 ) -> list[dict]:
-    url = f"{base_url.rstrip('/')}/rest/v1/{path}"
-    headers = {
-        "apikey": service_role_key,
-        "Authorization": f"Bearer {service_role_key}",
-        "Content-Type": "application/json",
-    }
-    if prefer:
-        headers["Prefer"] = prefer
-    payload = json.dumps(body).encode("utf-8") if body is not None else None
-    request = Request(url, data=payload, headers=headers, method=method)
-    try:
-        with urlopen(request, timeout=20) as response:
-            raw = response.read().decode("utf-8")
-    except (HTTPError, URLError) as exc:
-        detail = exc.read().decode("utf-8", errors="replace") if isinstance(exc, HTTPError) else str(exc)
-        raise RuntimeError(f"Supabase request failed: {detail}") from exc
-    return json.loads(raw) if raw else []
+    from raphael_agent.localization.supabase_catalog import SupabaseHealthyCatalogStore
+    return SupabaseHealthyCatalogStore(base_url, service_role_key)._request(method, path, body, prefer)
+
 
 
 def main() -> int:
