@@ -30,6 +30,13 @@
 
 ## Decision log (newest first)
 
+### D-20261020-01 — Defer local inference until runtime and tenant safety are proven
+- **Status:** deferred; local inference disabled by default
+- **Date:** 2026-10-20
+- **Decision:** Supersede the default-on exposure note in D-20261003-01: set `RAPHAEL_MODEL_ENABLED` default to `0`. Keep deterministic execution active and expose attempted unavailable model calls in `model_results`/audit events. Do not claim the five tracked artifacts constitute working inference.
+- **Why:** The gateway relies on `raphael/model/predict.py` and sibling imports beneath the wholly ignored `raphael/` directory. That runtime is missing from fresh checkouts and installed packages. The current incident similarity bundle also returns embedded records without client/company filtering, so wiring it as-is could cross tenant boundaries.
+- **Acceptance to resume:** Package inference-only code and verify exact artifact/library compatibility; enforce similarity scope; prove all five real trained capabilities through the packaged gateway and graph, including rule-only behavior, abstention and fallback; verify from outside the repository and a clean installation; retain blocked-path adversarial safety proof. See [the resolution record](docs/local-inference-resolution-2026-10-20.md) for details and commands.
+
 ### D-20261019-03 — Require Linux runtime qualification for image and lease delivery
 
 **Decision:** require probe repair, no-provenance image refusal, verified-baseline

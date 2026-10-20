@@ -212,7 +212,7 @@ Claim status as of 2026-10-04. "Not claimed here" is not a claim that nobody els
 5. **[Ignis #11: registry-backed detection](https://github.com/AWaleed-Ahmed/Ignis/issues/11).** Keep mock string-pattern claims narrow; real pull-failure detection needs its own proof.
 6. **[Ignis #13: clone line-ending policy](https://github.com/AWaleed-Ahmed/Ignis/issues/13).** Decide blob-byte versus normalized-worktree fidelity, including repository attributes. Render-boundary CRLF normalization is already fixed; do not alter global Git configuration.
 7. **[Ignis #17: deploy duration and local HTTP timeout](https://github.com/AWaleed-Ahmed/Ignis/issues/17).** Apply plus digest polling can take about 120 seconds; connector->controller has no explicit overall request timeout. Dispatch waits for the posted result while the lease clock keeps running. Coordinate timeout/lease bounds, not just one client setting.
-8. **[Raphael #40: model plumbing](https://github.com/AWaleed-Ahmed/Raphael/issues/40).** Five artifacts exist and the local-model flag defaults on, but the required inference script is absent. Decide wire-or-cut and the flag default before claiming trained inference.
+8. **[Raphael #40: model plumbing](https://github.com/AWaleed-Ahmed/Raphael/issues/40).** Local inference is explicitly deferred and disabled by default: all five artifact bundles are tracked, but the prediction runtime is under ignored `raphael/model/` and is absent from a clean checkout/package. See [the resolution record](docs/local-inference-resolution-2026-10-20.md).
 9. **Drift detection: parked.** First decide an authorized source for production specs that does not give Ignis production access; see [PRD §10](prd.md#10-sandbox-and-environment-replication) and [§26](prd.md#26-open-product-decisions). No assigned implementation issue yet.
 10. **Forbidden-patch negative scenario: gated.** [PRD §17.8](prd.md#178-llm-role-and-learning-loop-gate) requires it before a generative patch path ships. Do not fabricate an unsafe generator solely to close scenario count; no separate active implementation issue yet.
 
@@ -339,7 +339,7 @@ For the real-cluster proof, open **Actions -> Cross-repository E2E -> Run workfl
 | `RAPHAEL_SECRET_FIXTURE_SET` / `RAPHAEL_FIXTURES_DIR` | Raphael selection unset; Ignis fixture path defaults to its bundled fixtures | Explicit synthetic fixture selection; no selection means no fixtures, not automatic coverage. |
 | `RAPHAEL_PARTNER_MODE` / `RAPHAEL_PUBLISH_MODE` | Raphael / `dry_run` | Keep both dry-run in automated tests. |
 | `RAPHAEL_LLM_DIAGNOSIS` / `RAPHAEL_LLM_PATCH` / `RAPHAEL_LEARNING` | Raphael / `0` | Optional external-model/learning paths; existing code is not proof of effective behavior. |
-| `RAPHAEL_MODEL_ENABLED` | Raphael / `1` | Local model gateway; currently unavailable-script fallback (#40). |
+| `RAPHAEL_MODEL_ENABLED` | Raphael / `0` | Local inference is disabled by default; runtime deferral (#40). |
 | `E2E_IGNIS_BIN` | Harness / required absolute path | Explicit built external binary, never rely on ambient executable resolution. |
 
 Common wrong names: `RAPHAEL_STORAGE_DIR` and `RAPHAEL_BIND_ADDR` do **not** configure Ignis; use `RAPHAEL_DATA_DIR` and `RAPHAEL_LISTEN`. Runtime tokens, webhook signature secrets, interface tokens, and GitHub publishing credentials are different settings.

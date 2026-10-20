@@ -68,6 +68,7 @@ class FakeImageCatalog(FakeCatalog):
 
 
 def test_localize_node_reads_baseline_and_emits_candidates(monkeypatch):
+    monkeypatch.delenv("RAPHAEL_MODEL_ENABLED", raising=False)
     import raphael_agent.graph.nodes as nodes
 
     monkeypatch.setattr(nodes, "SupabaseHealthyCatalogStore", lambda: FakeCatalog())
@@ -96,6 +97,10 @@ def test_localize_node_reads_baseline_and_emits_candidates(monkeypatch):
     assert updates["healthy_trace_comparisons"][0]["source_anchor_match"] is True
     assert updates["fault_candidates"]
     assert updates["fault_candidates"][0]["path"] == "app/payment_client.py"
+    for capability in ("incident_similarity", "candidate_ranker"):
+        assert updates["model_results"][capability] == {
+            "available": False, "reason": "disabled_by_environment",
+        }
 
 
 def test_localize_node_records_image_provenance_from_matching_last_good(monkeypatch):

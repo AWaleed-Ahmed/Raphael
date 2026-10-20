@@ -183,7 +183,11 @@ def node_evidence(state: RunState) -> dict[str, Any]:
             f"abstained={trace_prediction.get('abstained', False)}"
         )
     else:
-        trace_detail = f"model_unavailable={model_error(gateway) or 'unknown'}"
+        trace_unavailable_reason = model_error(gateway) or "unknown"
+        model_results = dict(state.get("model_results") or {})
+        model_results["trace_anomaly"] = {"available": False, "reason": trace_unavailable_reason}
+        updates["model_results"] = model_results
+        trace_detail = f"model_unavailable={trace_unavailable_reason}"
     updates["audit_events"] = append_audit(
         {**state, **updates}, "evidence", "collected", f"n={len(evidence)}"
     )
@@ -747,6 +751,13 @@ def node_localize(state: RunState) -> dict[str, Any]:
             canonical_candidates = ranked["candidates"]
             model_results = dict(updates.get("model_results") or {})
             model_results["candidate_ranker"] = ranked.get("model") or {}
+            updates["model_results"] = model_results
+        elif model_error(gateway):
+            model_results = dict(updates.get("model_results") or {})
+            model_results["candidate_ranker"] = {
+                "available": False,
+                "reason": model_error(gateway),
+            }
             updates["model_results"] = model_results
         updates["fault_candidates"] = canonical_candidates
         updates["localization_result"] = {
