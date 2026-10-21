@@ -1,6 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/console", "destination": "/console/index.html" },
-    { "source": "/console/:path*", "destination": "/console/index.html" }
-  ]
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev"
 }

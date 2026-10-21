@@ -1,15 +1,19 @@
 # Raphael website and console
 
+The frontend is one Next.js application, with routes in `src/app`, shared React
+components in `src/components`, and landing sections in `src/features/Pages/Landing`.
+Dependencies and configuration live directly in `frontend`; there is no nested app.
+
 The public landing page lives at `/`. It uses the approved forest-and-paper
 theme, responsive local WebP imagery, an illustrative repair walkthrough,
 expandable evidence, and passing/blocked validation examples. These interactions
 are presentation-only and make no agent or sandbox API calls.
-The walkthrough has five selectable stages, can be played or paused, and
-shows the relevant evidence at each step. The footer motion control saves a
-local preference; OS reduced-motion settings always take priority.
+The walkthrough follows six scroll-driven stages with keyboard navigation, a visible step indicator, and a skip link. The handoff preview has expandable diff, evidence, and validation attachments. The header and closing CTA open the demo console. The intro runs for about 3.4 seconds once per browser session, with the header expanding from a pill after the logo docks. The footer motion control saves a local preference; OS reduced-motion settings always take priority.
 
-The existing operator console is available at `/console/`. Vite builds both
-HTML entry points; their scripts and styles are kept separate.
+Planned architecture work is documented in [the roadmap](docs/roadmap.md).
+
+The existing operator console remains at `/console/`, and the design study at
+`/direction/`. Their existing HTML, JavaScript, and styles remain unchanged.
 
 ## Operator console
 
@@ -25,11 +29,17 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL for the website, or append `/console/` for the
-dashboard. Run `npm run build` to create both pages in `dist`, then
-`npm run preview` to inspect the production build. Static hosting must serve
-`index.html` at `/` and `console/index.html` at `/console/`; `vercel.json`
-includes the console rewrite.
+Open http://localhost:3000 for the landing page, or append `/console/` for the
+dashboard. `npm run dev` runs one Next.js server. Before startup, the existing
+console and design study are built as static files and served through Next.js.
+No second development server or port 5173 is needed. If you edit the console's
+`src/main.js` or `src/styles.css`, restart development to rebuild those files.
+
+Run `npm run build`, then `npm start` (or `npm run preview`) to inspect the
+production build. The build compiles the two existing Vite pages, copies their
+output into the Next.js public directory, and builds Next.js. The production
+server serves all three pages without a separate Vite server. Run `npm test`
+for the landing interaction tests.
 
 By default the console runs in demo mode with realistic local data. To connect
 to an agent API, set the Vite build-time variable:

@@ -1,0 +1,318 @@
+.layout {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: 56px;
+  align-items: center;
+  background: var(--night);
+}
+.layout :global(.inspection) {
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100svh - 128px);
+}
+.layout :global(.inspection h3) {
+  font-family: var(--sans);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.layout :global(.stage-evidence),
+.layout :global(.stage-evidence code) {
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+}
+.layout :global(.inspection-body) {
+  min-height: 0;
+  overflow-y: auto;
+}
+.cardContent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.cardScene {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 10px, 0);
+  transition:
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(.22, 1, .36, 1),
+    visibility 0s 220ms;
+}
+.cardScene[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(.22, 1, .36, 1),
+    visibility 0s;
+}
+.scope {
+  animation: scope-enter 220ms ease both;
+}
+@keyframes scope-enter {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.layout :global(.inspection-toolbar),
+.layout :global(.inspection-footer) {
+  flex-shrink: 0;
+}
+.story {
+  position: relative;
+  min-width: 0;
+  height: 400px;
+}
+.story:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 8px;
+}
+.scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 128px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 10px, 0);
+  transition:
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(.22, 1, .36, 1),
+    visibility 0s 220ms;
+}
+.scene[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(.22, 1, .36, 1),
+    visibility 0s;
+}
+.layout[data-reduced-motion="true"] .scene,
+.layout[data-reduced-motion="true"] .cardScene,
+.layout[data-reduced-motion="true"] .scope {
+  transition: none;
+  animation: none;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene, .cardScene, .scope {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+.stageHeading {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.orb {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 104px;
+  height: 104px;
+  flex: 0 0 104px;
+  display: grid;
+  place-items: center;
+}
+.orb canvas {
+  width: 104px !important;
+  height: 104px !important;
+}
+.orbPlaceholder {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #bda4ff;
+  border-radius: 50%;
+}
+.number {
+  display: block;
+  color: #bda4ff;
+  font: 500 20px/1.4 var(--sans);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.stageHeading h3 {
+  font: 400 clamp(40px, 4vw, 60px)/1.08 var(--display);
+  letter-spacing: -0.035em;
+}
+.copy {
+  margin: 10px 0 0;
+  color: #bcb5cd;
+  font-size: 14px;
+  max-width: 280px;
+  line-height: 1.8;
+}
+.connection {
+  position: absolute;
+  left: 0;
+  bottom: 48px;
+  width: 100%;
+  height: 28px;
+  overflow: visible;
+}
+.connection path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: square;
+}
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #a9a1ba;
+  font: 10px var(--sans);
+}
+.hint {
+  font-size: 11px;
+  color: #aaa3b8;
+}
+.skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d5c9ed;
+  font-size: 11px;
+}
+.skip:hover {
+  text-decoration: underline;
+}
+@media (max-width: 1100px) {
+  .layout {
+    gap: 28px;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  }
+  .orb {
+    width: 76px;
+    height: 76px;
+    flex-basis: 76px;
+  }
+  .orb canvas {
+    width: 76px !important;
+    height: 76px !important;
+  }
+  .stageHeading {
+    gap: 16px;
+  }
+  .stageHeading h3 {
+    font-size: 42px;
+  }
+  .scene {
+    padding-left: 92px;
+  }
+}
+@media (max-width: 767px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .layout :global(.inspection) {
+    max-height: calc(100svh - 370px);
+  }
+  .story {
+    height: 220px;
+  }
+  .scene {
+    justify-content: flex-start;
+    padding-left: 94px;
+  }
+  .orb {
+    top: 0;
+    transform: none;
+  }
+  .stageHeading {
+    gap: 18px;
+  }
+  .stageHeading h3 {
+    font-size: 42px;
+  }
+  .copy {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .number {
+    margin-bottom: 6px;
+    font-size: 16px;
+  }
+  .connection {
+    bottom: 25px;
+    height: 16px;
+  }
+  .progress {
+    font-size: 9px;
+  }
+  .layout :global(.inspection-body) {
+    padding: 14px 18px;
+  }
+  .layout :global(.inspection h3) {
+    min-height: 0;
+    font-size: 21px;
+  }
+  .layout :global(.stage-copy) {
+    min-height: 0;
+    margin: 10px 0 14px;
+    font-size: 12px;
+  }
+  .layout :global(.stage-evidence) {
+    min-height: 105px;
+    font-size: 9px;
+    line-height: 1.5;
+  }
+  .layout :global(.inspection-toolbar),
+  .layout :global(.inspection-footer) {
+    padding: 10px 18px;
+  }
+  .layout :global(.inspection-result) {
+    min-height: 0;
+    margin-top: 12px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .stageHeading h3 {
+    font-size: 36px;
+  }
+}
+@media (min-width: 768px) and (max-height: 820px) {
+  .layout :global(.inspection-body) {
+    padding: 18px 24px;
+  }
+  .layout :global(.inspection h3) {
+    min-height: 0;
+    font-size: 24px;
+  }
+  .layout :global(.stage-copy) {
+    min-height: 0;
+    margin: 12px 0 16px;
+  }
+  .layout :global(.stage-evidence) {
+    min-height: 110px;
+    line-height: 1.5;
+  }
+  .layout :global(.inspection-result) {
+    min-height: 0;
+    margin-top: 12px;
+  }
+}
