@@ -8,6 +8,8 @@ import threading
 from pathlib import Path
 from typing import Any, Iterator
 
+from raphael_agent.store.patch_content import durable_run_record
+
 
 def default_data_dir() -> Path:
     raw = os.environ.get("RAPHAEL_AGENT_DATA_DIR")
@@ -36,6 +38,7 @@ class RunStore:
     def save_run(self, run: dict[str, Any]) -> None:
         run_id = run["run_id"]
         path = self._run_path(run_id)
+        run = durable_run_record(run)
         with self._lock:
             path.write_text(json.dumps(run, indent=2, default=str) + "\n", encoding="utf-8")
 

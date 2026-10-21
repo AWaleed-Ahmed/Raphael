@@ -12,10 +12,26 @@ from raphael_agent.graph.nodes import (
     node_patch,
     node_publish_or_escalate,
     node_reproduce,
+    node_secret_coverage_gate,
     node_validate,
     route_after_validate,
 )
 from raphael_agent.graph.state import RunState
+from raphael_agent.diagnosis.analyzers import analyze_run
+
+
+def _route_after_evidence(state: RunState) -> str:
+    # Explicit immutable safety blocks retain precedence over sandbox work.
+    if state.get("sandbox_mode") == "live" and not state.get("diagnosis_only"):
+        if not any(hit.category == "blocked" for hit in analyze_run(state)):
+            return "reproduce"
+    return "diagnose"
+
+
+def _route_after_diagnose(state: RunState) -> str:
+    if state.get("diagnosis_only") or state.get("status") in {"failed_closed", "escalated"}:
+        return "publish_or_escalate"
+    return "secret_coverage" if state.get("sandbox_mode") == "live" else "reproduce"
 
 
 def build_stub_graph():
@@ -29,6 +45,7 @@ def build_stub_graph():
     graph.add_node("evidence", node_evidence)
     graph.add_node("diagnose", node_diagnose)
     graph.add_node("reproduce", node_reproduce)
+    graph.add_node("secret_coverage", node_secret_coverage_gate)
     graph.add_node("localize", node_localize)
     graph.add_node("patch", node_patch)
     graph.add_node("validate", node_validate)
@@ -36,13 +53,25 @@ def build_stub_graph():
 
     graph.add_edge(START, "ingest")
     graph.add_edge("ingest", "evidence")
-    graph.add_edge("evidence", "diagnose")
+    graph.add_conditional_edges(
+        "evidence", _route_after_evidence,
+        {"diagnose": "diagnose", "reproduce": "reproduce"},
+    )
     graph.add_conditional_edges(
         "diagnose",
-        lambda state: "publish_or_escalate" if state.get("diagnosis_only") else "reproduce",
-        {"reproduce": "reproduce", "publish_or_escalate": "publish_or_escalate"},
+        _route_after_diagnose,
+        {"reproduce": "reproduce", "secret_coverage": "secret_coverage", "publish_or_escalate": "publish_or_escalate"},
     )
-    graph.add_edge("reproduce", "localize")
+    graph.add_conditional_edges(
+        "reproduce",
+        lambda state: "diagnose" if state.get("sandbox_mode") == "live" else "secret_coverage",
+        {"diagnose": "diagnose", "secret_coverage": "secret_coverage"},
+    )
+    graph.add_conditional_edges(
+        "secret_coverage",
+        lambda state: "publish_or_escalate" if state.get("status") == "escalated" else "localize",
+        {"localize": "localize", "publish_or_escalate": "publish_or_escalate"},
+    )
     graph.add_edge("localize", "patch")
     graph.add_edge("patch", "validate")
     graph.add_conditional_edges(

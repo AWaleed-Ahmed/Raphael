@@ -1,13 +1,83 @@
 # Dispatch operational notes
 
+For the complete service pair, use the [canonical pilot installation](../docs/pilot-install.md).
+Current delivery and qualification are tracked in the [release milestones](../docs/release-milestones-2026-10-18.md).
+
+## Synthetic Secret fixture selection
+
+Set `RAPHAEL_SECRET_FIXTURE_SET=payments-test` (or another Ignis-local fixture
+name) explicitly to apply synthetic Secrets. Unset/empty means no fixture in
+both connector-driven dispatch and direct `node_reproduce`. The latter no
+longer silently hardcodes `payments-test`. Selection is trusted operator
+configuration, not inferred from evidence or added to the public job envelope.
+Dispatch snapshots the selection at intake, preserving it on replay/restart.
+This deployment-level option is not per-tenant fixture authorization.
+
+The separate `secret-fixture-kind` CI job checks the actual connector path
+against disposable Kubernetes, with identical workload manifests for covered
+and uncovered cases. Current released structural coverage and Linux kind controls are documented
+in the release milestones. The historical fixture-consumption proof alone
+did not establish structural diagnosis or general backend qualification. See `e2e/run_secret_fixture_kind.py`.
+
+Diagnosis receives scoped, bounded, redacted manifest excerpts derived from
+the ephemeral patch store, never its raw content. These safe excerpts are
+persisted after initial deploy, before observation, so they survive restart.
+The internal `intake(initial_evidence=...)` parameter accepts available evidence
+from the same-process bridge without changing the public job envelope. It does
+not collect missing evidence. Redaction precedes truncation and includes YAML
+secret fields and structured observations; it is not a universal secret detector
+or a policy for raw webhook and trace storage. See D-20260927-01.
+
+The agent's connector-schema snapshot test reads Git blobs as well as files.
+When running tests in WSL against a Windows-managed linked worktree, provide
+Linux `GIT_DIR` and `GIT_WORK_TREE` paths for that worktree: its `.git` pointer
+otherwise contains a Windows path Linux Git cannot resolve. Native checkouts
+(including GitHub Actions) need no override.
+
 Connector deployments use `RAPHAEL_DISPATCH_TOKENS`, a JSON object mapping each
 Bearer token to `{ "tenant_id": "...", "role": "producer"|"connector" }`.
 Producer tokens submit unchanged connector-v1 job envelopes to
 `POST /v1/tenants/{tenant_id}/jobs`; connector tokens poll
-`GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token.
+`GET /v1/tenants/{tenant_id}/jobs/next`. The path tenant must match the token. Connectors may set an explicit
+`connector_id` in the trusted token mapping; otherwise identity is derived from
+the token. Use distinct credentials for independent connectors.
+The first poll returns a persisted claim alongside the action. Connector clients
+can renew it with `POST /v1/tenants/{tenant_id}/jobs/{job_id}/lease` and JSON
+`{"action_id":"…","claim_id":"…","renewal_sequence":1}`. Renewal
+sequences advance by one; replaying the current sequence is idempotent. A claim
+is bound to one action and cannot extend its fixed action or job deadline. This
+endpoint is not usable by older connectors until they implement heartbeat calls.
 The legacy `POST /v1/jobs` endpoint remains for compatibility but is deprecated
 for new producer integrations because it returns the first action directly.
 
-The dispatch service exposes `POST /v1/leases/reap` for explicit lease cleanup. The current implementation does not run a timer, scheduler, or background reaper; a deployment must invoke this endpoint from its own operational control plane before lease expiry can be enforced continuously. Adding a durable periodic worker is deferred until the connector runtime and deployment model are defined.
+The dispatch service reaps expired connector leases automatically every 10 seconds by default. Configure the cadence with `RAPHAEL_LEASE_REAP_INTERVAL_SECONDS`; `POST /v1/leases/reap` remains available as an explicit operations override.
 
-Each state transition is persisted as a complete JSON document through the existing agent `RunStore`, so dispatch-specific fields such as `dispatch.stage`, `dispatch.pending_action`, and `dispatch.processed_actions` are included in the stored record. The current `Orchestrator` does not rehydrate `self.jobs` from `RunStore` during process startup, however. A process restart therefore loses in-memory routing of mid-flight jobs even though the last state is persisted; startup rehydration and durable multi-process leasing remain follow-up work.
+Each state transition is persisted through the existing agent `RunStore`, including dispatch routing metadata and processed-action fingerprints. Raw manifests and executable patch bodies/diffs are excluded from connector-run records in both JSON and SQLite; live execution retains the original bytes in memory. Rejected proposals retain only metadata, stripped before append.
+
+On startup, dispatch restores nonterminal jobs with a still-valid lease. A restart after initial deploy preserves the pending observation action unchanged, then issues a fresh unpatched `deploy_revision` on the same sandbox to reacquire `rendered_files` before patch generation. This refresh does not consume a patch attempt. Missing refreshed files escalate with `patch_input_unavailable` rather than generating a patch from empty input.
+
+**Recovery limit:** once a generated patch's executable bytes have been omitted from persistence, startup (or producer retry against that persisted run) fails closed with `patch_context_lost_on_restart`. Dispatch never replays a stripped action or silently substitutes new bytes under an old action ID. This also applies to later validation/finalization stages that still need the in-memory patch. Persisted jobs whose lease already expired are failed closed with `job_lease_expired` first. This policy does not promise automatic connector cleanup delivery from a startup terminal; that remains governed by the existing terminal-delivery mechanism.
+
+### Lease handover and publication recovery
+
+Use distinct connector credentials (or trusted configured connector identities)
+for independent workers. Result processing and renewal share persisted state;
+slow hooks run outside the state lock and async handlers offload blocking work.
+An in-progress result returns409 and must be retried while heartbeating. If a
+result already committed before its response arrived, the matching old owner
+can receive409 `action_completed` with the already-active next claim. Adopt that
+claim and its sequence; this response does not renew or extend it.
+
+Publishing persists intent before the remote call. An uncertain outcome becomes
+`publication_outcome_unknown` and requires manual reconciliation before another
+publication attempt. This does not roll back remote effects or guarantee exactly
+once. Deadline-bound GitHub requests own and close an async HTTP client per
+exchange, under a total wall deadline rather than an inactivity timeout.
+
+An identical terminal-result retry returns the persisted terminal cleanup
+message, including after restart, after tenant/owner/fingerprint checks. Only
+safe terminal envelopes are replayed; completed jobs stay out of the queue.
+Older terminal records without a saved envelope retain their previous limit.
+The paired connector retries identical cached results within confirmed bounds;
+final delivery failure uses journaled cleanup, retained on failure for restart.
+See D-20261019-01 and the result-delivery correction review.

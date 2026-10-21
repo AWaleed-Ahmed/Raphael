@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+import json
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -7,7 +13,7 @@ from uuid import uuid4
 from starlette.testclient import TestClient
 
 from raphael_dispatch.app import create_app
-from raphael_dispatch.orchestrator import AgentHooks, Orchestrator
+from raphael_dispatch.orchestrator import AgentHooks, OrchestrationError, Orchestrator
 from raphael_dispatch.protocol import PROTOCOL_VERSION, get_schemas
 from raphael_agent.budgets import max_patch_attempts_budget
 from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
@@ -80,6 +86,12 @@ def fidelity() -> dict:
             "dependencies_available": True,
         },
         "material_gaps": [],
+        "secret_coverage": {
+            "format_version": 1,
+            "complete": True,
+            "truncated": False,
+            "references": [],
+        },
     }
 
 
@@ -174,6 +186,46 @@ def test_default_hooks_reuse_agent_nodes() -> None:
     assert hooks.publish is node_publish_or_escalate
 
 
+def test_observation_evidence_is_marked_redacted_only_after_real_redaction() -> None:
+    redacted = Orchestrator._observation_evidence(
+        "observe-secret",
+        {
+            "signature": {"key": "probe_port_mismatch:service:8080!=9090"},
+            "detail": "token: SUPERSECRETVALUE123",
+        },
+    )
+    assert redacted["redacted"] is True
+    assert "SUPERSECRETVALUE123" not in redacted["summary"]
+    assert "generic_api_key" in redacted["redaction_notes"]
+
+    clean = Orchestrator._observation_evidence(
+        "observe-clean", {"signature": {"key": "probe_port_mismatch:service:8080!=9090"}}
+    )
+    assert clean["redacted"] is False
+
+
+def test_rendered_diagnosis_evidence_is_bounded_scoped_and_redacted(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    state = {
+        "run_id": "run-rendered",
+        "narrowed_location": {"file_path": "deploy/app.yaml"},
+        "rendered_files": [
+            {"path": "deploy/app.yaml", "content": "token: SUPERSECRETVALUE123\n" + "x" * 20_000},
+            {"path": "deploy/other.yaml", "content": "token: OUT_OF_SCOPE_SECRET"},
+        ],
+    }
+
+    orchestrator.patch_store.save_manifests(state["run_id"], state.pop("rendered_files"))
+    evidence = orchestrator._rendered_diagnosis_evidence(state)
+
+    assert len(evidence) == 1
+    assert evidence[0]["source"]["ref"] == "deploy/app.yaml"
+    assert evidence[0]["redacted"] is True
+    assert "SUPERSECRETVALUE123" not in evidence[0]["content_excerpt"]
+    assert "OUT_OF_SCOPE_SECRET" not in str(evidence)
+    assert len(evidence[0]["content_excerpt"]) <= 16_000
+
+
 def test_successful_multistep_job_reaches_fix_finalized(tmp_path: Path) -> None:
     orchestrator = make_orchestrator(tmp_path)
     job = job_envelope()
@@ -195,6 +247,28 @@ def test_successful_multistep_job_reaches_fix_finalized(tmp_path: Path) -> None:
     messages = orchestrator.receive_result(result_for(messages[0]))["messages"]
     assert messages[0]["kind"] == "terminal"
     assert messages[0]["payload"]["final_status"] == "fix_finalized"
+
+
+def test_required_secret_gap_escalates_before_patch(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    action = orchestrator.receive_result(result_for(action, result=create_result(job["payload"]["job_id"]))) ["messages"][0]
+    deploy = deploy_result()
+    deploy["fidelity"]["secret_coverage"] = {
+        "format_version": 1,
+        "complete": True,
+        "truncated": False,
+        "references": [{"workload_kind": "Deployment", "workload_name": "api", "namespace": "raphael-run", "source": "secretKeyRef", "secret_name": "payments-db", "key": "PASSWORD", "optional": False, "status": "missing_key"}],
+    }
+    action = orchestrator.receive_result(result_for(action, result=deploy))["messages"][0]
+    terminal = orchestrator.receive_result(result_for(action, result=observe_result()))["messages"][0]
+
+    assert terminal["kind"] == "terminal"
+    assert terminal["payload"]["final_status"] == "escalated"
+    state = orchestrator.jobs[job["payload"]["job_id"]]
+    assert state["terminal_reason"] == "unresolved_secret_dependency"
+    assert state["attempt_count"]["patch"] == 0
 
 
 def test_patch_attempt_budget_escalates_without_looping(tmp_path: Path, monkeypatch) -> None:
@@ -281,6 +355,67 @@ def test_replayed_result_is_noop(tmp_path: Path) -> None:
     assert second == {"messages": [], "idempotent_replay": True}
 
 
+def test_concurrent_duplicate_result_runs_transition_once(tmp_path: Path) -> None:
+    orchestrator = make_orchestrator(tmp_path)
+    job = job_envelope()
+    action = orchestrator.intake(job)["messages"][0]
+    result = result_for(action, result=create_result(job["payload"]["job_id"]))
+    entered = threading.Event()
+    release = threading.Event()
+    original = orchestrator._after_create
+    calls = 0
+
+    def slow_after_create(state, payload):
+        nonlocal calls
+        calls += 1
+        entered.set()
+        assert release.wait(timeout=5)
+        return original(state, payload)
+
+    orchestrator._after_create = slow_after_create
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(orchestrator.receive_result, result)
+        assert entered.wait(timeout=5)
+        with pytest.raises(OrchestrationError, match="already being processed"):
+            orchestrator.receive_result(result)
+        release.set()
+        response = first.result(timeout=5)
+
+    assert calls == 1
+    assert response["messages"][0]["payload"]["verb"] == "deploy_revision"
+
+
+def test_expired_claim_cannot_commit_after_slow_result(tmp_path: Path) -> None:
+    current = [datetime(2026, 8, 27, tzinfo=timezone.utc)]
+    orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
+    job = job_envelope(lease_ttl_seconds=30)
+    action = orchestrator.intake(job, tenant_id="tenant-a")["messages"][0]
+    state = orchestrator.jobs[job["payload"]["job_id"]]
+    claim = orchestrator.claim_action(state, "connector-a")
+    result = result_for(action, result=create_result(job["payload"]["job_id"]))
+    entered = threading.Event()
+    release = threading.Event()
+    original = orchestrator._after_create
+
+    def slow_after_create(state, payload):
+        entered.set()
+        assert release.wait(timeout=5)
+        return original(state, payload)
+
+    orchestrator._after_create = slow_after_create
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(orchestrator.receive_result, result, "connector-a")
+        assert entered.wait(timeout=5)
+        current[0] += timedelta(seconds=31)
+        assert len(orchestrator.reap_expired()) == 1
+        release.set()
+        with pytest.raises(OrchestrationError, match="became terminal"):
+            first.result(timeout=5)
+
+    assert orchestrator.jobs[job["payload"]["job_id"]]["dispatch"]["stage"] == "terminal"
+    assert claim["action_id"] == action["payload"]["action_id"]
+
+
 def test_expired_lease_fails_closed(tmp_path: Path) -> None:
     current = [datetime(2026, 8, 27, tzinfo=timezone.utc)]
     orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
@@ -300,3 +435,178 @@ def test_http_endpoints_use_orchestrator(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json()["messages"][0]["payload"]["verb"] == "create_sandbox"
     assert client.get("/health").json()["status"] == "ok"
+
+
+def _connector_headers(monkeypatch) -> dict[str, str]:
+    monkeypatch.setenv(
+        "RAPHAEL_DISPATCH_TOKENS",
+        json.dumps({"connector-a": {"tenant_id": "tenant-a", "role": "connector"}}),
+    )
+    return {"Authorization": "Bearer connector-a"}
+
+
+def test_reaper_runs_automatically_without_manual_endpoint(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("RAPHAEL_LEASE_REAP_INTERVAL_SECONDS", "0.1")
+    current = [datetime(2026, 9, 6, tzinfo=timezone.utc)]
+    orchestrator = make_orchestrator(tmp_path, clock=lambda: current[0])
+    action = orchestrator.intake(job_envelope(lease_ttl_seconds=30), tenant_id="tenant-a")["messages"][0]
+    state = orchestrator.jobs[action["payload"]["job_id"]]
+
+    with TestClient(create_app(orchestrator)):
+        current[0] += timedelta(seconds=31)
+        time.sleep(0.25)
+
+    assert state["dispatch"]["stage"] == "terminal"
+    assert state["terminal_reason"] == "job_lease_expired"
+
+
+def test_startup_rehydrates_valid_pending_action_for_connector_poll(tmp_path: Path, monkeypatch) -> None:
+    headers = _connector_headers(monkeypatch)
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=60)
+    action = original.intake(job, tenant_id="tenant-a")["messages"][0]
+    with TestClient(create_app(original)) as client:
+        first_claim = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers).json()["claim"]
+
+    restarted = make_orchestrator(tmp_path)
+    with TestClient(create_app(restarted)) as client:
+        response = client.get("/v1/tenants/tenant-a/jobs/next", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["messages"] == [action]
+    assert response.json()["pending"] is True
+    assert response.json()["claim"]["action_id"] == action["payload"]["action_id"]
+    assert response.json()["claim"] == first_claim
+    assert restarted.jobs[job["payload"]["job_id"]]["dispatch"]["pending_action"] == action
+
+
+def test_startup_rehydrates_stale_job_as_lease_expired(tmp_path: Path) -> None:
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=30)
+    original.intake(job, tenant_id="tenant-a")
+    state = original.jobs[job["payload"]["job_id"]]
+    state["dispatch"]["last_activity_at"] = "2000-01-01T00:00:00Z"
+    original._save(state)
+
+    restarted = make_orchestrator(tmp_path)
+    with TestClient(create_app(restarted)):
+        pass
+
+    persisted = restarted.store.get_run(job["payload"]["job_id"])
+    assert job["payload"]["job_id"] not in restarted.jobs
+    assert persisted["dispatch"]["stage"] == "terminal"
+    assert persisted["status"] == "failed_closed"
+    assert persisted["terminal_reason"] == "job_lease_expired"
+
+
+def test_producer_retry_after_restart_reuses_persisted_progress(tmp_path: Path) -> None:
+    original = make_orchestrator(tmp_path)
+    job = job_envelope(lease_ttl_seconds=60)
+    create = original.intake(job, tenant_id="tenant-a")["messages"][0]
+    expected = original.receive_result(
+        result_for(create, result=create_result(job["payload"]["job_id"]))
+    )["messages"][0]
+
+    restarted = make_orchestrator(tmp_path)
+    replay = restarted.intake(job, tenant_id="tenant-a")
+    persisted = restarted.store.get_run(job["payload"]["job_id"])
+
+    assert replay == {"messages": [expected], "idempotent_replay": True}
+    assert persisted["sandbox_id"] == "sb-1"
+    assert persisted["dispatch"]["pending_action"] == expected
+
+
+def test_validation_plan_targets_observed_resource():
+    state = {'failure_signature': {'key': 'before', 'normalized': {
+        'resource_kind': 'Deployment', 'resource_name': 'worker-api'}}}
+    plan = Orchestrator._validation_args(state)['plan']
+    assert plan['health_checks'][0]['resource'] == 'deployment/worker-api'
+    assert plan['compare_to_signature_key'] == 'before'
+
+
+def test_validation_plan_refuses_missing_resource_identity():
+    with pytest.raises(ValueError, match='Observed resource identity'):
+        Orchestrator._validation_args({'failure_signature': {'key': 'before'}})
+
+
+def test_expiry_during_result_persistence_cannot_revive_job(tmp_path: Path) -> None:
+    current = [datetime.now(timezone.utc)]
+    o = make_orchestrator(tmp_path, clock=lambda: current[0])
+    action = o.intake(job_envelope(lease_ttl_seconds=30), tenant_id="tenant-a")["messages"][0]
+    job_id = action["payload"]["job_id"]
+    o.claim_action(o.jobs[job_id], "connector-a")
+    reached, release = threading.Event(), threading.Event()
+    save = o._save
+
+    def slow_save(state):
+        if state is not o.jobs[job_id]:
+            reached.set()
+            assert release.wait(5)
+        save(state)
+
+    o._save = slow_save
+    with ThreadPoolExecutor(2) as pool:
+        result = pool.submit(o.receive_result, result_for(action, result=create_result(job_id)), "connector-a")
+        assert reached.wait(5)
+        current[0] += timedelta(seconds=31)
+        poll = pool.submit(o.claim_action, o.jobs[job_id], "connector-a")
+        release.set()
+        with pytest.raises(OrchestrationError, match="exceeded"):
+            result.result(timeout=5)
+        assert poll.result(timeout=5) is None
+    assert o.jobs[job_id]["dispatch"]["stage"] == "terminal"
+    assert o.store.get_run(job_id)["dispatch"]["stage"] == "terminal"
+
+
+def test_uncertain_publication_is_not_repeated_after_restart(tmp_path: Path) -> None:
+    o = make_orchestrator(tmp_path)
+    action = o.intake(job_envelope())["messages"][0]
+    job_id = action["payload"]["job_id"]
+    state = o.jobs[job_id]
+    action = o._issue_action(state, "finalize_result", {"require_patch": True})
+    calls = []
+
+    def uncertain_publish(state):
+        calls.append(state["run_id"])
+        raise RuntimeError("response lost after publication")
+
+    o.hooks.publish = uncertain_publish
+    result = result_for(action)
+    with pytest.raises(RuntimeError, match="response lost"):
+        o.receive_result(result)
+    restarted = make_orchestrator(tmp_path)
+    restarted.hooks.publish = uncertain_publish
+    restarted.rehydrate()
+    with pytest.raises(OrchestrationError, match="already started"):
+        restarted.receive_result(result)
+    assert calls == [job_id]
+    assert restarted.jobs[job_id]["dispatch"]["stage"] == "terminal"
+
+
+@pytest.mark.parametrize("restart", [False, True])
+def test_terminal_result_replays_after_response_loss_and_restart(tmp_path: Path, monkeypatch, restart: bool) -> None:
+    headers = _connector_headers(monkeypatch)
+    original = make_orchestrator(tmp_path)
+    job = job_envelope()
+    job_id = job["payload"]["job_id"]
+    original.intake(job, tenant_id="tenant-a")
+    from raphael_dispatch.auth import principal_from_request
+    owner = principal_from_request(headers["Authorization"], "connector").connector_id
+    action = original.next_tenant_action("tenant-a", owner)["messages"][0]
+    result = result_for(action, status="failed", error={"code": "synthetic", "message": "failed"})
+    first = original.receive_result(result, owner)
+    assert first["messages"][0]["kind"] == "terminal"
+    current = make_orchestrator(tmp_path) if restart else original
+    with TestClient(create_app(current)) as client:
+        replay = client.post("/v1/results", headers=headers, json=result)
+        assert replay.status_code == 200
+        assert replay.json() == {"messages": first["messages"], "idempotent_replay": True}
+        assert client.get("/v1/tenants/tenant-a/jobs/next", headers=headers).json()["messages"] == []
+        changed = result_for(action, status="failed", error={"code": "different", "message": "changed"})
+        assert client.post("/v1/results", headers=headers, json=changed).status_code == 422
+        monkeypatch.setenv("RAPHAEL_DISPATCH_TOKENS", json.dumps({
+            "other-owner": {"tenant_id": "tenant-a", "role": "connector"},
+            "other-tenant": {"tenant_id": "tenant-b", "role": "connector"},
+        }))
+        assert client.post("/v1/results", headers={"Authorization": "Bearer other-owner"}, json=result).status_code == 422
+        assert client.post("/v1/results", headers={"Authorization": "Bearer other-tenant"}, json=result).status_code == 403

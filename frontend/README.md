@@ -1,21 +1,4 @@
-# Raphael website and console
-
-The frontend is one Next.js application, with routes in `src/app`, shared React
-components in `src/components`, and landing sections in `src/features/Pages/Landing`.
-Dependencies and configuration live directly in `frontend`; there is no nested app.
-
-The public landing page lives at `/`. It uses the approved forest-and-paper
-theme, responsive local WebP imagery, an illustrative repair walkthrough,
-expandable evidence, and passing/blocked validation examples. These interactions
-are presentation-only and make no agent or sandbox API calls.
-The walkthrough follows six scroll-driven stages with keyboard navigation, a visible step indicator, and a skip link. The handoff preview has expandable diff, evidence, and validation attachments. The header and closing CTA open the demo console. The intro runs for about 3.4 seconds once per browser session, with the header expanding from a pill after the logo docks. The footer motion control saves a local preference; OS reduced-motion settings always take priority.
-
-Planned architecture work is documented in [the roadmap](docs/roadmap.md).
-
-The existing operator console remains at `/console/`, and the design study at
-`/direction/`. Their existing HTML, JavaScript, and styles remain unchanged.
-
-## Operator console
+# Raphael Console
 
 Client-facing dashboard for Raphael’s I0 run API. It is intentionally a thin
 client: it reads run state and sends idempotent actions to the agent; it never
@@ -23,34 +6,21 @@ calls the sandbox controller directly.
 
 ## Run locally
 
+See the [canonical pilot guide](../docs/pilot-install.md#6-optional-local-console)
+for demo startup and the optional local `/api` development proxy.
+
 ```bash
 cd frontend
-npm install
-npm run dev
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Open http://localhost:3000 for the landing page, or append `/console/` for the
-dashboard. `npm run dev` runs one Next.js server. Before startup, the existing
-console and design study are built as static files and served through Next.js.
-No second development server or port 5173 is needed. If you edit the console's
-`src/main.js` or `src/styles.css`, restart development to rebuild those files.
-
-Run `npm run build`, then `npm start` (or `npm run preview`) to inspect the
-production build. The build compiles the two existing Vite pages, copies their
-output into the Next.js public directory, and builds Next.js. The production
-server serves all three pages without a separate Vite server. Run `npm test`
-for the landing interaction tests.
-
-By default the console runs in demo mode with realistic local data. To connect
-to an agent API, set the Vite build-time variable:
-
-```bash
-VITE_RAPHAEL_API_URL=http://127.0.0.1:8091 npm run dev
-```
-
-The optional `VITE_RAPHAEL_INTERFACE_TOKEN` is intended only for local testing.
-Do not put a production bearer token in a browser bundle; deploy a same-origin
-server-side proxy instead.
+An empty `VITE_RAPHAEL_API_URL` selects demo mode. For API data use `/api` with
+the guide's proxy; direct access from Vite's origin to port 8091 lacks general
+core CORS support. `VITE_*` settings are browser-visible and loaded by Vite,
+independently of the Python backend. Keep backend tokens/provider/Supabase keys
+out of the bundle. Nonlocal deployment needs a reviewed authenticated server
+proxy. A production build and HTTP proxy smoke do not prove the full UI journey.
 
 ## Current scope
 

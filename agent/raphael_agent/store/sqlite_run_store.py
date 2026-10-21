@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from raphael_agent.store.run_store import RunStore, default_data_dir
+from raphael_agent.store.patch_content import durable_run_record
 
 
 class SqliteRunStore(RunStore):
@@ -66,6 +67,7 @@ class SqliteRunStore(RunStore):
                 conn.commit()
 
     def save_run(self, run: dict[str, Any]) -> None:
+        run = durable_run_record(run)
         run_id = run["run_id"]
         payload = json.dumps(run, default=str)
         with self._lock:

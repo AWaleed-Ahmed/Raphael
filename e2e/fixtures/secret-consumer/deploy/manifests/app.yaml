@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fixture-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fixture-consumer
+  template:
+    metadata:
+      labels:
+        app: fixture-consumer
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.37.0
+          imagePullPolicy: Never
+          command: ["sh", "-c", "sleep 3600"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: payments-db
+                  key: DATABASE_URL
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "test \"$DATABASE_URL\" = 'postgres://payments:synthetic@db.sandbox.local:5432/payments'"]
+            periodSeconds: 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi

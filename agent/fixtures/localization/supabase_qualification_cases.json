@@ -1,0 +1,22 @@
+[
+  {"id":"payment-timeout","kind":"source","baseline":"trace","stack":false,"expected_path":"src/payments.py"},
+  {"id":"inventory-shortfall","kind":"source","baseline":"trace","stack":false,"expected_path":"src/inventory.py"},
+  {"id":"shipping-rate","kind":"source","baseline":"trace","stack":false,"expected_path":"src/shipping.py"},
+  {"id":"tax-rounding","kind":"source","baseline":"route","stack":false,"expected_path":"src/tax.py"},
+  {"id":"order-validation","kind":"source","baseline":"trace","stack":true,"expected_path":"src/orders.py"},
+  {"id":"refund-timeout","kind":"source","baseline":"route","stack":true,"expected_path":"src/refunds.py"},
+  {"id":"stock-update","kind":"source","baseline":"trace","stack":true,"expected_path":"src/stock.py"},
+  {"id":"invoice-parse","kind":"source","baseline":"none","stack":true,"expected_path":"src/invoice.py"},
+  {"id":"misleading-wrapper-span","kind":"source","baseline":"misleading","stack":true,"expected_path":"src/checkout.py"},
+  {"id":"misleading-route-map","kind":"source","baseline":"misleading-route","stack":true,"expected_path":"src/discount.py"},
+  {"id":"wrong-company-baseline","kind":"source","baseline":"wrong-company","stack":true,"expected_path":"src/customer.py"},
+  {"id":"catalog-outage","kind":"source","baseline":"unavailable","stack":true,"expected_path":"src/session.py"},
+  {"id":"image-approved-api","kind":"image","baseline":"valid","expected_path":"deploy/app.yaml","expected_approval":true},
+  {"id":"image-approved-worker","kind":"image","baseline":"valid","container":"worker","expected_path":"deploy/app.yaml","expected_approval":true},
+  {"id":"image-unverified","kind":"image","baseline":"unverified","expected_path":"deploy/app.yaml","expected_approval":false},
+  {"id":"image-no-commit","kind":"image","baseline":"missing-commit","expected_path":"deploy/app.yaml","expected_approval":false},
+  {"id":"image-wrong-client","kind":"image","baseline":"wrong-client","expected_path":"deploy/app.yaml","expected_approval":false},
+  {"id":"image-wrong-container","kind":"image","baseline":"wrong-container","expected_path":"deploy/app.yaml","expected_approval":false},
+  {"id":"image-conflicting-approvals","kind":"image","baseline":"conflict","expected_path":"deploy/app.yaml","expected_approval":false},
+  {"id":"image-missing-baseline","kind":"image","baseline":"none","expected_path":"deploy/app.yaml","expected_approval":false}
+]

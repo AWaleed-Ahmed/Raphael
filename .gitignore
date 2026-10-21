@@ -41,3 +41,43 @@ agent/.raphael-agent-data-*/
 
 # Local generated training data
 /raphael/
+
+# Generated evaluation traces and score reports
+/evals/out/
+e2e/kind-fixture-out/
+
+e2e/kind-remediation-out/
+e2e/lease-denial-out/
+
+# Historical plans and reviews are kept under docs/historical/
+/docs/byok-implementation-review-2026-10-06.md
+/docs/byok-provider-implementation-review-2026-10-18.md
+/docs/ci-repair-plan-2026-10-19.md
+/docs/ci-repair-review-2026-10-19.md
+/docs/escalation-fail-closed-review-2026-10-05.md
+/docs/escalation-persistence-review-2026-10-05.md
+/docs/image-pull-implementation-review.md
+/docs/implementation-review-2026-10-04-issue-30.md
+/docs/implementation-review-2026-10-04.md
+/docs/kind-remediation-review-2026-10-06.md
+/docs/next-three-implementation-plan.md
+/docs/open-pr-implementation-plan-2026-10-06.md
+/docs/restore-13-17-plan-2026-10-18.md
+/docs/restore-13-17-recheck-2026-10-19.md
+/docs/restore-13-17-review-2026-10-19.md
+/docs/result-delivery-fix-review-2026-10-19.md
+/docs/secret-coverage-30-plan.md
+
+# Local caches, coverage, and generated artifacts
+.raphael-artifacts/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.tsbuildinfo
+interface/IDE/out/
+*.vsix
+e2e/secret-coverage-out/

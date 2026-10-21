@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "scenario_id": "probe_misconfiguration",
+  "fixture": {
+    "repository": "AmazingDude/raphael-e2e-fixture",
+    "clone_url": "https://github.com/AmazingDude/raphael-e2e-fixture.git",
+    "commit_sha": "268d7b781f3849dab5694a8161789099555ebc76"
+  },
+  "trigger": { "kind": "connector_job", "source": "evals/run_evals.py" },
+  "narrowed_location": { "file_path": "deploy/manifests/app.yaml" },
+  "expected": {
+    "failure_class": "probe_misconfiguration",
+    "terminal_status": "fix_finalized",
+    "patch_scope": {
+      "allowed_file_paths": ["deploy/manifests/app.yaml"],
+      "required_content": ["port: 8080"],
+      "required_changed_line_fragments": ["-              port: 9090", "+              port: 8080"],
+      "max_changed_lines": 2
+    }
+  },
+  "required_evidence": {
+    "pre_fix_signature": true,
+    "validation": { "passed": true, "signature_cleared": true },
+    "terminal_instruction": "discard_local_copy"
+  },
+  "category": "positive_remediation"
+}

@@ -2,26 +2,62 @@ from __future__ import annotations
 
 import hashlib
 import json
+import copy
+import threading
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from functools import wraps
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
 from raphael_agent.budgets import check_budgets, max_patch_attempts_budget, sandbox_http_timeout_seconds
-from raphael_agent.graph.nodes import node_diagnose, node_localize, node_patch, node_publish_or_escalate
+from raphael_agent.evidence.redaction import redact_evidence_item, redact_text
+from raphael_agent.evidence.boundary import bounded_evidence, redact_manifest, redact_value, MAX_ITEMS
+from raphael_agent.graph.nodes import (
+    node_diagnose,
+    node_localize,
+    node_patch,
+    node_publish_or_escalate,
+    node_secret_coverage_gate,
+)
 from raphael_agent.graph.state import initial_run_state
 from raphael_agent.store import RunStore
+from raphael_agent.sandbox_config import secret_fixture_args
+from raphael_agent.validation import rollout_resource
+from raphael_agent.store.patch_content import without_patch_content
+from raphael_agent.escalation_validation import escalation_failure_updates
 
+from .patch_store import EphemeralPatchStore
 from .protocol import ALLOWED_VERBS, PROTOCOL_VERSION, ProtocolValidationError, get_schemas
 
 
 Node = Callable[[dict[str, Any]], dict[str, Any]]
 
 
+def state_transaction(method: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(method)
+    def locked(self: Any, *args: Any, **kwargs: Any) -> Any:
+        with self._state_lock:
+            return method(self, *args, **kwargs)
+    return locked
+
+
 class OrchestrationError(ProtocolValidationError):
     """Raised when a connector message cannot advance its job state."""
+
+
+class ResultInProgress(OrchestrationError):
+    status_code = 409
+
+
+class ActionCompleted(OrchestrationError):
+    """A result committed before its old heartbeat received the response."""
+
+    def __init__(self, claim: dict[str, Any]) -> None:
+        super().__init__("action already completed")
+        self.claim = claim
 
 
 @dataclass
@@ -45,12 +81,76 @@ class Orchestrator:
     store: RunStore | None = None
     hooks: AgentHooks | None = None
     clock: Callable[[], datetime] | None = None
+    patch_store: EphemeralPatchStore | None = None
 
     def __post_init__(self) -> None:
         self.store = self.store or RunStore()
         self.hooks = self.hooks or AgentHooks()
         self.clock = self.clock or (lambda: datetime.now(timezone.utc))
+        self.patch_store = self.patch_store or EphemeralPatchStore()
         self.jobs: dict[str, dict[str, Any]] = {}
+        self._state_lock = threading.RLock()
+        self._processing_actions: set[tuple[str, str]] = set()
+
+    @staticmethod
+    def _is_active_dispatch_state(state: dict[str, Any]) -> bool:
+        dispatch = state.get("dispatch")
+        return (
+            isinstance(dispatch, dict)
+            and dispatch.get("stage") != "terminal"
+            and dispatch.get("pending_action") is not None
+        )
+
+    @staticmethod
+    def _lease_is_expired(state: dict[str, Any], current: datetime) -> bool:
+        """Apply the one lease-staleness rule used at startup and while running."""
+        dispatch = state["dispatch"]
+        ttl = int(dispatch.get("lease_ttl_seconds") or 0)
+        claim = dispatch.get("claim")
+        if claim:
+            expiry = datetime.fromisoformat(str(claim["lease_expires_at"]).replace("Z", "+00:00"))
+            return current >= expiry
+        if ttl <= 0:
+            return False
+        last = datetime.fromisoformat(str(dispatch["last_activity_at"]).replace("Z", "+00:00"))
+        return (current - last).total_seconds() > ttl
+
+    def _expire_lease(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Fail closed using the shared terminal transition for an abandoned job."""
+        state["errors"] = list(state.get("errors") or []) + [
+            {"code": "job_lease_expired", "message": "connector lease expired", "retryable": False}
+        ]
+        state["status"] = "failed_closed"
+        state["terminal_reason"] = "job_lease_expired"
+        terminal = self._terminal(state, "failed")
+        self._save(state)
+        return terminal
+
+    @state_transaction
+    def rehydrate(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
+        """Restore valid pending jobs, terminalizing persisted jobs whose lease already expired."""
+        current = (now or self.clock()).astimezone(timezone.utc)
+        terminals: list[dict[str, Any]] = []
+        assert self.store is not None
+        for state in self.store.iter_runs():
+            if not self._is_active_dispatch_state(state):
+                continue
+            if self._lease_is_expired(state, current):
+                terminals.append(self._expire_lease(state))
+                continue
+            if state["dispatch"].get("patch_payloads_omitted"):
+                terminals.append(self._lost_patch_context(state))
+                continue
+            self.jobs.setdefault(state["run_id"], state)
+        return terminals
+
+    def _lost_patch_context(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Never replay metadata as though it were the original executable patch."""
+        state["status"] = "failed_closed"
+        state["terminal_reason"] = "patch_context_lost_on_restart"
+        terminal = self._terminal(state, "failed")
+        self._save(state)
+        return terminal
 
     def _now(self) -> str:
         return self.clock().astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -84,11 +184,20 @@ class Orchestrator:
         return {"owner": owner, "name": name, "clone_url": clone_url}
 
     def _save(self, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            self._terminal(state, "failed")
         state["updated_at"] = self._now()
         assert self.store is not None
-        self.store.save_run(dict(state))
+        durable = {k: v for k, v in state.items() if k != "rendered_files"}
+        self.store.save_run(durable)
 
-    def _state_for_job(self, job: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def public_claim(claim: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in claim.items() if key != "connector_id"}
+
+    def _state_for_job(self, job: dict[str, Any], *, initial_evidence: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         job_id = job["job_id"]
         repository = self._repository(job)
         narrowed = dict(job["narrowed_location"])
@@ -104,14 +213,23 @@ class Orchestrator:
         state = dict(initial_run_state(seed, sandbox_mode="connector"))
         state["narrowed_location"] = narrowed
         state["evidence"] = [
-            {
-                "evidence_id": f"job-context:{job_id}",
-                "kind": "other",
-                "summary": "narrowed_location=" + json.dumps(narrowed, sort_keys=True),
-                "redacted": True,
-            }
+            redact_evidence_item(
+                {
+                    "evidence_id": f"job-context:{job_id}",
+                    "kind": "other",
+                    "source": {"system": "other", "ref": job_id},
+                    "summary": "narrowed_location=" + json.dumps(narrowed, sort_keys=True),
+                    "redacted": False,
+                    "provenance": {"collector": "dispatch", "query": "connector job context"},
+                    "collected_at": self._now(),
+                }
+            ),
+            *self._sanitize_initial_evidence(initial_evidence or []),
         ]
         state["dispatch"] = {
+            # Snapshot operator selection at intake so retries/restarts cannot
+            # silently switch fixture sets when process configuration changes.
+            **secret_fixture_args(),
             "stage": "create_sandbox",
             "pending_action": None,
             "processed_actions": {},
@@ -120,19 +238,36 @@ class Orchestrator:
         }
         return state
 
-    def intake(self, job_envelope: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
+    @state_transaction
+    def intake(
+        self,
+        job_envelope: dict[str, Any],
+        *,
+        tenant_id: str | None = None,
+        initial_evidence: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         get_schemas().validate_envelope(job_envelope)
         if job_envelope.get("kind") != "job":
             raise OrchestrationError("job intake requires a job envelope")
         job = job_envelope["payload"]
         job_id = job["job_id"]
         existing = self.jobs.get(job_id)
+        if existing is None:
+            assert self.store is not None
+            persisted = self.store.get_run(job_id)
+            if persisted is not None and isinstance(persisted.get("dispatch"), dict):
+                existing = persisted
+                self.jobs[job_id] = existing
         if existing is not None:
+            if tenant_id and existing.get("tenant_id") != tenant_id:
+                raise OrchestrationError("job_id belongs to a different tenant")
+            if existing.get("dispatch", {}).get("patch_payloads_omitted"):
+                return {"messages": [self._lost_patch_context(existing)], "idempotent_replay": True}
             pending = existing.get("dispatch", {}).get("pending_action")
             messages = [pending] if pending else []
             return {"messages": messages, "idempotent_replay": True}
 
-        state = self._state_for_job(job)
+        state = self._state_for_job(job, initial_evidence=initial_evidence)
         if tenant_id:
             state["tenant_id"] = tenant_id
         self.jobs[job_id] = state
@@ -140,6 +275,7 @@ class Orchestrator:
         self._save(state)
         return {"messages": [action], "idempotent_replay": False}
 
+    @state_transaction
     def tenant_jobs(self, tenant_id: str) -> list[dict[str, Any]]:
         return [
             state for state in self.jobs.values()
@@ -148,24 +284,158 @@ class Orchestrator:
             and state.get("dispatch", {}).get("pending_action") is not None
         ]
 
-    def receive_result(self, result_envelope: dict[str, Any]) -> dict[str, Any]:
+    @state_transaction
+    def next_tenant_action(self, tenant_id: str, connector_id: str) -> dict[str, Any]:
+        for state in sorted(self.tenant_jobs(tenant_id), key=lambda item: item.get("created_at") or item["run_id"]):
+            claim = self._claim_action(state, connector_id)
+            if claim:
+                return {"messages": [state["dispatch"]["pending_action"]], "pending": True,
+                        "claim": self.public_claim(claim)}
+        return {"messages": [], "pending": False}
+
+    @state_transaction
+    def claim_action(self, state: dict[str, Any], connector_id: str | None = None) -> dict[str, Any] | None:
+        """Persist a claim bound to the currently pending action before returning it."""
+        state = self.jobs.get(state["run_id"], state)
+        return self._claim_action(state, connector_id)
+
+    def _claim_action(self, state: dict[str, Any], connector_id: str | None) -> dict[str, Any] | None:
+        if not self._is_active_dispatch_state(state):
+            return None
+        dispatch = state["dispatch"]
+        action = dispatch["pending_action"]
+        now = self.clock().astimezone(timezone.utc)
+        prior = dispatch.get("claim")
+        if prior and prior.get("action_id") == action["payload"]["action_id"]:
+            expiry = datetime.fromisoformat(str(prior["lease_expires_at"]).replace("Z", "+00:00"))
+            if now < expiry:
+                if prior.get("connector_id") != connector_id:
+                    return None
+                return prior
+            self._expire_lease(state)
+            return None
+        ttl = max(1, int(dispatch.get("lease_ttl_seconds") or 60))
+        deadline = datetime.fromisoformat(str(state["budget_snapshot"]["deadline_at"]).replace("Z", "+00:00"))
+        action_deadline = min(deadline, now + timedelta(seconds=1800))
+        claim = {
+            "job_id": state["run_id"],
+            "claim_id": str(uuid.uuid4()),
+            "connector_id": connector_id,
+            "action_id": action["payload"]["action_id"],
+            "renewal_sequence": 0,
+            "lease_ttl_seconds": ttl,
+            "action_deadline_at": action_deadline.isoformat().replace("+00:00", "Z"),
+            "job_deadline_at": deadline.isoformat().replace("+00:00", "Z"),
+            "lease_expires_at": min(now + timedelta(seconds=ttl), action_deadline).isoformat().replace("+00:00", "Z"),
+        }
+        dispatch["claim"] = claim
+        self._save(state)
+        return claim
+
+    @state_transaction
+    def renew_action_lease(
+        self, tenant_id: str, job_id: str, request: dict[str, Any], connector_id: str | None = None
+    ) -> dict[str, Any]:
+        state = self.jobs.get(job_id)
+        if state is None or state.get("tenant_id") != tenant_id:
+            raise OrchestrationError("tenant does not own job")
+        dispatch = state["dispatch"]
+        claim = dispatch.get("claim")
+        now = self.clock().astimezone(timezone.utc)
+        completed = dispatch.get("processed_actions", {}).get(request.get("action_id"), {})
+        if (self._is_active_dispatch_state(state) and claim
+                and claim.get("connector_id") == connector_id
+                and completed.get("claim_id") == request.get("claim_id")
+                and completed.get("connector_id") == connector_id
+                and completed.get("claim_id") is not None
+                and not self._lease_is_expired(state, now)):
+            # Deny the stale renewal without extending anything. The same owner
+            # may adopt the already-committed claim while its result is in transit.
+            raise ActionCompleted(self.public_claim(claim))
+        if (not self._is_active_dispatch_state(state) or not claim
+                or (connector_id is not None and claim.get("connector_id") != connector_id)
+                or request.get("claim_id") != claim.get("claim_id")
+                or request.get("action_id") != claim.get("action_id")
+                or request.get("action_id") != dispatch["pending_action"]["payload"]["action_id"]):
+            raise OrchestrationError("claim is stale, expired, or no longer active")
+        expiry = datetime.fromisoformat(str(claim["lease_expires_at"]).replace("Z", "+00:00"))
+        deadline = datetime.fromisoformat(str(claim["action_deadline_at"]).replace("Z", "+00:00"))
+        if now >= expiry or now >= deadline:
+            self._expire_lease(state)
+            raise OrchestrationError("claim lease or action deadline expired")
+        sequence = request.get("renewal_sequence")
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 1:
+            raise OrchestrationError("renewal_sequence must be a positive integer")
+        current_sequence = int(claim.get("renewal_sequence", 0))
+        if sequence == current_sequence:
+            return dict(claim)
+        if sequence != current_sequence + 1:
+            raise OrchestrationError("renewal_sequence is stale or skipped")
+        ttl = max(1, int(dispatch.get("lease_ttl_seconds") or 60))
+        claim["renewal_sequence"] = sequence
+        claim["lease_expires_at"] = min(now + timedelta(seconds=ttl), deadline).isoformat().replace("+00:00", "Z")
+        dispatch["last_activity_at"] = self._now()
+        self._save(state)
+        return dict(claim)
+
+    @state_transaction
+    def result_tenant(self, job_id: str) -> str | None:
+        """Load only a completed job on demand to recover its cleanup response."""
+        state = self.jobs.get(job_id)
+        if state is None:
+            assert self.store is not None
+            persisted = self.store.get_run(job_id)
+            dispatch = (persisted or {}).get("dispatch") or {}
+            if dispatch.get("stage") == "terminal" and dispatch.get("terminal_message"):
+                state = persisted
+                self.jobs[job_id] = state
+        return state.get("tenant_id") if state is not None else None
+
+    def receive_result(self, result_envelope: dict[str, Any], connector_id: str | None = None) -> dict[str, Any]:
         get_schemas().validate_envelope(result_envelope)
         if result_envelope.get("kind") != "result":
             raise OrchestrationError("result handling requires a result envelope")
         payload = result_envelope["payload"]
         job_id = payload["job_id"]
-        state = self.jobs.get(job_id)
-        if state is None:
-            raise OrchestrationError(f"unknown job_id: {job_id}")
+        action_id = payload["action_id"]
+        action_key = (job_id, action_id)
+        with self._state_lock:
+            self.result_tenant(job_id)
+            state = self.jobs.get(job_id)
+            if state is None:
+                raise OrchestrationError(f"unknown job_id: {job_id}")
+            claim = state["dispatch"].get("claim")
+            if connector_id is not None and claim and claim.get("connector_id") != connector_id:
+                raise OrchestrationError("connector does not own the active claim")
+            if action_key in self._processing_actions:
+                raise ResultInProgress("result for action is already being processed")
+            if action_id not in state["dispatch"].get("processed_actions", {}):
+                self._require_current_action(job_id, action_id)
+            snapshot = copy.deepcopy(state)
+            self._processing_actions.add(action_key)
+        try:
+            return self._receive_result_once(snapshot, result_envelope, connector_id)
+        finally:
+            with self._state_lock:
+                self._processing_actions.discard(action_key)
+
+    def _receive_result_once(
+        self, live_state: dict[str, Any], result_envelope: dict[str, Any], connector_id: str | None
+    ) -> dict[str, Any]:
+        state = live_state
+        payload = result_envelope["payload"]
+        job_id = payload["job_id"]
 
         dispatch = state["dispatch"]
+        completed_claim = dict(dispatch.get("claim") or {})
         action_id = payload["action_id"]
         fingerprint = self._fingerprint(payload)
         processed = dispatch.setdefault("processed_actions", {})
         if action_id in processed:
             if processed[action_id]["fingerprint"] != fingerprint:
                 raise OrchestrationError("action_id replayed with a different result payload")
-            return {"messages": [], "idempotent_replay": True}
+            terminal = dispatch.get("terminal_message")
+            return {"messages": [terminal] if terminal else [], "idempotent_replay": True}
 
         pending = dispatch.get("pending_action")
         if not pending or pending["payload"]["action_id"] != action_id:
@@ -175,18 +445,37 @@ class Orchestrator:
 
         dispatch["last_activity_at"] = self._now()
         stage = dispatch["stage"]
-        if payload["status"] != "ok":
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            messages = [self._terminal(state, "failed")]
+        elif payload["status"] != "ok":
             messages = self._handle_failed_result(state, stage, payload)
         elif stage == "create_sandbox":
             messages = self._after_create(state, payload)
         elif stage == "deploy_initial":
             self._record_rendered_files(state, payload)
             messages = [self._issue_action(state, "observe_failure", {"timeout_seconds": self._capped_timeout(90)})]
+        elif stage == "refresh_patch_input":
+            self._record_rendered_files(state, payload)
+            if not self.patch_store.get_manifests(job_id):
+                state["status"] = "escalated"
+                state["terminal_reason"] = "patch_input_unavailable"
+                messages = [self._terminal(state, "escalated")]
+            else:
+                messages = self._prepare_patch(state)
         elif stage == "observe_failure":
             messages = self._after_observe(state, payload)
         elif stage == "deploy_patch":
             self._record_rendered_files(state, payload)
-            messages = [self._issue_action(state, "run_validation", self._validation_args(state))]
+            try:
+                validation_args = self._validation_args(state)
+            except ValueError:
+                state["status"] = "failed_closed"
+                state["terminal_reason"] = "validation_identity_unavailable"
+                messages = [self._terminal(state, "failed")]
+            else:
+                messages = [self._issue_action(state, "run_validation", validation_args)]
         elif stage == "run_validation":
             result = payload.get("result") or {}
             if result.get("passed") is False or result.get("fail_closed") is True:
@@ -206,7 +495,13 @@ class Orchestrator:
                 state["result_id"] = finalized["result_id"]
             if finalized.get("record"):
                 state["validated_fix_record"] = finalized["record"]
-            self._run_node(self.hooks.publish, state)
+            original_budget = dict(state["budget_snapshot"])
+            self._begin_publication(state, action_id)
+            try:
+                self._run_node(self.hooks.publish, state)
+            finally:
+                state["budget_snapshot"] = original_budget
+            state["dispatch"]["publication"]["status"] = "completed"
             final_status = "fix_finalized"
             if state.get("status") == "failed_closed":
                 final_status = "failed"
@@ -216,34 +511,82 @@ class Orchestrator:
         else:
             raise OrchestrationError(f"unsupported pending stage: {stage}")
 
-        processed[action_id] = {"fingerprint": fingerprint, "at": self._now()}
-        self._save(state)
-        return {"messages": messages, "idempotent_replay": False}
+        processed[action_id] = {
+            "fingerprint": fingerprint, "at": self._now(),
+            "claim_id": completed_claim.get("claim_id"),
+            "connector_id": completed_claim.get("connector_id"),
+        }
+        return self._commit_result(state, action_id, messages, connector_id)
 
+    def _require_current_action(self, job_id: str, action_id: str) -> dict[str, Any]:
+        current = self.jobs.get(job_id)
+        if current is None or not self._is_active_dispatch_state(current):
+            raise OrchestrationError("job became terminal while result was being processed")
+        pending = current["dispatch"].get("pending_action")
+        if not pending or pending["payload"]["action_id"] != action_id:
+            raise OrchestrationError("action changed while result was being processed")
+        if self._lease_is_expired(current, self.clock().astimezone(timezone.utc)):
+            self._expire_lease(current)
+            raise OrchestrationError("result processing exceeded the action lease or deadline")
+        return current
+
+    @state_transaction
+    def _begin_publication(self, state: dict[str, Any], action_id: str) -> None:
+        current = self._require_current_action(state["run_id"], action_id)
+        if current["dispatch"].get("publication"):
+            current["status"] = "failed_closed"
+            current["terminal_reason"] = "publication_outcome_unknown"
+            self._terminal(current, "failed")
+            self._save(current)
+            raise OrchestrationError("publication was already started; reconcile its outcome")
+        intent = {"action_id": action_id, "status": "started"}
+        current["dispatch"]["publication"] = intent
+        self._save(current)
+        self._require_current_action(state["run_id"], action_id)
+        state["dispatch"]["publication"] = dict(intent)
+        claim = current["dispatch"].get("claim")
+        if claim:
+            state["budget_snapshot"]["deadline_at"] = min(
+                claim["lease_expires_at"], claim["action_deadline_at"], claim["job_deadline_at"]
+            )
+
+    @state_transaction
+    def _commit_result(
+        self, state: dict[str, Any], action_id: str,
+        messages: list[dict[str, Any]], connector_id: str | None,
+    ) -> dict[str, Any]:
+        job_id = state["run_id"]
+        self._require_current_action(job_id, action_id)
+        if state["dispatch"].get("pending_action") is not None and connector_id is not None:
+            self._claim_action(state, connector_id)
+        else:
+            self._save(state)
+        # Persistence can take time. Do not replace live state after its lease expired.
+        self._require_current_action(job_id, action_id)
+        self.jobs[job_id] = state
+        response = {"messages": messages, "idempotent_replay": False}
+        if messages and messages[0].get("kind") == "action":
+            response["claim"] = state["dispatch"].get("claim")
+        return response
+
+    @state_transaction
     def reap_expired(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
         """Terminalize silent jobs whose connector lease has expired."""
         current = (now or self.clock()).astimezone(timezone.utc)
         terminals: list[dict[str, Any]] = []
         for state in list(self.jobs.values()):
-            dispatch = state["dispatch"]
-            if not dispatch.get("pending_action") or dispatch.get("stage") == "terminal":
+            if not self._is_active_dispatch_state(state):
                 continue
-            ttl = int(dispatch.get("lease_ttl_seconds") or 0)
-            if ttl <= 0:
+            if not self._lease_is_expired(state, current):
                 continue
-            last = datetime.fromisoformat(str(dispatch["last_activity_at"]).replace("Z", "+00:00"))
-            if (current - last).total_seconds() <= ttl:
-                continue
-            state["errors"] = list(state.get("errors") or []) + [
-                {"code": "job_lease_expired", "message": "connector lease expired", "retryable": False}
-            ]
-            state["status"] = "failed_closed"
-            state["terminal_reason"] = "job_lease_expired"
-            terminals.append(self._terminal(state, "failed"))
-            self._save(state)
+            terminals.append(self._expire_lease(state))
         return terminals
 
     def _issue_action(self, state: dict[str, Any], verb: str, args: dict[str, Any]) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return self._terminal(state, "failed")
         if verb not in ALLOWED_VERBS:
             raise OrchestrationError(f"unsupported action verb: {verb}")
         halt = check_budgets(state, node=verb)
@@ -256,6 +599,7 @@ class Orchestrator:
         action = self._envelope(job_id=job_id, kind="action", payload=payload)
         dispatch = state["dispatch"]
         dispatch["pending_action"] = action
+        dispatch.pop("claim", None)
         dispatch["stage"] = {
             "create_sandbox": "create_sandbox",
             "deploy_revision": "deploy_initial" if dispatch.get("stage") == "create_sandbox" else "deploy_patch",
@@ -267,21 +611,36 @@ class Orchestrator:
         return action
 
     def _terminal(self, state: dict[str, Any], final_status: str) -> dict[str, Any]:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            final_status = "failed"
         payload = {
             "job_id": state["run_id"],
             "final_status": final_status,
             "instructions": "discard_local_copy",
         }
         terminal = self._envelope(job_id=state["run_id"], kind="terminal", payload=payload)
+        state["dispatch"]["terminal_message"] = terminal
         state["dispatch"]["pending_action"] = None
         state["dispatch"]["stage"] = "terminal"
+        state["dispatch"].pop("patch_payloads_omitted", None)
         state["status"] = "success_draft_pr_ready" if final_status == "fix_finalized" else state.get("status", "failed_closed")
         if final_status != "fix_finalized" and state.get("terminal_reason") is None:
             state["terminal_reason"] = "dispatch_terminal"
+        if self.patch_store is not None:
+            self.patch_store.purge(state["run_id"])
+        # Publication has finished (or the job has stopped). Drop raw output
+        # copies too, including rejected proposals and finalized patch records.
+        for key in ("candidate_patches", "validated_fix_record"):
+            if key in state:
+                state[key] = without_patch_content(state[key])
         return terminal
 
     def _create_args(self, state: dict[str, Any]) -> dict[str, Any]:
         return {
+            **({"secret_fixture_set": state["dispatch"]["secret_fixture_set"]}
+               if state["dispatch"].get("secret_fixture_set") else {}),
             "run_id": state["run_id"],
             "tenant_id": state["tenant_id"],
             "repository": state["repository"],
@@ -315,6 +674,7 @@ class Orchestrator:
     def _after_create(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}
         state["sandbox_id"] = result.get("sandbox_id")
+        state["sandbox_backend"] = result.get("cluster_backend")
         return [self._issue_action(state, "deploy_revision", self._deploy_args(state))]
 
     @staticmethod
@@ -323,7 +683,7 @@ class Orchestrator:
         plan: dict[str, Any] = {
             "commands": [],
             "health_checks": [
-                {"type": "rollout", "resource": "deployment/target", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
+                {"type": "rollout", "resource": rollout_resource(signature), "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
                 {"type": "signature_absent", "mandatory": True, "timeout_seconds": Orchestrator._capped_timeout(60)},
             ],
         }
@@ -331,32 +691,131 @@ class Orchestrator:
             plan["compare_to_signature_key"] = signature["key"]
         return {"plan": plan}
 
-    @staticmethod
-    def _record_rendered_files(state: dict[str, Any], payload: dict[str, Any]) -> None:
-        rendered = (payload.get("result") or {}).get("rendered_files")
+    def _record_rendered_files(self, state: dict[str, Any], payload: dict[str, Any]) -> None:
+        result = payload.get("result") or {}
+        fidelity = result.get("fidelity") or {}
+        report = fidelity.get("secret_coverage") if isinstance(fidelity, dict) else None
+        if isinstance(report, dict) and state.get("dispatch", {}).get("stage") == "deploy_initial":
+            state["secret_coverage"] = report
+        rendered = result.get("rendered_files")
         if isinstance(rendered, list):
-            state["rendered_files"] = rendered
+            assert self.patch_store is not None
+            self.patch_store.save_manifests(state["run_id"], rendered)
+            state["dispatch"]["requires_patch_input"] = True
+            if state["dispatch"].get("stage") == "deploy_initial":
+                # Save only this bounded, redacted copy before observation.
+                # Restart may lose patch bytes, but must not lose safety context.
+                state["evidence"] = list(state.get("evidence") or []) + self._rendered_diagnosis_evidence(state)
+
+    @staticmethod
+    def _redact_value(value: Any) -> Any:
+        """Redact string leaves before connector observations reach run state."""
+        if isinstance(value, str):
+            return redact_text(value)[0]
+        if isinstance(value, list):
+            return [Orchestrator._redact_value(item) for item in value]
+        if isinstance(value, dict):
+            return redact_value(value)
+        return value
+
+    def _sanitize_initial_evidence(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Accept bridge-only evidence defensively; it never enters the public job envelope."""
+        sanitized: list[dict[str, Any]] = []
+        for index, item in enumerate(items[:MAX_ITEMS]):
+            if not isinstance(item, dict):
+                continue
+            source = item.get("source") if isinstance(item.get("source"), dict) else {}
+            provenance = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
+            candidate: dict[str, Any] = {
+                "evidence_id": str(item.get("evidence_id") or f"bridge-evidence:{index}"),
+                "kind": str(item.get("kind") or "other"),
+                "source": {"system": str(source.get("system") or "other")},
+                "redacted": False,
+                "provenance": {
+                    "collector": str(provenance.get("collector") or "ingest-bridge"),
+                    "query": str(provenance.get("query") or "same-process ingest evidence"),
+                },
+                "collected_at": str(item.get("collected_at") or self._now()),
+            }
+            if isinstance(source.get("ref"), str):
+                candidate["source"]["ref"] = source["ref"]
+            for key in ("summary", "content_excerpt"):
+                if isinstance(item.get(key), str):
+                    candidate[key] = item[key]
+            sanitized.append(redact_evidence_item(candidate))
+        return bounded_evidence(sanitized)
+
+    @staticmethod
+    def _path_is_in_scope(path: str, narrowed_path: str) -> bool:
+        narrowed = narrowed_path.strip("/") or "."
+        candidate = path.strip("/")
+        if ".." in path.replace("\\", "/").split("/") or path.startswith(("/", "\\")):
+            return False
+        return narrowed == "." or candidate == narrowed or candidate.startswith(narrowed + "/")
+
+    def _rendered_diagnosis_evidence(self, state: dict[str, Any]) -> list[dict[str, Any]]:
+        """Expose only bounded, redacted manifest excerpts to diagnosis."""
+        narrowed = str((state.get("narrowed_location") or {}).get("file_path") or ".")
+        evidence: list[dict[str, Any]] = []
+        assert self.patch_store is not None
+        for index, item in enumerate(self.patch_store.get_manifests(state["run_id"])):
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path")
+            content = item.get("content")
+            if not isinstance(path, str) or not isinstance(content, str) or not self._path_is_in_scope(path, narrowed):
+                continue
+            safe_content = redact_manifest(content)
+            evidence.append(
+                redact_evidence_item(
+                    {
+                        "evidence_id": f"rendered-file:{state['run_id']}:{index}",
+                        "kind": "manifest",
+                        "source": {"system": "sandbox", "ref": path},
+                        "summary": f"Rendered manifest: {path}",
+                        "content_excerpt": safe_content,
+                        "redacted": safe_content != content,
+                        "provenance": {"collector": "dispatch", "query": "deploy_revision rendered_files"},
+                        "collected_at": self._now(),
+                    }
+                )
+            )
+            if len(evidence) >= MAX_ITEMS:
+                break
+        return bounded_evidence(evidence)
+
+    @staticmethod
+    def _observation_evidence(action_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        """Create connector observation evidence with an honest redaction marker."""
+        evidence = redact_evidence_item(
+            {
+                "evidence_id": f"connector-result:{action_id}",
+                "kind": "artifact",
+                "summary": json.dumps(result, sort_keys=True),
+                # The redaction helper changes this only when it actually redacts text.
+                "redacted": redact_value(result) != result,
+            }
+        )
+        evidence["summary"] = json.dumps(redact_value(result), sort_keys=True)
+        return bounded_evidence([evidence])[0]
 
     def _after_observe(self, state: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
         result = payload.get("result") or {}
-        signature = result.get("signature")
-        state["failure_signature"] = signature or {}
+        signature = redact_value(result.get("signature"))
+        state["failure_signature"] = self._redact_value(signature or {})
         state["reproduction_result"] = {
-            "reproduced": bool(signature),
+            "reproduced": bool(signature and signature.get("reproduced")),
             "signature_key": (signature or {}).get("key"),
-            "message": "connector observation received",
+            "message": "connector observation received" if signature else "failure not reproduced in sandbox",
         }
-        state["evidence"] = list(state.get("evidence") or []) + [
-            {
-                "evidence_id": f"connector-result:{payload['action_id']}",
-                "kind": "artifact",
-                "summary": json.dumps(result, sort_keys=True),
-                "redacted": True,
-            }
-        ]
+        observation_evidence = self._observation_evidence(payload["action_id"], result)
+        state["evidence"] = list(state.get("evidence") or []) + [observation_evidence]
         self._run_node(self.hooks.diagnose, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
+        state.update(node_secret_coverage_gate(state))
+        if state.get("status") == "escalated":
+            return [self._terminal(state, "escalated")]
         self._run_node(self.hooks.localize, state)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
@@ -368,7 +827,21 @@ class Orchestrator:
             state["status"] = halt["terminal"]
             state["terminal_reason"] = halt["reason_code"]
             return [self._terminal(state, "escalated")]
-        self._run_node(self.hooks.patch, state)
+        patch_context = dict(state)
+        assert self.patch_store is not None
+        manifests = self.patch_store.get_manifests(state["run_id"])
+        if state["dispatch"].get("requires_patch_input") and not manifests:
+            # Rehydration preserves the observation action. Once it completes,
+            # reacquire the original revision in the same sandbox before patching.
+            action = self._issue_action(state, "deploy_revision", self._deploy_args(state))
+            if action["kind"] == "action":
+                state["dispatch"]["stage"] = "refresh_patch_input"
+            return [action]
+        if manifests:
+            patch_context["rendered_files"] = manifests
+        self._run_node(self.hooks.patch, patch_context)
+        patch_context.pop("rendered_files", None)
+        state.update(patch_context)
         if state.get("status") in {"escalated", "failed_closed"}:
             return [self._terminal(state, "escalated" if state.get("status") == "escalated" else "failed")]
         active = state.get("active_patch_id")
@@ -423,6 +896,11 @@ class Orchestrator:
 
     @staticmethod
     def _run_node(node: Node, state: dict[str, Any]) -> None:
+        failure = escalation_failure_updates(state)
+        if failure:
+            state.update(failure)
+            return
         updates = node(state)
         if updates:
             state.update(updates)
+        state.update(escalation_failure_updates(state))

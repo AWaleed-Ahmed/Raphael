@@ -27,6 +27,8 @@ KIND_TO_SCHEMA = {
     "ack": "ack.schema.json",
     "terminal": "terminal.schema.json",
     "error": "error.schema.json",
+    "lease_renewal": "lease-renewal-request.schema.json",
+    "lease_claim": "lease-claim.schema.json",
 }
 VERB_TO_REQUEST = {verb: f"{verb}.request.json" for verb in ALLOWED_VERBS}
 VERB_TO_RESPONSE = {verb: f"{verb}.response.json" for verb in ALLOWED_VERBS}
@@ -38,6 +40,8 @@ SCHEMA_FILES = (
     "terminal.schema.json",
     "ack.schema.json",
     "error.schema.json",
+    "lease-renewal-request.schema.json",
+    "lease-claim.schema.json",
 )
 
 

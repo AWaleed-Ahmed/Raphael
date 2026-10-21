@@ -149,6 +149,49 @@ def test_publish_requires_result_id(monkeypatch):
     assert result["pull_request_url"] is None
 
 
+def test_pr_body_groups_image_material_gaps_without_changing_report():
+    gaps = [
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+        "license metadata unavailable",
+        "image digests not resolved; tags only: busybox:1.37.0",
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+    ]
+    fidelity = {"score": 0.8, "material_gaps": gaps}
+    run = _base_run(validated_fix_record={"fidelity": fidelity})
+    run["validation_results"][0]["full_validation"] = False
+    validation_before = dict(run["validation_results"][0])
+    body = build_pr_body(run)
+    assert "image digests not resolved; tags only: registry.example:5000/app:v1, busybox:1.37.0, registry.example:5000/app:v1" in body
+    assert body.index("image digests not resolved") < body.index("license metadata unavailable")
+    assert gaps == [
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+        "license metadata unavailable",
+        "image digests not resolved; tags only: busybox:1.37.0",
+        "image digests not resolved; tags only: registry.example:5000/app:v1",
+    ]
+    assert run["validation_results"][0] == validation_before
+    assert run["validation_results"][0]["full_validation"] is False
+
+
+def test_pr_body_displays_single_image_gap_and_keeps_non_image_order():
+    gaps = [
+        "first unrelated gap",
+        "image digests not resolved; tags only: registry.example:5000/app:v1@sha256:abc",
+        "second unrelated gap",
+    ]
+    body = build_pr_body(_base_run(validated_fix_record={
+        "fidelity": {"score": 0.8, "material_gaps": gaps},
+    }))
+    assert "first unrelated gap, image digests not resolved; tags only: registry.example:5000/app:v1@sha256:abc, second unrelated gap" in body
+
+
+def test_pr_body_without_material_gaps_uses_fidelity_checklist_fallback():
+    body = build_pr_body(_base_run(validated_fix_record={
+        "fidelity": {"score": 1.0, "material_gaps": []},
+    }))
+    assert "Material gaps: See checklist on frozen validated_fix_record" in body
+
+
 def test_publish_skips_escalated(monkeypatch):
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "dry_run")
     result = publish(_base_run(status="escalated"))
@@ -227,3 +270,62 @@ def test_publish_live_idempotent_open_pr(monkeypatch):
 )
 def test_optional_live_network_publish():
     pytest.skip("placeholder — use manual smoke with RAPHAEL_PUBLISH_MODE=live")
+
+
+def test_expired_publication_deadline_prevents_http_mutation() -> None:
+    from datetime import datetime, timedelta, timezone
+    from raphael_agent.publish.github_client import GitHubApiError, GitHubPublisher
+
+    client = MagicMock()
+    publisher = GitHubPublisher(
+        token="synthetic", client=client,
+        deadline_at=(datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(),
+    )
+    with pytest.raises(GitHubApiError, match="deadline expired"):
+        publisher._request("POST", "/repos/example/demo/pulls", json={})
+    client.request.assert_not_called()
+
+
+
+def test_publication_absolute_deadline_cancels_trickling_body(monkeypatch) -> None:
+    import asyncio
+    import time
+    from datetime import datetime, timedelta, timezone
+    import httpx
+    from raphael_agent.publish.github_client import GitHubApiError, GitHubPublisher
+
+    class Trickle(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                yield b" "
+
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda: real_client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=Trickle()))))
+    publisher = GitHubPublisher(token="synthetic",
+        deadline_at=(datetime.now(timezone.utc) + timedelta(milliseconds=80)).isoformat())
+    start = time.monotonic()
+    with pytest.raises(GitHubApiError, match="deadline expired"):
+        publisher._request("POST", "/synthetic", json={})
+    assert time.monotonic() - start < 0.5
+
+
+def test_deadline_publication_owns_client_per_exchange(monkeypatch) -> None:
+    from datetime import datetime, timedelta, timezone
+    import httpx
+    from raphael_agent.publish.github_client import GitHubPublisher
+
+    clients = []
+    real_client = httpx.AsyncClient
+    def create_client():
+        instance = real_client(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"ok": True})))
+        clients.append(instance)
+        return instance
+    monkeypatch.setattr(httpx, "AsyncClient", create_client)
+    publisher = GitHubPublisher(token="synthetic",
+        deadline_at=(datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat())
+    assert publisher._request("GET", "/synthetic") == {"ok": True}
+    assert publisher._request("GET", "/synthetic") == {"ok": True}
+    assert len(clients) == 2 and all(instance.is_closed for instance in clients)

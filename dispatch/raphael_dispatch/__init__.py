@@ -1,6 +1,7 @@
 """Raphael dispatch orchestration and connector protocol boundaries."""
 
 from .orchestrator import AgentHooks, OrchestrationError, Orchestrator
+from .patch_store import EphemeralPatchStore
 from .protocol import (
     ALLOWED_VERBS,
     ContractSchemas,
@@ -14,6 +15,7 @@ __all__ = [
     "ALLOWED_VERBS",
     "AgentHooks",
     "ContractSchemas",
+    "EphemeralPatchStore",
     "OrchestrationError",
     "Orchestrator",
     "ProtocolValidationError",

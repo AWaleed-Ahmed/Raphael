@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from starlette.testclient import TestClient
@@ -43,7 +44,11 @@ def test_health_reports_loaded_contracts() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["contracts_version"] == "contracts-v1.1.0"
+    pinned_version = (Path(__file__).resolve().parents[2] / "CONTRACTS_VERSION").read_text(
+        encoding="utf-8"
+    ).strip()
+    assert pinned_version
+    assert body["contracts_version"] == pinned_version
     assert body["schemas_loaded"] == sorted(SCHEMA_FILES)
 
 

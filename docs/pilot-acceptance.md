@@ -1,76 +1,62 @@
-# Pilot / MVP acceptance checklist (Phase 5)
+# Pilot / MVP acceptance checklist
 
-Mapped to PRD §23 with current Raphael status. Use during design-partner dry-run week.
+Updated 2026-10-20. [PRD §23](../prd.md#23-mvp-acceptance-criteria) remains the
+product target. Implementation, fixture proof and partner acceptance are distinct.
+Use the [release milestones](release-milestones-2026-10-18.md) for linked evidence.
 
-Legend: **Proven** = covered by agent/sandbox demos or tests · **Partial** = scaffolded · **Deferred** = explicitly out of this pilot cut.
+## Implementation and qualified scope
 
----
+| Capability | Current status | Acceptance limit |
+| --- | --- | --- |
+| Combined agent/dispatch, webhook ingest, dedupe, audit and feedback | Implemented; local startup/HTTP checks and hosted regression evidence | Not a complete partner webhook/UI journey. |
+| Kubernetes event intake | Opt-in webhook/file watcher adapters implemented | A deployed production watcher and customer observer permissions are unqualified. |
+| Probe and image repairs | Scoped deterministic fixture proofs; Linux kind genuine missing-image repair with independent Ready check | No arbitrary registry/Kubernetes coverage; no ≥5-class claim. Missing config refuses. |
+| Structural Secret and image provenance gates | #30/#33/#34/#37 completed; Linux controls and scoped policy evidence | No plaintext production Secret access; live Supabase ingestion remains unqualified. |
+| Draft publication and commands | Implemented; default dry-run, commands/comments/Checks opt-in | Earlier disposable live draft is not partner approval. `cancel`, `diagnose`, `fix` exist with gates. |
+| Persistence and leases | Single-instance JSON/SQLite and separate Ignis journal/recovery | Executable patch bytes remain ephemeral; some restarts fail closed. No horizontal scaling qualification. |
+| Local model | Runtime absent in a clean checkout; pilot explicitly disables | #40 open; default-off deferral delivered by merged #59, not runtime implementation. |
+| External models | Ten adapter identifiers on main; external calls off by default | Narrow earlier pinned Gemini helper success only; PR #58 merged, corrected auto selection not rerun live. |
+| Localization and learning | Catalog/localization, feedback and offline prior tooling implemented | Live baseline ingestion and measured benefit unqualified; learning remains off. |
+| GitHub App auth | Backend implementation exists | Customer App provisioning/token permissions require qualification. |
+| Cleanup/safety | Scoped mock/kind cleanup, negative cases and deterministic gates tested | No universal isolation/leak/prompt-injection guarantee or customer SA certification. |
 
-## In scope now
+## Local installation
 
-| # | PRD §23 criterion | Status | Evidence / notes |
-|---|-------------------|--------|------------------|
-| 1 | GitHub Actions events trigger idempotent runs | **Proven** | Webhook ingest + fingerprint dedupe/cooldown (`agent/`) |
-| 1b | Kubernetes events trigger runs | **Deferred** | K8s watcher not shipped |
-| 2 | Evidence with provenance + redaction | **Proven** | Evidence facade + redaction + injection tests |
-| 3 | ≥5 supported failures reproduce in sandbox | **Partial** | Sandbox harness scenarios exist; partner demo uses probe path |
-| 4 | ≥4/5 correct minimal patches pass checks | **Partial** | Deterministic templates for probe/image/configmap; expand in pilot eval |
-| 5 | Before/after failure-signature behavior | **Proven** | Sandbox validate + agent graph |
-| 6 | Draft GitHub PRs with required sections | **Proven** | Dry-run always; live draft behind allowlist + token |
-| 7 | Unsupported/low-confidence/policy-blocked → no PR | **Proven** | Escalate paths + publish gates |
-| 8 | Production K8s read-only; no Secret payloads | **Proven (policy)** | Documented matrix; enforce in partner SA |
-| 9 | Sandboxes isolated + TTL cleanup | **Proven** | Sandbox P0–P2 |
-| 10 | Inspectable audit trail + terminal reason | **Proven** | `run_record` + RunStore + metrics |
-| 11 | Duplicate events ≠ duplicate PRs | **Proven** | Ingest dedupe + publish idempotency |
-| 12 | Canonical demo ≤10–15 min ×3 | **Proven (local)** | `recorded_stub` + dry-run smoke / `demo_partner` |
-| 13 | GitHub-native commands (GH-M1/M2) | **Proven (code)** | `/raphael status` / `help` / `feedback` / `retry` / `escalate`; default `RAPHAEL_GITHUB_COMMANDS=0`. Retry under `PARTNER_MODE=dry_run` never live-publishes |
-| 14 | Terminal comments, labels, sticky footer (GH-M2/M3) | **Proven (code)** | `RAPHAEL_GITHUB_AUTO_COMMENTS` (unset inherits commands). No Merge in the footer; never strips `raphael:fix` |
-| 15 | Advisory Check Runs (GH-M4) | **Proven (code), opt-in** | `RAPHAEL_GITHUB_CHECK_RUNS=1`; name `Raphael (advisory)`; conclusion `neutral`; **never** a required merge check |
+- [x] Fresh package installation, locked executor build, frontend build, combined startup, health/auth and recorded smoke: [execution record](pilot-local-preflight.md).
+- [ ] Full browser workflow against authenticated deployment.
+- [ ] Customer-specific source access and webhook reachability/HMAC.
 
----
+## Real partner gates (pending)
 
-## Partner dry-run week checklist
+- [ ] Follow [canonical installation](pilot-install.md) and review [permissions](permission-matrix.md).
+- [ ] Record authorized repositories, immutable revisions, staging scope and operator signoff.
+- [ ] Confirm observer cannot mutate production or read Secret payloads; Ignis receives only sandbox access.
+- [ ] Keep partner/publish dry-run, empty live allowlist, model/learning and GitHub mutations off during basic qualification.
+- [ ] Review at least five real eligible dry-run failures with evidence, terminal result and human judgments.
+- [ ] Measure ≥5 benchmark reproductions, ≥4/5 correct minimal patches and three timed full demos separately; a recorded stub does not satisfy these PRD targets.
+- [ ] Qualify any selected Supabase/BYOK path and wrong-scope/refusal controls before claiming it in the pilot cut.
+- [ ] Review false positives, policy blocks and cleanup; record go/no-go with the partner.
+- [ ] Separately authorize one live draft class, scoped GitHub credentials and human review before publication; never auto-merge.
 
-### Local preflight (no partner required)
+Follow the [milestone runbook](pilot-week-runbook.md). No calendar commitment
+or completed customer-pilot result is implied.
 
-- [x] Local Day 0–1 proofs recorded in [`pilot-local-preflight.md`](pilot-local-preflight.md) (`pilot_go_nogo`, `demo_partner`, `pytest`, `metrics`)
+## Deferred or outside scope
 
-### Real partner install
+Horizontal SaaS scaling, other CI hosts and generalized failure-class coverage
+remain future work. Local inference is deferred by merged #59; #40 remains open. Learning is off
+pending measured benefit. Production mutation and automatic merge remain prohibited.
 
-- [ ] Read [`pilot-install.md`](pilot-install.md) + [`permission-matrix.md`](permission-matrix.md)
-- [ ] `RAPHAEL_PARTNER_MODE=dry_run` (default)
-- [ ] Smoke: `python -m raphael_agent.scripts.demo_partner` → `success_draft_pr_ready`
-- [ ] `pytest -q` green in `agent/`
-- [ ] Review metrics: `python -m raphael_agent.scripts.metrics`
-- [ ] Confirm GitHub token **not** required for dry-run
-- [ ] Dry-run command smoke on a fixture Issue (`RAPHAEL_GITHUB_COMMANDS=1`, partner still `dry_run`): `/raphael help`, `/raphael status`, `/raphael feedback rejected`; `/raphael retry` must not live-publish
-- [ ] Do **not** add `Raphael (advisory)` as a required branch-protection check
-- [ ] Confirm production kubeconfig used by observer (if any) cannot patch/delete or read Secret data
-- [ ] Optional: enable **one** class live — `probe_misconfiguration` only — after security review
-- [ ] Follow day-by-day plan: [`pilot-week-runbook.md`](pilot-week-runbook.md)
-- [ ] Capture accept/reject/merge via `record_feedback` or `pull_request` webhook → `feedback.jsonl`
+## Supabase localization cut — 2026-10-20
 
----
-
-## Explicitly deferred (pilot)
-
-| Item | Notes |
-|------|--------|
-| In-cluster Kubernetes watcher | Interface stub / future Engineer A+B |
-| GitHub App JWT as primary auth | PAT documented; App env vars reserved |
-| Full FR-065 learning loop | Jsonl feedback recorder only |
-| Multi-tenant SaaS control plane | Out of MVP |
-| Auto-merge / production remediation | Forever out for MVP |
-| `/raphael cancel` / `diagnose` / `fix` | **Deferred** — GH-M1–M4 shipped; these verbs are not in the pilot cut |
-| GitLab / other CI hosts | Post-MVP |
-
----
-
-## What’s left for a real pilot week
-
-1. Install with partner secrets manager (webhook secret + optional PAT).  
-2. Map one repo + staging namespace; confirm SA deny list.  
-3. Run dry-run on ≥5 real eligible failures; triage false positives.  
-4. Smoke GitHub-native commands on a fixture Issue (`status` / `help` / `feedback`; `retry` stays dry-run).  
-5. Optionally flip `RAPHAEL_PARTNER_MODE=allowlist` for `probe_misconfiguration` only.  
-6. Collect human accept/reject notes into feedback jsonl.
+Defer live healthy ingestion, real-JWT tenant access, approved-image sandbox repair
+and measured production localization benefit. The authorized
+[database migration checks](supabase-migration-validation-2026-10-20.md) passed
+31 assertions under SQL roles with simulated claims; fixture cleanup was verified. Catalog assistance defaults
+off (`RAPHAEL_HEALTHY_CATALOG_ENABLED=0`); credentials alone do not enable it.
+The 20-case synthetic replay had 4 wins, 15 ties and 1 regression, with zero unsafe
+image approvals; it is not live ingestion or deployment evidence. Opt-in requires
+an authorized test project plus fixed backend company/client scope. Missing or
+wrong-scope baselines must continue to refuse image repair. See the
+[qualification record](supabase-localization-qualification-2026-10-20.md) for verdicts,
+controls, outstanding inputs and the runnable live procedure.

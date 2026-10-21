@@ -1,51 +1,250 @@
-# Raphael
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="frontend/public/logo-white.png" />
+    <source media="(prefers-color-scheme: light)" srcset="frontend/public/logo-dark.png" />
+    <img src="frontend/public/logo-dark.png" alt="Raphael wing mark" width="150" height="100" />
+  </picture>
+  <h1>Raphael</h1>
+  <p>Investigate failed deployments. Test a repair. Send it for review.</p>
+  <p>
+    <a href="https://github.com/AWaleed-Ahmed/Raphael/actions/workflows/ci.yml"><img src="https://github.com/AWaleed-Ahmed/Raphael/actions/workflows/ci.yml/badge.svg" alt="Core CI" /></a>
+    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12 or newer" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="Apache License 2.0" /></a>
+  </p>
+</div>
 
-Raphael is a self-healing deployment agent for Kubernetes teams. It detects deployment failures, investigates evidence, proposes a narrow change, validates that change through an isolated sandbox, and opens a reviewable pull request. Production remains read-only by default.
+Raphael helps platform engineers investigate Kubernetes deployment failures. It
+turns webhook events into evidence, diagnoses supported failure classes, and
+coordinates reproduction and validation through [Ignis](https://github.com/AWaleed-Ahmed/Ignis).
+Validated changes can become draft pull requests; uncertain or blocked cases
+produce an escalation report.
 
-## Repository boundary
+The two projects have distinct jobs: Raphael owns diagnosis, patch policy and
+GitHub delivery; Ignis runs the sandbox. Production stays read-only, and a human
+reviews what ships. Publication defaults to dry-run.
 
-This repository contains the private-core agent, orchestration contracts, telemetry integration, and the `dispatch/` orchestration service. The sandbox executor is maintained separately in [Ignis](https://github.com/AWaleed-Ahmed/Ignis).
+## Features
 
-The core repository vendors only the public sandbox contract snapshot under `contracts/sandbox/`. Its exact source is recorded in `CONTRACTS_VERSION` and must be refreshed only with `tools/sync-sandbox-contracts.ps1`. Run the script with `-Check` to fail if the committed snapshot drifts from the pinned Ignis tag.
+- **Failure intake:** GitHub, Kubernetes, Prometheus Alertmanager, Datadog and
+  CloudWatch webhook adapters with normalized failure fingerprints.
+- **Evidence and diagnosis:** deterministic analyzers for probe mismatches,
+  image-reference failures, missing configuration and policy blocks.
+- **Bounded repair:** allowlisted patch templates, retries within a budget,
+  sandbox validation and structured refusal when evidence is insufficient.
+- **Optional localization:** source anchors, candidate ranking and scoped
+  healthy-trace comparisons backed by Supabase.
+- **Operator tools:** run history, retry/escalate/feedback APIs, JSON or SQLite
+  run storage, and a browser console with demo data.
+- **Optional external models:** OpenAI, Gemini, Anthropic and other configured
+  providers through the [BYOK adapters](docs/byok-provider-guide.md). Model
+  suggestions remain subject to deterministic policy checks.
 
-The agent communicates with a sandbox through the typed HTTP client in `agent/raphael_agent/sandbox_client/` and a configured `RAPHAEL_SANDBOX_URL`. It must not import or execute a local sandbox controller, harness, kind bootstrap, shell command, or arbitrary kubectl action.
+These are implemented paths, not a claim that every integration is qualified
+for a customer deployment. Local trained inference and broader localization,
+learning and partner acceptance have separate verification requirements.
 
-## Layout
+## Demo
+
+> Screenshot or GIF pending: capture the console's run detail and one validated
+> repair or refusal. Label any capture made with demo data.
+
+<!-- TODO: Add a real screenshot or GIF here after capturing and reviewing it. -->
+
+You can try the console with local demo data:
+
+```bash
+cd frontend
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Open [localhost:5173](http://127.0.0.1:5173). Leave `VITE_RAPHAEL_API_URL` unset
+for demo mode. See the [console guide](frontend/README.md) for connecting to the
+core through a local proxy.
+
+## Tech stack
+
+| Component | Technology |
+| --- | --- |
+| Diagnosis and repair graph | Python 3.12+, LangGraph |
+| Core HTTP services | Starlette, Uvicorn, HTTPX |
+| Data validation | JSON Schema, Pydantic, PyYAML |
+| Persistence | JSON files or SQLite; optional Supabase catalog/telemetry |
+| Operator console | JavaScript, CSS, Vite 6 |
+| Sandbox execution | Separate Rust [Ignis](https://github.com/AWaleed-Ahmed/Ignis) service |
+| Tests | pytest, unittest and cross-repository process evaluations |
+
+## Getting started
+
+### Prerequisites
+
+- Python 3.12+ with `venv` and pip.
+- Git.
+- For the optional console: Node.js 18, 20, or 22+ and npm, as required by Vite 6.
+- For a full sandbox pilot: a compatible Ignis build and its prerequisites.
+  Follow the [pilot installation guide](docs/pilot-install.md) for the tested pair.
+
+### Install
+
+```bash
+git clone https://github.com/AWaleed-Ahmed/Raphael.git
+cd Raphael
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e agent -e dispatch
+```
+
+For an existing clone, start at the virtual-environment step from its root.
+Commands below use Bash; Linux/WSL setup details are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Run the recorded-data smoke
+
+This exercises the agent graph without a cluster, provider key or Supabase
+project. Sandbox responses are recorded fixtures, and publication is simulated.
+
+```bash
+export RAPHAEL_PARTNER_MODE=dry_run
+export RAPHAEL_PUBLISH_MODE=dry_run
+export RAPHAEL_MODEL_ENABLED=0
+export RAPHAEL_LLM_DIAGNOSIS=0
+export RAPHAEL_LLM_PATCH=0
+export RAPHAEL_LEARNING=0
+python -m raphael_agent.scripts.smoke --sandbox-mode recorded_stub
+```
+
+The included probe-mismatch fixture should finish with
+`status=success_draft_pr_ready` and `terminal_reason=draft_pr_dry_run`.
+The printed compare URL is a simulated publication, not an opened pull request.
+
+### Start the core
+
+With the environment above still active, run from the repository root:
+
+```bash
+export RAPHAEL_AGENT_LISTEN=127.0.0.1:8091
+python run.py
+```
+
+`run.py` serves the agent and dispatch routes together, sharing one orchestrator.
+Starting this process alone does not start a sandbox executor. Use the
+[pilot installation guide](docs/pilot-install.md) to configure the Ignis connector,
+dispatch tokens, persistence and webhook-to-dispatch bridge.
+
+The pilot guide names a specific release pair. Check this checkout's
+[`CONTRACTS_VERSION`](CONTRACTS_VERSION) before following release-specific commands;
+an older branch may carry a different pin.
+
+## Usage
+
+In another terminal, inspect the local core:
+
+```bash
+curl --fail http://127.0.0.1:8091/health
+curl --fail http://127.0.0.1:8091/v1/runs
+curl --fail http://127.0.0.1:8091/v1/metrics
+```
+
+The interface permits unauthenticated loopback requests only when
+`RAPHAEL_INTERFACE_TOKEN` is unset. Configuring it requires a matching bearer
+token; see [interface authentication](interface/prd-i0-api.md).
+
+<details>
+<summary>Tests, console builds and process evaluations</summary>
+
+Run the Python suites from the repository root with the virtual environment active:
+
+```bash
+python -m pytest -q agent/tests
+python -m pytest -q dispatch/tests
+python -m unittest evals.test_run_evals
+```
+
+Some tests require a configured controller or external dependencies; inspect
+skips and environment requirements before treating results as live proof.
+
+Build the console:
+
+```bash
+cd frontend
+npm ci
+npm run build
+```
+
+The build is written to `frontend/dist/`. For real-process evaluations with an
+Ignis binary, follow [evals/README.md](evals/README.md). Those scenarios clone
+pinned fixture repositories and are separate from the offline smoke.
+
+</details>
+
+## Project structure
 
 ```text
-agent/       Private Python/LangGraph agent and its tests
-dispatch/    Private Starlette connector orchestration service
-contracts/   Versioned JSON Schema snapshots and agent contracts
-tools/       Contract synchronization and verification tools
-docs/        Private operating, permission, and pilot documentation
-frontend/    Operator-facing frontend
-supabase/    Telemetry migrations and integration documentation
+Raphael/
+├── run.py             # Combined agent and dispatch entry point
+├── agent/             # Graph, intake, diagnosis, localization and delivery
+├── dispatch/          # Tenant job queue and connector protocol orchestration
+├── contracts/         # Agent schemas and pinned Ignis contract snapshot
+├── frontend/          # Vite operator console and brand assets
+├── supabase/          # Catalog/telemetry migrations and setup guide
+├── evals/             # Versioned scenarios and scoring
+├── e2e/               # Cross-repository process and kind checks
+└── docs/              # Pilot setup, acceptance evidence and operating notes
 ```
 
-## Quick start
+The active sandbox executor lives in Ignis, rather than Raphael's historical
+`sandbox/` directory. Contract synchronization is handled by
+[`tools/sync-sandbox-contracts.ps1`](tools/sync-sandbox-contracts.ps1).
 
-Install the agent and dispatch dependencies in their respective package directories, then configure the agent to use an authorized sandbox URL. The existing test suites can be run independently with `pytest -q` from `agent/` and `dispatch/`.
+## Configuration
 
-To verify the contract snapshot:
+The Python services read exported environment variables; they do not
+automatically load `.env`. The supplied [`.env.example`](.env.example) covers
+optional Supabase configuration. Vite loads its own frontend environment.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/sync-sandbox-contracts.ps1 -Check
-```
+| Variable | Purpose |
+| --- | --- |
+| `RAPHAEL_AGENT_LISTEN` | Combined core address; defaults to `127.0.0.1:8091` |
+| `RAPHAEL_AGENT_DATA_DIR` | Run-state directory; defaults to `.raphael-agent-data` |
+| `RAPHAEL_AGENT_STORE` | `json` by default, or `sqlite` |
+| `RAPHAEL_SANDBOX_URL` | External Ignis controller URL |
+| `RAPHAEL_DISPATCH_BRIDGE_ENABLED` | Set to `1` to route supported intake into dispatch |
+| `RAPHAEL_DISPATCH_TOKENS` | JSON bearer-to-tenant/role mapping for producers and connectors |
+| `RAPHAEL_PARTNER_MODE`, `RAPHAEL_PUBLISH_MODE` | Delivery controls; use `dry_run` for local evaluation |
+| `RAPHAEL_MODEL_ENABLED`, `RAPHAEL_LEARNING` | Keep `0` unless deliberately qualifying those paths |
+| `RAPHAEL_LLM_DIAGNOSIS`, `RAPHAEL_LLM_PATCH` | Opt in to external model assistance |
+| `RAPHAEL_LLM_PROVIDER`, `RAPHAEL_LLM_API_KEY`, `RAPHAEL_LLM_MODEL` | Provider, backend credential and optional pinned model |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY` | Optional backend catalog/telemetry access |
+| `VITE_RAPHAEL_API_URL` | Console API base; unset selects demo mode |
 
-To run the agent HTTP service locally:
+See [agent configuration](agent/README.md), [Supabase setup](supabase/README.md)
+and the [pilot guide](docs/pilot-install.md) for authentication and complete profiles.
+Keep backend credentials out of browser bundles. Live GitHub publication needs
+separate credentials and policy configuration; setting one publish flag is insufficient.
 
-```powershell
-cd agent
-python -m uvicorn raphael_agent.http_api.app:app --host 127.0.0.1 --port 8091
-```
+## Roadmap
 
-The dispatch service listens on port `8092` when started through its package entry point. It validates connector-v1 envelopes, coordinates agent-owned diagnosis and patch nodes, enforces existing budgets and leases, handles idempotent results, and emits typed actions or terminal messages. The connector runtime remains in Ignis.
+The [release milestones](docs/release-milestones-2026-10-18.md) track acceptance
+beyond the existing implementation: live baseline qualification, measured
+localization/calibration, learning evidence and partner-pilot acceptance.
+See the [PRD](prd.md) for requirements and [handoff](handoff.md) for current evidence.
 
-## Safety principles
+## Contributing
 
-- Evidence precedes action, and uncertainty is visible.
-- The sandbox boundary is typed, outbound-only, and limited to the six approved verbs: `create_sandbox`, `deploy_revision`, `observe_failure`, `run_validation`, `finalize_result`, and `destroy_sandbox`.
-- Credentials, model keys, prompts, ranking, patch generation, GitHub integrations, and Supabase integrations remain in the core deployment and are never part of Ignis or the public contract schemas.
-- Delivery is human-controlled through pull requests; automatic merge, production mutation, secret reads, and arbitrary shell or kubectl actions are prohibited.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [CODING_RULE.md](CODING_RULE.md).
+Keep changes focused, include regression/refusal coverage, and preserve the
+boundary between the agent and sandbox executor. Contract changes originate
+in Ignis before Raphael updates its pinned snapshot.
 
-Rules for contributors are in [`CODING_RULE.md`](CODING_RULE.md). Project decisions are recorded in [`decision.md`](decision.md).
+## License
+
+[Apache License 2.0](LICENSE).
+
+## Author
+
+[AWaleed-Ahmed](https://github.com/AWaleed-Ahmed)
+
+## Contributors
+
+| Contributor | Role |
+| --- | --- |
+| [AmazingDude](https://github.com/AmazingDude) | Core contributor and maintainer |

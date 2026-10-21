@@ -79,9 +79,31 @@ def build_pr_body(run: dict[str, Any]) -> str:
     ] or ["- _(no file list)_"]
 
     fidelity_gaps = fidelity.get("material_gaps") or []
+    image_gap_prefix = "image digests not resolved; tags only:"
+    image_refs: list[str] = []
+    display_gaps: list[str] = []
+    for gap in fidelity_gaps:
+        gap_text = str(gap)
+        if gap_text.startswith(image_gap_prefix):
+            image_refs.append(gap_text[len(image_gap_prefix):].strip())
+        else:
+            display_gaps.append(gap_text)
+    if image_refs:
+        image_gap = f"{image_gap_prefix} {', '.join(image_refs)}"
+        first_image_gap = next(
+            index for index, gap in enumerate(fidelity_gaps)
+            if str(gap).startswith(image_gap_prefix)
+        )
+        display_gaps.insert(
+            sum(
+                not str(gap).startswith(image_gap_prefix)
+                for gap in fidelity_gaps[:first_image_gap]
+            ),
+            image_gap,
+        )
     fidelity_text = (
-        ", ".join(str(g) for g in fidelity_gaps)
-        if fidelity_gaps
+        ", ".join(display_gaps)
+        if display_gaps
         else "See checklist on frozen validated_fix_record"
     )
 

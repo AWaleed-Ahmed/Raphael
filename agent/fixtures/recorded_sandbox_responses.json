@@ -19,7 +19,7 @@
         "message": "readiness probe port does not match container port",
         "resource_kind": "Deployment",
         "resource_name": "payments-api",
-        "container": "payments-api",
+        "container": "app",
         "attributes": {
           "probe_port": 9090,
           "container_port": 8080

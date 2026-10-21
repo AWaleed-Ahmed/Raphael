@@ -9,7 +9,7 @@ Pilot docs:
 - [`docs/pilot-install.md`](../docs/pilot-install.md)
 - [`docs/permission-matrix.md`](../docs/permission-matrix.md)
 - [`docs/pilot-acceptance.md`](../docs/pilot-acceptance.md)
-- [`docs/pilot-week-runbook.md`](../docs/pilot-week-runbook.md) â† **5-day plan**
+- [`docs/pilot-week-runbook.md`](../docs/pilot-week-runbook.md) â† **milestone gates**
 
 ---
 
@@ -33,12 +33,12 @@ Fix rules: `.raphael/issue-fix.yaml` if present; otherwise derived from `.raphae
 
 ## Setup
 
-```bash
-cd agent
-py -3.12 -m venv .venv
-.venv\Scripts\activate
-pip install -e .
-```
+Follow the [canonical pilot installation](../docs/pilot-install.md) for the
+verified source pair, virtual environment and explicit shell profile. Start the
+complete core with `python run.py` from the repository root; agent-only uvicorn
+is not a combined dispatch deployment. Python does not automatically load `.env`.
+
+The sections below describe component options, not a second pilot installer.
 
 ### Partner / publish env
 
@@ -84,47 +84,58 @@ Priors nudge diagnosis confidence / escalate sooner on chronically rejected clas
 
 ### Local ML model adapters
 
-The lightweight local classifiers are connected to the graph through
-`raphael_agent.model_gateway.ModelGateway`. The gateway adapts provider-neutral
-APM/Kubernetes state into the five model inputs and converts predictions back
-into `RunState`, diagnosis, fault-candidate, and patch-template contracts.
-Deterministic analyzers, patch policy, and sandbox validation remain
-authoritative; unavailable artifacts or dependencies automatically fall back to
-the deterministic path.
+A clean installation cannot run the tracked trained artifacts: the prediction
+implementation is under the ignored training directory. Merged
+[PR #59](https://github.com/AWaleed-Ahmed/Raphael/pull/59) defaults
+`RAPHAEL_MODEL_ENABLED` to `0` and records unavailable diagnostics when explicitly
+enabled without the runtime. The canonical pilot explicitly sets it to `0` too. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40)
+therefore remains open. Artifact files/training metrics are not runtime proof.
+See the [local inference investigation](../docs/local-inference-resolution-2026-10-20.md).
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `RAPHAEL_MODEL_ENABLED` | `1` | Set to `0` to disable local ML inference |
-| `RAPHAEL_MODEL_ROOT` | repository `models/` | Directory containing model subdirectories and `model.joblib` files |
+### Optional external model (BYOK)
 
-Install the agent with `pip install -e .` after pulling the repository so the
-`joblib`, `numpy`, `scipy`, and `scikit-learn` runtime dependencies are present.
-Model outputs are recorded under the run's `model_results` field for audit and
-are never sufficient to publish without sandbox validation.
+Shipped main implements `openai`, `gemini`, `anthropic`, `groq`, `openrouter`,
+`together`, `mistral`, `deepseek`, `xai`, and `custom_openai`. Anthropic uses its
+native Messages transport; Gemini uses the OpenAI-compatible completion endpoint.
+Adapter support does not establish live qualification for every provider/model.
+Native Azure/Bedrock auth and request/tenant-scoped keys remain outside this cut.
 
-### Optional model (OpenAI-compatible, including local)
+External diagnosis and patching default off (`RAPHAEL_LLM_DIAGNOSIS=0`,
+`RAPHAEL_LLM_PATCH=0`); patching also requires diagnosis enabled. Select
+`RAPHAEL_LLM_PROVIDER` explicitly. Keys resolve in order:
+`RAPHAEL_LLM_API_KEY`, then `RAPHAEL_<PROVIDER>_API_KEY`, then the selected
+provider's standard key variables (Gemini: `GEMINI_API_KEY`, then `GOOGLE_API_KEY`).
+There is no fallback to another provider's key. HTTPS is required except an
+explicit loopback compatible endpoint; keep credentials in the backend environment.
 
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `RAPHAEL_LLM_DIAGNOSIS` | `0` | Enable LLM diagnosis refine |
-| `RAPHAEL_LLM_PATCH` | `0` | Enable Route B model patches (also needs diagnosis=1) |
-| `RAPHAEL_LLM_BASE_URL` | `https://api.openai.com/v1` | API root; client POSTs `{base}/chat/completions` |
-| `RAPHAEL_LLM_MODEL` | `gpt-4o-mini` | Model name |
-| `RAPHAEL_OPENAI_API_KEY` or `OPENAI_API_KEY` | unset | Bearer token (required when LLM on) |
+`RAPHAEL_LLM_MODEL` pins a model; unset/blank/`auto`/`random` discovers and
+randomly selects candidates. Discovery is bounded (one page, at most 1,000
+Gemini/Anthropic entries, ten-second catalog timeout); completion attempts are
+bounded at eight under a shared deadline. `RAPHAEL_LLM_TIMEOUT_SECONDS` defaults
+to 45, maximum 60; `RAPHAEL_LLM_MAX_TOKENS` defaults to 2048, range 1–8192.
+Discovery does not prove JSON/chat capability or available quota. Explicit
+models do not rotate. Invalid configuration/provider/output errors fail closed.
 
-Local example (Ollama):
+The [shipped provider guide](https://github.com/AWaleed-Ahmed/Raphael/blob/0dc46c47b976a42dd958ad4d8e56dcfaf8b154ab/docs/byok-provider-guide.md)
+records provider endpoints and key names. [PR #58](https://github.com/AWaleed-Ahmed/Raphael/pull/58)
+is merged: it integrates Gemini candidate filtering and stricter OpenAI 429
+semantics while preserving main's adapters. Corrected automatic selection still
+needs live qualification.
 
-```bash
-export RAPHAEL_LLM_DIAGNOSIS=1
-export RAPHAEL_LLM_PATCH=1
-export RAPHAEL_LLM_BASE_URL=http://127.0.0.1:11434/v1
-export RAPHAEL_LLM_MODEL=llama3.2
-export RAPHAEL_OPENAI_API_KEY=ollama
-```
+[Earlier Linux qualification](../docs/byok-live-qualification-2026-10-20.md)
+used authenticated discovery and a pinned `gemini-3.1-flash-lite` one-line synthetic
+patch through the actual helper and schema/policy checks: 255 prompt + 98 output
+tokens. Automatic selection failed safely on an incompatible candidate; the
+corrected filter has no live rerun. No cluster apply, publication, live quota
+rotation or other provider success was demonstrated by that check. It was on
+an earlier three-adapter snapshot, not a ten-provider live acceptance run.
 
-Live draft PR only when: `PARTNER_MODE=allowlist` **and** `PUBLISH_MODE=live` **and** class allowlisted **and** token present.
-
----
+An optional `python -m raphael_agent.scripts.byok_smoke --live` makes paid/network
+requests when configured; it is not part of installation. Pin a model for one
+completion attempt; automatic mode may make a catalog request plus eight attempts.
+Model output cannot override deterministic blocks or sandbox/policy gates.
+Live draft delivery additionally needs approved partner/publish modes, a class
+allowlist and scoped GitHub credentials.
 
 ## Partner dry-run demo (â‰¤15 min)
 
@@ -162,7 +173,7 @@ pytest -q tests/test_guardrails.py tests/test_injection.py tests/test_partner_mo
 
 ## Flip one class to live draft (after security review)
 
-```bash
+```powershell
 $env:RAPHAEL_PARTNER_MODE="allowlist"
 $env:RAPHAEL_PUBLISH_MODE="live"
 $env:RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES="probe_misconfiguration"

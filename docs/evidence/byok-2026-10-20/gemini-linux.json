@@ -1,0 +1,109 @@
+{
+  "environment": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "hostname": "generativelanguage.googleapis.com",
+  "completion_cap": 2,
+  "per_completion_output_cap": 128,
+  "events": [
+    {
+      "phase": "automatic_smoke",
+      "method": "GET",
+      "requested_model": null,
+      "status": "PASS",
+      "catalog_entries": 63,
+      "next_page_present": false,
+      "seconds": 1.049
+    },
+    {
+      "phase": "automatic_smoke",
+      "method": "POST",
+      "requested_model": "antigravity-preview-09-2026",
+      "status": "provider_http_400",
+      "seconds": 0.854
+    },
+    {
+      "phase": "explicit_patch",
+      "method": "POST",
+      "requested_model": "gemini-3.1-flash-lite",
+      "status": "PASS",
+      "returned_model": "gemini-3.1-flash-lite",
+      "usage": {
+        "completion_tokens": 98,
+        "prompt_tokens": 255,
+        "total_tokens": 353
+      },
+      "finish_reason": "stop",
+      "seconds": 1.979
+    }
+  ],
+  "cases": [
+    {
+      "case": "automatic_smoke",
+      "exit": 1
+    },
+    {
+      "case": "explicit_patch",
+      "pass": true,
+      "proposal": {
+        "patch_id": "patch-llm-1",
+        "attempt": 1,
+        "hypothesis_id": "hyp-issue",
+        "files": [
+          {
+            "path": "deploy/probe.yaml",
+            "action": "modify",
+            "content": "readinessProbe: {httpGet: {path: /, port: 8080}}",
+            "unified_diff_hunk": null
+          }
+        ],
+        "unified_diff": null,
+        "rationale": {
+          "summary": "Update readinessProbe port from 8081 to 8080 in deploy/probe.yaml to match the application port.",
+          "evidence_ids": [],
+          "risk_notes": "Model-proposed change; policy-gated before apply",
+          "rollback_notes": "Revert patched files to the triggering commit"
+        },
+        "policy_status": "allowed",
+        "policy_violations": [],
+        "sandbox_deploy_hint": {
+          "manifests_path": "deploy/manifests",
+          "use_files_as_patch": true
+        },
+        "created_at": "2026-10-20T04:04:28Z"
+      }
+    }
+  ],
+  "candidates": [
+    "antigravity-preview-05-2026",
+    "antigravity-preview-09-2026",
+    "antigravity-preview-latest",
+    "gemini-2.5-computer-use-preview-10-2025",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-pro-preview-customtools",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-4-argon",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-nano-banana-2.1",
+    "gemini-omni-1.1-flash",
+    "gemini-omni-flash-preview",
+    "gemini-pro-latest",
+    "gemini-robotics-er-2-preview",
+    "gemma-4-26b-a4b-it",
+    "gemma-4-31b-it",
+    "lyria-3-clip-preview",
+    "lyria-3-pro-preview",
+    "lyria-3.5",
+    "nano-banana-pro-preview"
+  ]
+}

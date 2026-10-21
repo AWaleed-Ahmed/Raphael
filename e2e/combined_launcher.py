@@ -11,7 +11,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / "dispatch"), str(ROOT / "agent")]
+sys.path[:0] = [str(ROOT), str(ROOT / "dispatch"), str(ROOT / "agent")]
+
+from e2e.trace_redaction import redacted_body  # noqa: E402
 
 from starlette.applications import Starlette  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
@@ -31,8 +33,8 @@ class TraceMiddleware(BaseHTTPMiddleware):
         with open(trace_path, "a", encoding="utf-8") as stream:
             import json
             stream.write(json.dumps({
-                "request": {"method": request.method, "path": request.url.path, "body": body.decode(errors="replace")},
-                "response": {"status": response.status_code, "body": payload.decode(errors="replace")},
+                "request": {"method": request.method, "path": request.url.path, "body": redacted_body(body)},
+                "response": {"status": response.status_code, "body": redacted_body(payload)},
             }) + "\n")
         from starlette.responses import Response
         return Response(payload, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
@@ -58,7 +60,6 @@ combined = Starlette(
     routes=list(agent_app.routes) + list(dispatch_app.routes),
 )
 combined.state.orchestrator = dispatch_app.state.orchestrator
-combined.state.claimed_jobs = dispatch_app.state.claimed_jobs
 
 combined.add_middleware(TraceMiddleware)
 
