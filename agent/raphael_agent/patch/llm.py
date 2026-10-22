@@ -107,12 +107,15 @@ def try_llm_patch(run: dict[str, Any]) -> dict[str, Any] | None:
                 continue
             path = entry.get("path")
             action = entry.get("action") or "modify"
-            if not path or action not in {"modify", "create"}:
+            # Keep unsupported delete actions through policy validation so a
+            # mixed proposal is rejected as a whole instead of silently
+            # becoming a partial modify/create proposal.
+            if not path or action not in {"modify", "create", "delete"}:
                 continue
             item: dict[str, Any] = {
                 "path": str(path).replace("\\", "/").lstrip("/"),
                 "action": action,
-                "content": entry.get("content"),
+                "content": entry.get("content") if action != "delete" else None,
                 "unified_diff_hunk": None,
             }
             files.append(item)

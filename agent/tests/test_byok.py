@@ -198,6 +198,47 @@ def test_gemini_patch_integration_and_policy(monkeypatch, caplog):
     assert try_llm_patch(run)["policy_status"] == "rejected"
 
 
+def test_llm_patch_rejects_mixed_delete_action(monkeypatch):
+    configured(monkeypatch)
+    mock_transport(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200,
+            json=response(
+                {
+                    "summary": "change manifest and remove obsolete file",
+                    "files": [
+                        {
+                            "path": "deploy/app.yaml",
+                            "action": "modify",
+                            "content": "apiVersion: v1\n",
+                        },
+                        {
+                            "path": "deploy/obsolete.yaml",
+                            "action": "delete",
+                            "content": None,
+                        },
+                    ],
+                }
+            ),
+        ),
+    )
+    proposal = try_llm_patch(
+        {
+            "evidence": [],
+            "diagnosis": {},
+            "fix_rules": {"writable_path_prefixes": ["deploy/"]},
+        }
+    )
+    assert proposal is not None
+    assert [file["action"] for file in proposal["files"]] == ["modify", "delete"]
+    assert proposal["policy_status"] == "rejected"
+    assert any(
+        violation["rule"] == "unsupported_delete_action"
+        for violation in proposal["policy_violations"]
+    )
+
+
 def test_gemini_diagnosis_integration_and_schema_rejection(monkeypatch, caplog):
     import raphael_agent.diagnosis as diagnosis
     run = {"evidence": [{"evidence_id": "ev", "summary": "Readiness probe failed: port 9090, targetPort 8080"}]}
