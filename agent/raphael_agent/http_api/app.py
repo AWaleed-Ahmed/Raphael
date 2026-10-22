@@ -79,6 +79,9 @@ async def go_nogo(_: Request) -> JSONResponse:
 async def post_feedback(request: Request) -> JSONResponse:
     from raphael_agent.feedback import default_feedback_recorder, normalize_feedback_event
 
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001

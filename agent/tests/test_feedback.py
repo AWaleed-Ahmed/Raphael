@@ -71,9 +71,20 @@ def test_pull_request_webhook_merged():
 def test_http_feedback_endpoint(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("RAPHAEL_FEEDBACK_RECORDER", "jsonl")
+    monkeypatch.setenv("RAPHAEL_INTERFACE_TOKEN", "feedback-token")
     client = TestClient(create_app())
+    denied = client.post(
+        "/v1/feedback",
+        json={
+            "outcome": "accepted",
+            "run_id": "r-http",
+            "notes": "lgtm",
+        },
+    )
+    assert denied.status_code == 401
     resp = client.post(
         "/v1/feedback",
+        headers={"Authorization": "Bearer feedback-token"},
         json={
             "outcome": "accepted",
             "run_id": "r-http",
