@@ -37,6 +37,18 @@ def check_patch_policy(proposal: dict[str, Any]) -> list[dict[str, str]]:
                     "path": path,
                 }
             )
+        if file_entry.get("action") == "delete":
+            # The sandbox patch format and GitHub publisher currently only
+            # apply file contents. Refuse deletes rather than silently omit
+            # them from validation or a draft PR.
+            violations.append(
+                {
+                    "rule": "unsupported_delete_action",
+                    "message": "delete actions are not supported by sandbox validation or publication",
+                    "path": path,
+                }
+            )
+            continue
         content = file_entry.get("content")
         if not isinstance(content, str):
             continue
