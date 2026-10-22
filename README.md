@@ -55,11 +55,11 @@ You can try the console with local demo data:
 ```bash
 cd frontend
 npm ci
-npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
 
-Open [localhost:5173](http://127.0.0.1:5173). Leave `VITE_RAPHAEL_API_URL` unset
-for demo mode. See the [console guide](frontend/README.md) for connecting to the
+Open [localhost:5173/console/](http://127.0.0.1:5173/console/); `/` serves the
+landing page. Leave `VITE_RAPHAEL_API_URL` unset for demo mode. See the [console guide](frontend/README.md) for connecting to the
 core through a local proxy.
 
 ## Tech stack

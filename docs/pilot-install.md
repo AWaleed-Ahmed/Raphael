@@ -1,27 +1,29 @@
 # Canonical pilot installation
 
-Updated 2026-10-20. This is the canonical **Linux, loopback, mock-backend,
+Updated 2026-10-22. This is the canonical **Linux, loopback, mock-backend,
 dry-run** setup. It starts the combined Raphael core and the separate Ignis
 controller with its embedded outbound connector. It creates no Kubernetes
 cluster and needs no GitHub publishing, provider or Supabase credential.
 
-## 1. Select the verified source pair
+## 1. Select the staging candidate source pair
 
-| Component | Verified reference | Meaning |
+| Component | Pinned reference | Meaning |
 | --- | --- | --- |
-| Raphael | `a614d47e65904d55e085143ab07c1c5358d5d69e` | Current main snapshot including merged #58/#59; local install execution was on preceding `0dc46c4` (see verification record). |
+| Raphael | `26e17c0faa2a2eeda8f2855be93a1bb71fcdf17b` | PR #70 Next.js candidate, including main `93cfe34`; frontend build, interaction tests and local HTTP routes/proxy verified. This does not qualify a partner installation. |
 | Ignis runtime | `contracts-v1.4.2` → `2bfcc644f278da3e16845d6e4408ee9b6048922d` | Exact executor source to build. |
 | Contract snapshot | Raphael `CONTRACTS_VERSION=contracts-v1.4.2` | All 29 vendored sandbox blobs match that release. |
 
 Runtime and contract references were checked independently and match for this
 pair. An older branch containing `contracts-v1.3.0` must not be treated as this
-verified checkout. Do not edit the pin to bypass that mismatch: select the
+candidate checkout. Do not edit the pin to bypass that mismatch: select the
 intended Raphael revision first. Future runtime-only releases may legitimately
 use different references after explicit paired verification.
 
-Proof: [main core](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39369470746),
+Historical backend baseline proof (before this Next.js candidate): [main core](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39369470746),
 [main paired mock/kind](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39369470736),
 [released-pair CRLF](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/39364091364).
+Current candidate checks are attached to [PR #70](https://github.com/AWaleed-Ahmed/Raphael/pull/70).
+These older runs do not establish current-head or partner-install proof.
 See [release milestones](release-milestones-2026-10-18.md) for remaining gates.
 
 ## 2. Prerequisites and source access
@@ -54,7 +56,9 @@ mkdir -p "$RAPHAEL_PILOT_ROOT"
 cd "$RAPHAEL_PILOT_ROOT"
 test ! -e raphael && test ! -e ignis
 git clone https://github.com/AWaleed-Ahmed/Raphael.git raphael
-git -C raphael checkout --detach a614d47e65904d55e085143ab07c1c5358d5d69e
+# Fetch the candidate explicitly while PR #70 is awaiting merge.
+git -C raphael fetch origin refs/pull/70/head
+git -C raphael checkout --detach 26e17c0faa2a2eeda8f2855be93a1bb71fcdf17b
 git clone https://github.com/AWaleed-Ahmed/Ignis.git ignis
 git -C ignis checkout --detach contracts-v1.4.2
 test "$(git -C ignis rev-parse HEAD)" = 2bfcc644f278da3e16845d6e4408ee9b6048922d
@@ -204,7 +208,7 @@ Demo mode needs no API or credentials:
 ```bash
 cd "$RAPHAEL_PILOT_ROOT/raphael/frontend"
 npm ci
-npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
 
 For live loopback API data, use a local development proxy. The shipped core does
@@ -212,28 +216,33 @@ not add general browser CORS headers, so pointing a different-origin browser
 straight at `http://127.0.0.1:8091` is not the canonical setup. Keep the core's
 interface token unset for this loopback exercise and do not set a browser token.
 
+Stop the demo console server before starting the proxy configuration. In Bash:
+
 ```bash
-cat > "$RAPHAEL_PILOT_ROOT/vite-pilot.config.mjs" <<'JS'
-export default {
-  server: {
-    host: '127.0.0.1', port: 5173, strictPort: true,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8091', changeOrigin: true,
-        rewrite: path => path.replace(/^\/api/, '')
-      }
-    }
-  }
-};
-JS
 cd "$RAPHAEL_PILOT_ROOT/raphael/frontend"
-VITE_RAPHAEL_API_URL=/api npm run dev -- --config "$RAPHAEL_PILOT_ROOT/vite-pilot.config.mjs"
+RAPHAEL_DEV_API_PROXY=true VITE_RAPHAEL_API_URL=/api npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
 
-Open `http://127.0.0.1:5173`; `curl --fail http://127.0.0.1:5173/api/v1/runs`
-should return the core's JSON, not demo data. Stop the previous demo Vite process
-before starting the proxy configuration. Vite loads its own `.env` files at
-startup; that does not imply Python does. `VITE_*` values are browser-visible.
+For the optional console on a PowerShell host with the source already checked out:
+
+```powershell
+Set-Location "$env:RAPHAEL_PILOT_ROOT/raphael/frontend"
+$env:RAPHAEL_DEV_API_PROXY = "true"
+$env:VITE_RAPHAEL_API_URL = "/api"
+npm run dev -- --hostname 127.0.0.1 --port 5173
+```
+
+The PowerShell example covers only frontend configuration; it does not qualify
+native Windows Ignis execution. Both variables may instead be set in
+`frontend/.env.local`. Restart the dev command after changing them: it builds
+the legacy console with Vite before starting Next.js. Next's development-only
+rewrite forwards `/api/*` to `http://127.0.0.1:8091/*`; production builds do not
+enable this loopback proxy.
+
+Open `http://127.0.0.1:5173/console/`; `/` serves the landing page.
+`curl --fail http://127.0.0.1:5173/api/v1/runs` should return the core's JSON,
+not demo data. Vite embeds `VITE_*` values into the console bundle; these values
+are browser-visible. Its environment loading is independent of Python.
 Never put a production bearer, provider key or Supabase backend key in them.
 Nonlocal console use requires a separately reviewed authenticated server-side
 proxy. Full browser/user-journey acceptance remains pending.
