@@ -3,6 +3,7 @@ import { afterEach, test } from "node:test";
 import React from "react";
 import { JSDOM } from "jsdom";
 import { registerHooks } from "node:module";
+import { renderToString } from "react-dom/server";
 
 registerHooks({
   load(url, context, nextLoad) {
@@ -56,6 +57,7 @@ const { default: Footer } = await import(
 const { default: Handoff } = await import("../src/features/Pages/Landing/components/Handoff.jsx");
 const { default: Closing } = await import("../src/features/Pages/Landing/components/Closing.jsx");
 const { default: Evidence } = await import("../src/features/Pages/Landing/components/Evidence.jsx");
+const { default: Intro } = await import("../src/features/Pages/Landing/components/Intro.jsx");
 const { MotionProvider, useMotion } = await import(
   "../src/features/Pages/Landing/hooks/useMotion.jsx"
 );
@@ -111,7 +113,30 @@ test("all repair stages update their evidence and support keyboard navigation", 
   );
 });
 
-test("six repair stages can be explored in order without a stage list or autoplay", () => {
+test("pointer users can select every repair stage directly in either motion mode", () => {
+  for (const reduced of [false, true]) {
+    localStorage.setItem("raphael-reduce-motion", String(reduced));
+    const view = render(<MotionProvider><Workflow /></MotionProvider>);
+    const buttons = view.getAllByRole("button", { name: /^Step \d:/ });
+    assert.equal(buttons.length, 6);
+    for (const index of [1, 2, 3, 4, 5, 0]) {
+      fireEvent.click(buttons[index]);
+      assert.equal(view.container.querySelector("[data-active-stage]").dataset.activeStage, String(index));
+      assert.equal(buttons[index].getAttribute("aria-pressed"), "true");
+      assert.equal(buttons.filter((button) => button.getAttribute("aria-pressed") === "true").length, 1);
+      assert.equal(view.container.querySelectorAll('#stage-detail [aria-hidden="false"]').length, 1);
+    }
+    view.unmount();
+  }
+});
+
+test("server HTML contains page content without an intro overlay", () => {
+  const html = renderToString(<MotionProvider><Intro /><main>Repair your service</main></MotionProvider>);
+  assert.ok(html.includes("Repair your service"));
+  assert.ok(!html.includes("raphael-intro"));
+});
+
+test("six repair stages can be explored in order without autoplay", () => {
   const view = render(
     <MotionProvider>
       <Workflow />

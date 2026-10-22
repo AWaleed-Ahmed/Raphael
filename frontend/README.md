@@ -12,13 +12,18 @@ for demo startup and the optional local `/api` development proxy.
 ```bash
 cd frontend
 npm ci
-npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
 
-An empty `VITE_RAPHAEL_API_URL` selects demo mode. For API data use `/api` with
-the guide's proxy; direct access from Vite's origin to port 8091 lacks general
-core CORS support. `VITE_*` settings are browser-visible and loaded by Vite,
-independently of the Python backend. Keep backend tokens/provider/Supabase keys
+Open `http://127.0.0.1:5173/console/` for the console; `/` serves the landing page.
+An empty `VITE_RAPHAEL_API_URL` selects demo mode. For API data, set
+`RAPHAEL_DEV_API_PROXY=true` and `VITE_RAPHAEL_API_URL=/api` in the shell or
+`frontend/.env.local`, then restart using the command above. Next.js forwards
+`/api/*` to `http://127.0.0.1:8091/*` only in development when opted in. See the
+guide for Bash and PowerShell examples. Direct cross-origin access to port 8091
+lacks general core CORS support. The dev command builds the legacy console with
+Vite before starting Next.js. `VITE_*` settings are browser-visible and embedded
+by Vite at build time, independently of the Python backend. Keep backend tokens/provider/Supabase keys
 out of the bundle. Nonlocal deployment needs a reviewed authenticated server
 proxy. A production build and HTTP proxy smoke do not prove the full UI journey.
 

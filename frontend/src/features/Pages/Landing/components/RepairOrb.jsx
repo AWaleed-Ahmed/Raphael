@@ -20,7 +20,7 @@ export default function RepairOrb({ state, reduced, label }) {
     const { target, from, started } = transition.current;
     const now = performance.now();
     const next = MODE_FRAMES[target.mode](size, reduced ? 0.6 : now / 1000 * target.speed, target.opts);
-    const progress = reduced ? 1 : Math.min(1, (now - started) / 700);
+    const progress = reduced ? 1 : Math.min(1, (now - started) / 300);
     if (!from || progress >= 1) {
       lastFrame.current = next;
       return next;

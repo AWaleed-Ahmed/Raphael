@@ -56,7 +56,7 @@ export default function RepairWorkflow() {
 
   return (
     <section
-      className="landing-folder workflow bg-(--night) p-[88px_0_80px] max-[767.01px]:p-[60px_0] dark-section"
+      className={`landing-folder workflow bg-(--night) p-[88px_0_80px] max-[767.01px]:p-[60px_0] dark-section ${styles.section}`}
       id="repair"
       data-nav-theme="ink"
       aria-labelledby="workflow-title"
@@ -64,7 +64,7 @@ export default function RepairWorkflow() {
       <SectionNotch variant="workflow" />
       <div
         className={`
-          wrap w-[min(1280px,calc(100%-112px))] max-[1100.01px]:w-[calc(100%-64px)]
+          wrap relative w-[min(1280px,calc(100%-112px))] max-[1100.01px]:w-[calc(100%-64px)]
           max-[767.01px]:w-[calc(100%-40px)] mx-auto
         `}
       >
@@ -95,6 +95,7 @@ export default function RepairWorkflow() {
             Follow the six steps that resolve it.
           </p>
         </div>
+        <div data-repair-track>
         <div
           ref={root}
           className={`walkthrough grid ${styles.layout}`}
@@ -109,6 +110,20 @@ export default function RepairWorkflow() {
             aria-describedby="repair-navigation-hint"
             onKeyDown={navigate}
           >
+            <div className={styles.stageControls} role="group" aria-label="Select repair stage">
+              {steps.map(([title], index) => (
+                <button
+                  key={title}
+                  type="button"
+                  aria-label={`Step ${index + 1}: ${title}`}
+                  aria-pressed={active === index}
+                  aria-controls="stage-detail"
+                  onClick={() => select(index)}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </button>
+              ))}
+            </div>
             <div className={styles.orb}>
               {ready && introComplete ? (
                 <RepairOrb
@@ -305,6 +320,7 @@ export default function RepairWorkflow() {
             </div>
           </div>
         </div>
+        </div>
         <div
           className={`
           walkthrough-bottom flex items-start justify-between gap-[30px] mt-7 max-[767.01px]:flex-col-reverse
@@ -312,7 +328,7 @@ export default function RepairWorkflow() {
         `}
         >
           <p id="repair-navigation-hint" className="workflow-caveat text-(--muted) text-[13px] max-w-90 max-[767.01px]:text-[12px]">
-            Scroll to follow the repair, or focus the stages and use the arrow keys.
+            Select a step, scroll to follow the repair, or use the arrow keys.
           </p>
         </div>
       </div>

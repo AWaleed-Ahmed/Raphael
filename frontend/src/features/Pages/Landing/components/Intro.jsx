@@ -98,7 +98,7 @@ export default function Intro() {
           defaults: { ease: "power3.inOut" },
           onComplete: completeIntro,
         })
-        .timeScale(1.7)
+        .timeScale(3)
         // A soft seed gathers at the top of the eventual body.
         .fromTo(
           "[data-seed]",
@@ -206,7 +206,8 @@ export default function Intro() {
     };
   }, [ready, reduced, introComplete, completeIntro]);
 
-  if (introComplete || (ready && reduced)) return null;
+  // Keep server HTML and the first client render usable without JavaScript.
+  if (!ready || introComplete || reduced) return null;
 
   return (
     <div

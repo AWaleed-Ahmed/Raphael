@@ -10,6 +10,9 @@ for (const [path, marker] of [
   assert.equal(response.status, 200, `${path} should load`);
   const html = await response.text();
   assert.ok(html.includes(marker), `${path} should serve the correct page`);
+  if (path === "/") {
+    assert.ok(!html.includes('class="raphael-intro '), "server HTML must not block the page before JavaScript loads");
+  }
   console.log(`OK ${path}`);
   if (path === "/console/") {
     const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)];

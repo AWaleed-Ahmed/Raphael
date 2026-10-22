@@ -1,8 +1,21 @@
+.section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Faint cloud washes, etched contours, and a fine woven grain. */
+  background:
+    radial-gradient(ellipse at 12% 20%, #bda4ff09, transparent 48%),
+    radial-gradient(ellipse at 90% 65%, #eeedf304, transparent 52%),
+    repeating-radial-gradient(ellipse at 110% 8%, transparent 0 72px, #bda4ff06 73px, transparent 74px 146px),
+    repeating-linear-gradient(118deg, #eeedf303 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(28deg, #bda4ff02 0 1px, transparent 1px 7px);
+  mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+}
 .layout {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
   gap: 56px;
   align-items: center;
-  background: var(--night);
 }
 .layout :global(.inspection) {
   font-family: var(--sans);
@@ -73,6 +86,54 @@
 .story:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 8px;
+}
+.stageControls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.stageControls button {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 12px var(--sans);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+.stageControls button:hover {
+  color: var(--paper);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.stageControls button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--night));
+  color: var(--paper);
+  box-shadow: inset 0 1px 0 #ffffff0d;
+}
+@media (forced-colors: active) {
+  .section::before { display: none; }
+  .stageControls button[aria-pressed="true"] {
+    border-color: Highlight;
+    color: Highlight;
+  }
+}
+.stageControls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .scene {
   position: absolute;
@@ -236,9 +297,10 @@
   .scene {
     justify-content: flex-start;
     padding-left: 94px;
+    padding-top: 58px;
   }
   .orb {
-    top: 0;
+    top: 58px;
     transform: none;
   }
   .stageHeading {
