@@ -36,3 +36,28 @@ user journeys, native Windows Ignis execution, or a partner installation.
 Temporary development/fixture servers are stopped after verification.
 Hosted current-head checks remain required on the PR; do not merge from local
 results alone.
+
+## PR delivery and reproduction
+
+The existing contributor fork branch `Mrfaheem4/Raphael:feature/landing-page-refinement`
+contains the main sync and setup corrections. PR #70 targets upstream `main`
+and remains open for human review. No merge was performed.
+
+From `frontend/`, reproduce the frontend checks with:
+
+```bash
+npm test
+npm run build
+```
+
+For the documented loopback proxy smoke, start the approved local core on8091,
+then use the canonical pilot guide's development command on5173 and check:
+
+```bash
+curl --fail http://127.0.0.1:5173/api/v1/runs
+node tests/routes.mjs http://127.0.0.1:5173
+```
+
+The recorded local proxy verification used an owned API fixture, not a partner
+core. Current-head core/contracts and cross-repository checks should be inspected
+on the PR after the branch update; local test results are not their substitute.
