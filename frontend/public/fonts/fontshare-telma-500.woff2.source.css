@@ -1,0 +1,12 @@
+/* Telma */
+@font-face {
+  font-family: 'Telma';
+  src: url('//cdn.fontshare.com/wf/5ZMY77XGX2TH2CZM4E5UML63QT425DC2/7XE5EXFOMF6YMHIPYY7ZL5M6GZCLRZJL/5P62Q5DLXFO236H3ENSXAF6IHACL2BRG.woff2') format('woff2'),
+       url('//cdn.fontshare.com/wf/5ZMY77XGX2TH2CZM4E5UML63QT425DC2/7XE5EXFOMF6YMHIPYY7ZL5M6GZCLRZJL/5P62Q5DLXFO236H3ENSXAF6IHACL2BRG.woff') format('woff'),
+       url('//cdn.fontshare.com/wf/5ZMY77XGX2TH2CZM4E5UML63QT425DC2/7XE5EXFOMF6YMHIPYY7ZL5M6GZCLRZJL/5P62Q5DLXFO236H3ENSXAF6IHACL2BRG.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+}
+
+
