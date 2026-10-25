@@ -80,7 +80,8 @@ core through a local proxy.
 
 - Python 3.12+ with `venv` and pip.
 - Git.
-- For the optional console: Node.js 18, 20, or 22+ and npm, as required by Vite 6.
+- For the optional console: Node.js 24.22.1 or newer 24.x and npm; select
+  `frontend/.nvmrc` with `nvm install` and `nvm use` from `frontend/`.
 - For a full sandbox pilot: a compatible Ignis build and its prerequisites.
   Follow the [pilot installation guide](docs/pilot-install.md) for the tested pair.
 
@@ -91,6 +92,7 @@ git clone https://github.com/AWaleed-Ahmed/Raphael.git
 cd Raphael
 python3.12 -m venv .venv
 source .venv/bin/activate
+python -m pip install --require-hashes -r requirements-bootstrap.txt
 python -m pip install -e agent -e dispatch
 ```
 

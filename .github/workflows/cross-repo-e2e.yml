@@ -62,7 +62,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Raphael
-        run: python -m pip install -e agent -e dispatch
+        run: |
+          python -m pip install --require-hashes -r requirements-bootstrap.txt
+          python -m pip install -e agent -e dispatch
       - uses: actions/checkout@v4
         with:
           repository: AWaleed-Ahmed/Ignis
@@ -114,7 +116,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Raphael
-        run: python -m pip install -e agent -e dispatch
+        run: |
+          python -m pip install --require-hashes -r requirements-bootstrap.txt
+          python -m pip install -e agent -e dispatch
       - name: Test proof assertions and cleanup ownership
         run: python -m unittest e2e.test_kind_verification
       - uses: actions/checkout@v4
@@ -179,7 +183,7 @@ jobs:
 
       - name: Install Raphael packages
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r requirements-bootstrap.txt
           python -m pip install -e agent -e dispatch
 
       - name: Enforce dry-run-only E2E posture
