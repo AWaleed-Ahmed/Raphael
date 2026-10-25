@@ -11,9 +11,17 @@ for demo startup and the optional local `/api` development proxy.
 
 ```bash
 cd frontend
+nvm install
+nvm use
 npm ci
 npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
+
+Use Node 24.22.1 or a newer 24.x security release. `.nvmrc` selects the
+validated version; npm rejects older runtimes. Vercel selects the 24.x line
+from `engines.node` and manages patch updates. Redeploy and verify the actual
+deployment runtime after a security update; the package setting alone does
+not prove an existing deployment is patched.
 
 Open `http://127.0.0.1:5173/console/` for the console; `/` serves the landing page.
 An empty `VITE_RAPHAEL_API_URL` selects demo mode. For API data, set

@@ -34,7 +34,8 @@ See [release milestones](release-milestones-2026-10-18.md) for remaining gates.
 - Git, Bash, curl, Python 3.12+ with `venv`/pip, and Rust stable with Cargo.
   Verification used Python 3.12.3 and Rust/Cargo 1.97.1. No lower Rust MSRV is
   qualified here. Building SQLite dependencies needs a working native compiler.
-- Optional console: Node.js/npm; verified with Node 24.13.1/npm 11.8.0.
+- Optional console: Node.js 24.22.1 or newer 24.x/npm. Use `nvm install` and
+  `nvm use` from `frontend/` to select its `.nvmrc` security baseline.
 - Docker, kind and kubectl are **not** required for this basic mock setup.
   Real-backend qualification needs an explicitly owned sandbox context; Helm
   and Kustomize are needed only for corresponding renderer paths.
@@ -66,6 +67,7 @@ test "$(cat raphael/CONTRACTS_VERSION)" = contracts-v1.4.2
 cd raphael
 python3.12 -m venv .venv
 source .venv/bin/activate
+python -m pip install --require-hashes -r requirements-bootstrap.txt
 python -m pip install -e agent -e dispatch
 cargo build --release --locked --manifest-path "$RAPHAEL_PILOT_ROOT/ignis/controller/Cargo.toml"
 ```

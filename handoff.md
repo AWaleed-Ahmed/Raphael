@@ -1,5 +1,12 @@
 # Raphael contributor map
 
+**HTTPS maintenance candidate — 2026-10-25:** targeted certificate-trust,
+Pip bootstrap and Node runtime fixes are prepared on
+`fix/https-security-2026-10-25`, with corresponding Ignis dependency fixes.
+See [versions, regression cases and executed results](docs/https-security-validation-2026-10-25.md).
+Deployment and executor release verification remain pending; existing contract
+and runtime release pins are unchanged.
+
 **Supabase migrations — 2026-10-20:** user-authorized run applied telemetry,
 client-scope RLS, and API privilege restriction migrations to Raphael. All seven
 versions now match remotely; 31 live SQL checks passed. Public Flask repository
