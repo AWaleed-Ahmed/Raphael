@@ -18,7 +18,7 @@ are synthetic test assignments, unrelated to the public source authors. That is
 Each partition fits its own TF-IDF vectorizer and matrix. No public/shared
 search fallback exists. No historical fix template is asserted for these reports.
 
-`build_scoped_incident_fixture.py` recreates the artifact byte for byte from this
+`build_scoped_incident_fixture.py` recreates the owned corpus, vocabulary and numerically equivalent index from this
 verification snapshot and the original public query fixture. The independent
 runtime trust roots must be updated through release review whenever corpus or
 ownership bytes change. Customer-supplied joblib files are never accepted.

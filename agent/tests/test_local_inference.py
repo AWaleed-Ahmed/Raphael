@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 import pytest
 from raphael_agent.incident_scope import configured_scope
 from raphael_agent.local_inference import artifacts, predict
@@ -248,7 +249,7 @@ def test_missing_deployment_can_recover_without_restart(
     assert model_error(gateway) is None
 
 
-def test_scoped_fixture_reproduces_release_bytes(tmp_path: Path) -> None:
+def test_scoped_fixture_reproduces_index(tmp_path: Path) -> None:
     import subprocess
 
     subprocess.run(
@@ -265,7 +266,41 @@ def test_scoped_fixture_reproduces_release_bytes(tmp_path: Path) -> None:
         check=True,
         capture_output=True,
     )
-    for filename in ("manifest.json", "model.joblib"):
-        assert (tmp_path / filename).read_bytes() == (
-            ROOT / "models/incident_similarity" / filename
-        ).read_bytes()
+    # Build output is created by this test from reviewed fixtures, never supplied
+    # by a customer. Compare index semantics across Python/CPU builds; release
+    # loading still requires the exact package-pinned bytes before deserializing.
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    data = (tmp_path / "model.joblib").read_bytes()
+    assert manifest.pop("artifact_sha256") == hashlib.sha256(data).hexdigest()
+    assert manifest.pop("artifact_bytes") == len(data)
+    expected_manifest = json.loads(
+        (ROOT / "models/incident_similarity/manifest.json").read_text()
+    )
+    expected_manifest.pop("artifact_sha256")
+    expected_manifest.pop("artifact_bytes")
+    assert manifest == expected_manifest
+    expected = artifacts.load_bundle(ROOT / "models", "incident_similarity")
+    rebuilt = joblib.load(tmp_path / "model.joblib")
+    assert rebuilt["text_fields"] == expected["text_fields"]
+    assert rebuilt["minimum_similarity"] == expected["minimum_similarity"]
+    assert len(rebuilt["partitions"]) == len(expected["partitions"])
+    for current, original in zip(rebuilt["partitions"], expected["partitions"]):
+        assert current["scope"] == original["scope"]
+        assert current["records"] == original["records"]
+        assert current["vectorizer"].get_params() == original["vectorizer"].get_params()
+        assert current["vectorizer"].vocabulary_ == original["vectorizer"].vocabulary_
+        np.testing.assert_allclose(
+            current["vectorizer"].idf_,
+            original["vectorizer"].idf_,
+            rtol=1e-12,
+            atol=1e-14,
+        )
+        np.testing.assert_array_equal(
+            current["matrix"].indptr, original["matrix"].indptr
+        )
+        np.testing.assert_array_equal(
+            current["matrix"].indices, original["matrix"].indices
+        )
+        np.testing.assert_allclose(
+            current["matrix"].data, original["matrix"].data, rtol=1e-12, atol=1e-14
+        )
