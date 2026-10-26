@@ -16,7 +16,7 @@ from urllib.error import URLError
 ROOT = Path(__file__).resolve().parents[1]
 E2E = Path(__file__).resolve().parent
 DISPATCH = os.getenv("E2E_DISPATCH_URL", "http://127.0.0.1:8092")
-TENANT = "real-test"
+TENANT = os.getenv("E2E_REAL_TENANT_ID", "real-test")
 PRODUCER_TOKEN = "real-producer-token"
 CONNECTOR_TOKEN = "real-connector-token"
 IGNIS_BIN = os.getenv("E2E_IGNIS_BIN", "")

@@ -1,0 +1,655 @@
+{
+  "active_patch_id": "patch-1",
+  "affected_resources": [],
+  "attempt_count": {
+    "diagnosis": 1,
+    "patch": 1
+  },
+  "audit_events": [
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "event": "enter",
+      "node": "ingest"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "event accepted",
+      "event": "normalized",
+      "node": "ingest"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "event": "enter",
+      "node": "evidence"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "n=2",
+      "event": "collected",
+      "node": "evidence"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "anomaly=False abstained=True",
+      "event": "trace_model",
+      "node": "evidence"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "capability=trace_anomaly source=abstention learned_execution=True",
+      "event": "model_execution",
+      "node": "evidence"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "event": "enter",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "capability=failure_classifier source=abstention learned_execution=True",
+      "event": "model_execution",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "selected=hyp-probe-port conf=0.93",
+      "event": "ranked",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "event": "enter",
+      "node": "reproduce"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "source=derived",
+      "event": "fix_rules",
+      "node": "reproduce"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "detail": "sb-recorded-001",
+      "event": "recorded_stub",
+      "node": "reproduce"
+    },
+    {
+      "at": "2026-10-26T15:56:16Z",
+      "event": "enter",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "capability=incident_similarity source=trained_inference learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "capability=trace_anomaly source=trained_inference learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "capability=candidate_ranker source=trained_inference learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "baselines=1 comparisons=1 candidates=1",
+      "event": "completed",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "event": "enter",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "capability=patch_selector source=deterministic_rule_override learned_execution=False",
+      "event": "model_execution",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "patch-1",
+      "event": "proposed",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "event": "enter",
+      "node": "validate"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "top=deploy/manifests:42 patch_paths=1 matched=none",
+      "event": "localized_candidate_patch_mismatch",
+      "node": "validate"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "res-recorded-001",
+      "event": "recorded_stub",
+      "node": "validate"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "event": "enter",
+      "node": "publish_or_escalate"
+    },
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "detail": "Dry-run draft PR prepared for result_id=res-recorded-001; no GitHub mutation (RAPHAEL_PARTNER_MODE=dry_run or RAPHAEL_PUBLISH_MODE!=live)",
+      "event": "success_draft_pr_ready",
+      "node": "publish_or_escalate"
+    }
+  ],
+  "audit_id": "compiled-real-model-proof",
+  "budget_snapshot": {
+    "deadline_at": "2026-10-26T16:26:16Z",
+    "max_cost_usd": 0.0,
+    "max_diagnosis_attempts": 2,
+    "max_patch_attempts": 3,
+    "max_wall_seconds": 1800,
+    "sandbox_http_timeout_seconds": 180.0
+  },
+  "candidate_patches": [
+    {
+      "attempt": 1,
+      "created_at": "2026-10-26T15:56:17Z",
+      "files": [
+        {
+          "action": "modify",
+          "content": "# Probe misconfiguration: readiness probe hits port 9090 but container listens on 8080.\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: payments-config\ndata:\n  APP_MODE: demo\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  labels:\n    app: payments-api\n    raphael.scenario: probe-port-mismatch\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      containers:\n        - name: app\n          image: hashicorp/http-echo:1.0\n          args: [\"-listen=:8080\", \"-text=ok\"]\n          ports:\n            - containerPort: 8080\n          readinessProbe:\n            httpGet:\n              path: /healthz\n              port: 8080\n            initialDelaySeconds: 1\n            periodSeconds: 5\n          env:\n            - name: APP_MODE\n              valueFrom:\n                configMapKeyRef:\n                  name: payments-config\n                  key: APP_MODE\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: payments-api\nspec:\n  selector:\n    app: payments-api\n  ports:\n    - port: 80\n      targetPort: 8080\n",
+          "path": "deploy/manifests/broken.yaml",
+          "unified_diff_hunk": null
+        }
+      ],
+      "hypothesis_id": "hyp-probe-port",
+      "patch_id": "patch-1",
+      "policy_status": "allowed",
+      "policy_violations": [],
+      "rationale": {
+        "evidence_ids": [
+          "ev-ci-1",
+          "ev-k8s-1"
+        ],
+        "risk_notes": "Config/manifest-only change within allowlisted paths",
+        "rollback_notes": "Revert the patched file(s) to the failing commit contents",
+        "summary": "Apply model-selected readiness probe fix. Top localized candidate: deploy/manifests:42 (readinessProbe.httpGet.port) score=0.0897."
+      },
+      "sandbox_deploy_hint": {
+        "manifests_path": "deploy/manifests",
+        "use_files_as_patch": true
+      },
+      "unified_diff": null
+    }
+  ],
+  "changed_diff_hunks": [],
+  "client_id": "fixture-client-a1",
+  "client_name": "public-fixture",
+  "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "company_id": "fixture-company-a",
+  "created_at": "2026-10-26T15:56:16Z",
+  "delivery_mode": "draft_pr",
+  "diagnosis": {
+    "analyzer": {
+      "mode": "deterministic",
+      "name": "manifest_probe_port",
+      "version": "0.2.0"
+    },
+    "classification": {
+      "blocked_reason": null,
+      "category": "supported",
+      "failure_class": "probe_misconfiguration"
+    },
+    "confidence": 0.93,
+    "confidence_threshold": 0.7,
+    "diagnosed_at": "2026-10-26T15:56:16Z",
+    "hypotheses": [
+      {
+        "candidate_fix_hint": "align readinessProbe.httpGet.port with containerPort",
+        "confidence": 0.93,
+        "contradicting_evidence_ids": [],
+        "expected_signature_key": null,
+        "failure_class": "probe_misconfiguration",
+        "hypothesis_id": "hyp-probe-port",
+        "rank": 1,
+        "statement": "Readiness probe port 9090 does not match containerPort 8080",
+        "supporting_evidence_ids": [
+          "ev-ci-1",
+          "ev-k8s-1"
+        ]
+      }
+    ],
+    "notes": "Deterministic analyzers only",
+    "selected_hypothesis_id": "hyp-probe-port",
+    "supporting_evidence_ids": [
+      "ev-ci-1",
+      "ev-k8s-1"
+    ]
+  },
+  "diagnosis_only": false,
+  "errors": [],
+  "evidence": [
+    {
+      "collected_at": "2026-10-26T15:56:16Z",
+      "content_excerpt": "Readiness probe failed for payments-api",
+      "evidence_id": "ev-ci-1",
+      "kind": "ci_log",
+      "provenance": {
+        "collector": "evidence.stub",
+        "query": "fixture:ci_log"
+      },
+      "redacted": true,
+      "redaction_notes": [
+        "no_secrets_in_fixture"
+      ],
+      "source": {
+        "ref": "workflow/deploy",
+        "system": "fixture"
+      },
+      "summary": "Deployment job failed readiness check"
+    },
+    {
+      "collected_at": "2026-10-26T15:56:16Z",
+      "content_excerpt": "Readiness probe failed: HTTP probe failed with statuscode: 503",
+      "evidence_id": "ev-k8s-1",
+      "kind": "k8s_event",
+      "provenance": {
+        "collector": "evidence.stub",
+        "query": "fixture:k8s_event"
+      },
+      "redacted": true,
+      "redaction_notes": [
+        "no_secrets_in_fixture"
+      ],
+      "source": {
+        "ref": "event/payments-api",
+        "system": "fixture"
+      },
+      "summary": "Unhealthy probe reported"
+    }
+  ],
+  "failure_signature": {
+    "class": "healthy",
+    "confidence": 1.0,
+    "evidence_refs": [
+      {
+        "id": "pod-recorded-0",
+        "kind": "pod_status"
+      }
+    ],
+    "key": "healthy:payments-api",
+    "normalized": {
+      "reason": "Available",
+      "resource_kind": "Deployment",
+      "resource_name": "payments-api"
+    },
+    "observed_at": "2026-08-10T12:03:00Z",
+    "reproduced": false
+  },
+  "fault_candidates": [
+    {
+      "candidate_type": "kubernetes_manifest",
+      "diff_hunk": null,
+      "evidence_refs": [
+        "ev-localize-k8s"
+      ],
+      "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "line": 42,
+      "mapping_methods": [
+        "manifest_provenance"
+      ],
+      "path": "deploy/manifests",
+      "repository": "proof-source/raphael-e2e-fixture",
+      "score": 0.0897,
+      "state": "suspected",
+      "symbol": "readinessProbe.httpGet.port"
+    }
+  ],
+  "fix_rules": {
+    "created_at": "2026-10-26T15:56:16Z",
+    "must": [],
+    "must_not": [
+      "Do not introduce secrets or credentials",
+      "Do not modify files outside writable_path_prefixes"
+    ],
+    "notes": "No repo rule files found; using global patch allowlist only",
+    "source": "derived",
+    "source_paths": [],
+    "test_commands": [],
+    "writable_path_prefixes": [
+      "deploy/",
+      "k8s/",
+      "kubernetes/",
+      "manifests/",
+      "charts/",
+      "helm/",
+      "overlays/",
+      ".github/workflows/"
+    ]
+  },
+  "healthy_trace_comparisons": [
+    {
+      "confidence": 0.7,
+      "fingerprint_match": false,
+      "first_divergent_span_index": null,
+      "healthy_trace_id": "public-window-baseline",
+      "reasons": [
+        "fingerprint_differs_from_healthy_baseline"
+      ],
+      "same_scope": true,
+      "source_anchor_match": false,
+      "span_diverged": false,
+      "stack_diverged": false
+    }
+  ],
+  "localization_result": {
+    "baseline_count": 1,
+    "candidate_count": 1,
+    "client_id": "fixture-client-a1",
+    "company_id": "fixture-company-a",
+    "comparison_count": 1,
+    "environment": "fixture-replay",
+    "operation": "request",
+    "service_name": "public-fixture",
+    "status": "completed"
+  },
+  "manifests": {
+    "path": "deploy/manifests",
+    "type": "yaml"
+  },
+  "model_results": {
+    "candidate_ranker": {
+      "candidates": [
+        {
+          "candidate_line": 42,
+          "candidate_path": "deploy/manifests",
+          "candidate_symbol": "readinessProbe.httpGet.port",
+          "candidate_type": "kubernetes_manifest",
+          "changed_file_match": 0,
+          "changed_line_overlap": 0,
+          "dependency_distance": 1,
+          "evidence_score": 0.1355,
+          "failure_class_compatible": 1,
+          "first_divergent_span": 0,
+          "historical_similarity": 0.7,
+          "learned_score": 0.004596,
+          "log_callsite_match": 0,
+          "model_score": 0.089683,
+          "route_handler_match": 0,
+          "runtime_anchor_score": 0.285,
+          "stack_frame_depth": 0,
+          "stack_trace_match": 0,
+          "trace_divergence_match": 0
+        }
+      ],
+      "execution_source": "trained_inference",
+      "learned_execution": true
+    },
+    "failure_classifier": {
+      "abstained": true,
+      "abstention_reason": "out_of_distribution",
+      "alternatives": [
+        {
+          "confidence": 0.827268,
+          "failure_class": "bad_image_reference"
+        },
+        {
+          "confidence": 0.077837,
+          "failure_class": "probe_misconfiguration"
+        },
+        {
+          "confidence": 0.07038,
+          "failure_class": "invalid_missing_config"
+        }
+      ],
+      "confidence": 0.827268,
+      "execution_source": "abstention",
+      "failure_class": null,
+      "learned_execution": true,
+      "minimum_confidence": 0.5,
+      "model_failure_class": "bad_image_reference",
+      "rule_based": false,
+      "rule_evidence": null
+    },
+    "incident_similarity": {
+      "execution_source": "trained_inference",
+      "learned_execution": true,
+      "minimum_similarity": 0.2,
+      "results": []
+    },
+    "patch_selector": {
+      "allowed_probability": 0.99,
+      "alternatives_evaluated": [],
+      "execution_source": "deterministic_rule_override",
+      "learned_execution": false,
+      "policy_allowed": true,
+      "requires_sandbox_validation": true,
+      "rule_based": true,
+      "rule_evidence": "normalized_reason:ReadinessProbePortMismatch",
+      "safe_template": "fix_probe_port_mismatch",
+      "template_confidence": 0.99
+    },
+    "trace_anomaly": {
+      "abstained": false,
+      "abstention_reason": null,
+      "anomaly_probability": 0.000247,
+      "baseline_status": "valid",
+      "execution_source": "trained_inference",
+      "is_anomaly": false,
+      "learned_anomaly_probability": 0.000247,
+      "learned_execution": true,
+      "rule_based": false,
+      "rule_evidence": null,
+      "threshold": 0.2
+    }
+  },
+  "policy_decisions": [
+    {
+      "at": "2026-10-26T15:56:17Z",
+      "decision": "allow",
+      "message": "Phase 2/6 patch policy allow",
+      "rule": "patch_allowlist_and_secrets"
+    }
+  ],
+  "publish": {
+    "base_branch": "main",
+    "branch": "raphael/compiled-real-model-proof-probe-misconfiguration",
+    "committed_files": [
+      "deploy/manifests/broken.yaml"
+    ],
+    "delivery": "draft_pr",
+    "draft": true,
+    "dry_run": true,
+    "error": null,
+    "html_compare_url": "https://github.com/proof-source/raphael-e2e-fixture/compare/main...raphael/compiled-real-model-proof-probe-misconfiguration?expand=1&raphael_dry_run=1",
+    "idempotent_replay": false,
+    "message": "Dry-run draft PR prepared for result_id=res-recorded-001; no GitHub mutation (RAPHAEL_PARTNER_MODE=dry_run or RAPHAEL_PUBLISH_MODE!=live)",
+    "mode": "dry_run",
+    "ok": true,
+    "pull_request_number": null,
+    "pull_request_url": "https://github.com/proof-source/raphael-e2e-fixture/compare/main...raphael/compiled-real-model-proof-probe-misconfiguration?expand=1&raphael_dry_run=1",
+    "result_id": "res-recorded-001",
+    "title": "[Raphael] Fix workload deployment failure: probe misconfiguration"
+  },
+  "pull_request_branch": "raphael/compiled-real-model-proof-probe-misconfiguration",
+  "pull_request_url": "https://github.com/proof-source/raphael-e2e-fixture/compare/main...raphael/compiled-real-model-proof-probe-misconfiguration?expand=1&raphael_dry_run=1",
+  "redaction_report": {
+    "items_redacted": 2,
+    "notes": [
+      "collect_evidence applies redaction adapters"
+    ]
+  },
+  "repository": {
+    "name": "raphael-e2e-fixture",
+    "owner": "proof-source"
+  },
+  "reproduction_result": {
+    "artifact_ids": [
+      "art-recorded-obs-1"
+    ],
+    "matched_expected": null,
+    "message": "recorded stub observe_failure",
+    "reproduced": true,
+    "signature_key": "probe_port_mismatch:payments-api:8080!=9090"
+  },
+  "result_id": "res-recorded-001",
+  "run_id": "compiled-real-model-proof",
+  "runtime_observation": {
+    "container": "app",
+    "environment": "fixture-replay",
+    "failure_class": "probe_misconfiguration",
+    "message": "readiness probe port does not match container port",
+    "normalized_stack_trace": "probe_port_mismatch:payments-api:8080!=9090",
+    "operation": "request",
+    "reason": "ReadinessProbePortMismatch",
+    "resource_kind": "Deployment",
+    "resource_name": "payments-api",
+    "service_name": "public-fixture"
+  },
+  "sandbox_backend": "mock",
+  "sandbox_id": "sb-recorded-001",
+  "sandbox_mode": "recorded_stub",
+  "status": "success_draft_pr_ready",
+  "target_environment": "fixture-replay",
+  "tenant_id": "fixture-tenant-a",
+  "terminal_reason": "draft_pr_dry_run",
+  "token_and_cost_usage": {
+    "estimated_cost_usd": 0.0,
+    "model_tokens": 0
+  },
+  "trigger": {
+    "kind": "fixture",
+    "received_at": "2026-10-26T15:56:16Z"
+  },
+  "updated_at": "2026-10-26T15:56:17Z",
+  "validated_fix_record": {
+    "after_signature": {
+      "class": "healthy",
+      "evidence_refs": [
+        {
+          "id": "pod-recorded-0",
+          "kind": "pod_status"
+        }
+      ],
+      "key": "healthy:payments-api",
+      "normalized": {
+        "reason": "Available",
+        "resource_kind": "Deployment",
+        "resource_name": "payments-api"
+      },
+      "observed_at": "2026-08-10T12:03:00Z",
+      "reproduced": false
+    },
+    "artifact_ids": [
+      "art-recorded-obs-1",
+      "art-recorded-obs-2"
+    ],
+    "base_commit_sha": "abcdef1234567",
+    "before_signature": {
+      "class": "probe_misconfiguration",
+      "evidence_refs": [
+        {
+          "id": "event-recorded-0",
+          "kind": "k8s_event"
+        }
+      ],
+      "key": "probe_port_mismatch:payments-api:8080!=9090",
+      "normalized": {
+        "reason": "ReadinessProbePortMismatch",
+        "resource_kind": "Deployment",
+        "resource_name": "payments-api"
+      },
+      "observed_at": "2026-08-10T12:02:00Z",
+      "reproduced": true
+    },
+    "content_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "deployed_sha": "abcdef1234567",
+    "fidelity": {
+      "checklist": {
+        "dependencies_available": true,
+        "equivalent_non_secret_config": true,
+        "same_commit": true,
+        "same_image_digest_or_tag": false,
+        "same_render_path": true
+      },
+      "material_gaps": [
+        "recorded stub \u2014 not a live cluster"
+      ],
+      "score": 0.8
+    },
+    "finalized_at": "2026-08-10T12:05:00Z",
+    "notes": "Phase 0 recorded sandbox finalize stub",
+    "patch": null,
+    "rendered_manifest_artifact_id": "art-recorded-manifest",
+    "repository": {
+      "name": "demo",
+      "owner": "raphael"
+    },
+    "result_id": "res-recorded-001",
+    "run_id": "agent-smoke-001",
+    "sandbox_id": "sb-recorded-001",
+    "validation": {
+      "after_signature_key": "healthy:payments-api",
+      "before_signature_key": "probe_port_mismatch:payments-api:8080!=9090",
+      "checks": [
+        {
+          "duration_ms": 10,
+          "kind": "rollout",
+          "mandatory": true,
+          "name": "rollout",
+          "status": "passed"
+        },
+        {
+          "duration_ms": 5,
+          "kind": "signature_compare",
+          "mandatory": true,
+          "name": "signature_absent",
+          "status": "passed"
+        }
+      ],
+      "completed_at": "2026-08-10T12:04:00Z",
+      "fail_closed": false,
+      "full_validation": true,
+      "passed": true,
+      "sandbox_id": "sb-recorded-001",
+      "signature_cleared": true
+    }
+  },
+  "validation_results": [
+    {
+      "after_signature_key": "healthy:payments-api",
+      "before_signature_key": "probe_port_mismatch:payments-api:8080!=9090",
+      "checks": [
+        {
+          "duration_ms": 10,
+          "kind": "rollout",
+          "mandatory": true,
+          "name": "rollout",
+          "status": "passed"
+        },
+        {
+          "duration_ms": 5,
+          "kind": "signature_compare",
+          "mandatory": true,
+          "name": "signature_absent",
+          "status": "passed"
+        }
+      ],
+      "completed_at": "2026-08-10T12:04:00Z",
+      "fail_closed": false,
+      "full_validation": true,
+      "passed": true,
+      "sandbox_id": "sb-recorded-001",
+      "signature_cleared": true
+    }
+  ],
+  "workspace_path": "/home/home/.codex/worktrees/issue-63-local-runtime/Raphael/agent/fixtures/scenarios/probe_port_mismatch"
+}

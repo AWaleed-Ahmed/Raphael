@@ -44,6 +44,13 @@ jobs:
           --cases agent/tests/fixtures/local_inference/incident_similarity.jsonl
           --source-verification agent/tests/fixtures/incident_isolation/public-sources.json
           --output incident-isolation-qualification.json
+      - name: Qualify real models through graph nodes and compiled graph
+        run: python agent/scripts/qualify_model_graph.py --output model-graph-qualification
+      - name: Upload model graph qualification
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-graph-${{ github.sha }}
+          path: model-graph-qualification/
       - name: Upload local-inference qualification
         uses: actions/upload-artifact@v4
         with:

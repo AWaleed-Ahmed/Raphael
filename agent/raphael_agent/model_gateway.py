@@ -8,12 +8,14 @@ authoritative when artifacts or runtime dependencies are unavailable.
 from __future__ import annotations
 
 import importlib
+import math
 import os
 import sys
 from pathlib import Path
 from typing import Any
 
 from .incident_scope import IncidentScope, incident_similarity_scores, scope_for_run
+from .model_outputs import PATCH_TEMPLATES, execution_source, probability, valid_output
 
 
 DEFAULT_MODEL_ROOT = Path(sys.prefix) / "share" / "raphael" / "models"
@@ -87,8 +89,11 @@ class ModelGateway:
                 result = function(self.model_root, payload, top_k, scope=scope)
             else:
                 result = function(self.model_root, payload)
+            if not valid_output(method, result, payload, scope):
+                self._load_error = "invalid_model_output"
+                return None
             self._load_error = None
-            return result if isinstance(result, dict) else None
+            return {**result, "execution_source": execution_source(result)}
         except Exception as exc:  # noqa: BLE001 - deterministic fallback must survive
             from .local_inference.artifacts import ArtifactUnavailable
 
@@ -148,11 +153,38 @@ class ModelGateway:
         }
         return record
 
-    def trace_anomaly(self, state: dict[str, Any]) -> dict[str, Any] | None:
+    def trace_anomaly(
+        self, state: dict[str, Any], *, baseline: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Adapt an APM/runtime observation to the trace anomaly model."""
         observation = self._observation(state)
-        comparisons = state.get("healthy_trace_comparisons") or []
-        baseline = comparisons[0] if comparisons and isinstance(comparisons[0], dict) else {}
+        # Only the graph's verified/scoped catalog row is eligible. Comparisons
+        # supplied by a request are not a source of healthy baseline authority.
+        baseline_status = "missing" if baseline is None else "unsuitable"
+        accepted = False
+        if baseline is not None:
+            try:
+                owner = scope_for_run(state)
+                expected = {
+                    "company_id": owner.company_id, "client_id": owner.client_id,
+                    "service_name": observation.get("service_name"),
+                    "environment": observation.get("environment") or state.get("target_environment"),
+                    "operation": observation.get("operation") or observation.get("route"),
+                    "repository": "/".join(str((state.get("repository") or {}).get(k) or "") for k in ("owner", "name")),
+                }
+                latency = baseline.get("latency_ms")
+                accepted = (baseline.get("verified_healthy") is True
+                            and all(value and baseline.get(key) == value for key, value in expected.items())
+                            and isinstance(latency, (float, int)) and not isinstance(latency, bool)
+                            and math.isfinite(latency) and latency > 0
+                            and type(baseline.get("error_span_count", 0)) is int
+                            and baseline.get("error_span_count", 0) == 0
+                            and type(baseline.get("status_code", 200)) is int
+                            and 0 <= baseline.get("status_code", 200) < 400)
+            except ValueError:
+                accepted = False
+        if accepted:
+            baseline_status = "valid"
         payload = {
             "service_name": observation.get("service_name") or "unknown",
             "operation": observation.get("operation") or observation.get("route") or "unknown",
@@ -163,11 +195,12 @@ class ModelGateway:
             or 0,
             "status_code": observation.get("status_code") or observation.get("http_status") or 0,
         }
-        if baseline:
-            payload["baseline_latency_ms"] = baseline.get("latency_ms") or baseline.get("healthy_latency_ms")
-            payload["baseline_error_span_count"] = baseline.get("error_span_count")
-            payload["baseline_status_code"] = baseline.get("status_code")
-        return self._invoke("detect_trace", payload)
+        if accepted and baseline is not None:
+            payload["baseline_latency_ms"] = baseline["latency_ms"]
+            payload["baseline_error_span_count"] = baseline.get("error_span_count", 0)
+            payload["baseline_status_code"] = baseline.get("status_code", 200)
+        result = self._invoke("detect_trace", payload)
+        return {**result, "baseline_status": baseline_status} if result is not None else None
 
     def classify_failure(self, state: dict[str, Any]) -> dict[str, Any] | None:
         """Adapt fingerprints/evidence to the failure-classifier model."""
@@ -244,12 +277,7 @@ class ModelGateway:
             model_row = by_key.get(key)
             item = dict(candidate)
             if model_row is not None:
-                item["score"] = round(float(model_row.get("model_score") or candidate.get("score") or 0.0), 4)
-                if float(model_row.get("evidence_score") or 0.0) > 0:
-                    methods = list(item.get("mapping_methods") or [])
-                    if "historical_similarity" not in methods and float(model_row.get("evidence_score") or 0) >= 0.5:
-                        methods.append("historical_similarity")
-                    item["mapping_methods"] = methods
+                item["score"] = round(float(model_row["model_score"]), 4)
             updated.append(item)
         updated.sort(key=lambda row: float(row.get("score") or 0.0), reverse=True)
         return {"candidates": updated, "model": prediction}
@@ -271,7 +299,11 @@ class ModelGateway:
             "candidate_path": top.get("path") or "",
         }
         record["normalized_reason"] = normalized.get("reason") or record.get("normalized_reason")
-        return self._invoke("select_patch", record)
+        result = self._invoke("select_patch", record)
+        if result and result.get("policy_allowed") and result.get("safe_template") not in PATCH_TEMPLATES:
+            return {**result, "policy_allowed": False, "safe_template": None,
+                    "reason": "unsupported_template", "execution_source": "abstention"}
+        return result
 
     @staticmethod
     def merge_diagnosis(
@@ -281,7 +313,8 @@ class ModelGateway:
         from raphael_agent.image_pull import image_pull_block_reason
         if image_pull_block_reason(state):
             return diagnosis
-        if not prediction or prediction.get("abstained"):
+        if (not prediction or prediction.get("abstained")
+                or not probability(prediction.get("confidence"))):
             return diagnosis
         classification = diagnosis.get("classification") or {}
         if classification.get("category") == "blocked":
@@ -303,7 +336,7 @@ class ModelGateway:
         if mapped_class not in allowed:
             return diagnosis
         confidence = float(prediction.get("confidence") or 0.0)
-        if confidence <= 0:
+        if confidence <= 0 or mapped_class in {"unknown", "healthy", "policy_blocked"}:
             return diagnosis
         evidence_ids = [
             str(item.get("evidence_id"))
