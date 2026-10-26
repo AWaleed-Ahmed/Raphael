@@ -1,5 +1,13 @@
 # Raphael contributor map
 
+**Issue #49 company workload proof — 2026-10-26:** the required kind workflow now
+also exercises Google Online Boutique product catalog from pinned upstream
+v0.10.4. Local assertions pass; hosted proof is pending. D-20261026-01 reconciles
+the original issue wording: unverified pull evidence refuses as
+`image_pull_evidence_unverified`; verified absence without an approved replacement
+refuses as `patch_value_unavailable`. These remain separate controls, with no
+production gate change. See [proof and acceptance record](docs/issue-49-google-image-proof-2026-10-26.md).
+
 **HTTPS maintenance candidate — 2026-10-25:** targeted certificate-trust,
 Pip bootstrap and Node runtime fixes are prepared on
 `fix/https-security-2026-10-25`, with corresponding Ignis dependency fixes.

@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20261026-01 — Qualify image repair on a pinned Google workload and reconcile #49 controls
+- **Status:** accepted scope; hosted proof pending
+- **Date:** 2026-10-26
+- **Decision:** Extend the required kind proof with Google's pinned Online Boutique product catalog workload. Inject only an absent image tag and authorize restoration only from its independently observed Ready baseline. Retain real dispatch/connector/controller execution, runtime ownership and absence gates, image-only patch assertions, independent post-fix health, and dry-run publication.
+- **Why:** The user requested company-maintained software rather than only a synthetic workload. This is an injected fault in a public Google sample, not a Google production incident.
+- **Acceptance clarification:** Supersede D-20261015-01's obsolete pending-positive status and unstructured-mock description, following PR #50 / D-20261019-02 and the released runtime. Missing/unverified pull evidence still refuses as `unknown / image_pull_evidence_unverified`; verified runtime absence without an approved healthy replacement refuses as `bad_image_reference / patch_value_unavailable`. Structured `mock_fixture` evidence is limited to the mock backend and cannot prove kind repair. No production gate is weakened.
+- **Consequences:** Retain source commit/license/hash provenance and hosted Kubernetes/trace evidence. The scoped loopback catalog does not establish live Supabase ingestion. Close #49 only after the company proof and all PR checks pass. See [proof record](docs/issue-49-google-image-proof-2026-10-26.md).
+
 ### D-20261020-01 — Defer local inference until runtime and tenant safety are proven
 - **Status:** deferred; local inference disabled by default
 - **Date:** 2026-10-20

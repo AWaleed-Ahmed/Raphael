@@ -1,0 +1,10 @@
+{
+  "repository": "GoogleCloudPlatform/microservices-demo",
+  "commit": "474d0f2eb73d97525234995a40d7781b7923a07d",
+  "tag": "v0.10.4",
+  "path": "release/kubernetes-manifests.yaml",
+  "source_sha256": "5350d99b2ff5652fa25408155c7399aa7c0b81a3028311bd571bced5cdb565f5",
+  "fixture_sha256": "bb661519848473988960f50e9b839c40035457e770e08ada0ac490d2471e44a1",
+  "adaptation": "Extract only the productcatalogservice Deployment, Service and ServiceAccount; preserve their source bytes. Fault injection changes only the image tag in a temporary Git checkout.",
+  "incident": "Injected absent-image fault; not a Google production incident."
+}
