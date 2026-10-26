@@ -101,7 +101,7 @@ def commit_fixture(source, destination):
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=destination, text=True).strip()
 
 
-def verify_case(label, result, records, initial_pod, final_ready):
+def verify_case(label, result, records, initial_pod, final_ready, expected_image="hashicorp/http-echo:1.0"):
     state = result["run_state"]
     evidence = trace_evidence(records, result["job_id"])
     if label == "healthy-sentinel":
@@ -148,7 +148,7 @@ def verify_case(label, result, records, initial_pod, final_ready):
         assert count == 2 and all("image:" in line for line in changed), changed
         approved = state["localization_result"]["approved_image_replacement"]
         assert approved["source"]["healthy_trace_id"] == "kind-verified-baseline"
-        assert approved["image"] == "hashicorp/http-echo:1.0"
+        assert approved["image"] == expected_image
 
 
 def verify_workload_identity(pod, replica_sets, deployments, signature, namespace):
@@ -186,7 +186,7 @@ def install_rollout_wrapper(out, real_kubectl):
     return bin_dir
 
 
-def run_case(label, fixture, sha, output, catalog=None):
+def run_case(label, fixture, sha, output, catalog=None, expected_image="hashicorp/http-echo:1.0"):
     out = output / label
     out.mkdir(parents=True)
     gate, trace, result_path = out / "release", out / "trace.jsonl", out / "runner-result.json"
@@ -270,7 +270,7 @@ def run_case(label, fixture, sha, output, catalog=None):
             (out / "initial-replicasets.json").write_text(json.dumps(replica_sets, indent=2))
             (out / "initial-deployments.json").write_text(json.dumps(deployments, indent=2))
             if label == "image-without-provenance":
-                verify_rollout_deadline(sandbox, rollout_pids, out)
+                verify_rollout_deadline(sandbox, rollout_pids, out, deployments["items"][0]["metadata"]["name"])
             gate.touch()
             deadline = time.monotonic() + 240
             while not result_path.exists():
@@ -281,7 +281,10 @@ def run_case(label, fixture, sha, output, catalog=None):
             result = json.loads(result_path.read_text())
             assert process.wait(timeout=20) == 0
             records = trace_records(trace)
-            verify_case(label, result, records, initial, any(ready(pod) for pod in snapshots))
+            verify_case(label, result, records, initial, any(
+                ready(pod) and (label == "probe" or any(
+                    c["image"] == expected_image for c in pod["spec"]["containers"]))
+                for pod in snapshots), expected_image)
             if label == "probe":
                 assert result["run_state"]["secret_coverage"] == coverage
 
@@ -310,13 +313,13 @@ def run_case(label, fixture, sha, output, catalog=None):
                 cleanup_namespace(namespace, owned)
 
 
-def verify_rollout_deadline(sandbox, pid_file, output):
+def verify_rollout_deadline(sandbox, pid_file, output, deployment="payments-api"):
     """A real failing workload keeps real kubectl busy beyond an 8-second deadline."""
     action_id = "owned-rollout-deadline-" + uuid.uuid4().hex
     absolute = (datetime.now(timezone.utc) + timedelta(seconds=8)).isoformat()
     request = Request(f"http://127.0.0.1:8090/v1/sandboxes/{sandbox}/validate", method="POST",
                       data=json.dumps({"plan": {"commands": [], "health_checks": [
-                          {"type": "rollout", "resource": "deployment/payments-api", "mandatory": True, "timeout_seconds": 30}]}}).encode(),
+                          {"type": "rollout", "resource": "deployment/" + deployment, "mandatory": True, "timeout_seconds": 30}]}}).encode(),
                       headers={"Content-Type": "application/json", "x-raphael-action-deadline-at": absolute,
                                "x-raphael-connector-action-id": action_id})
     start = time.monotonic()
@@ -341,7 +344,7 @@ def verify_rollout_deadline(sandbox, pid_file, output):
         return True
     wait_for(stopped, "real kubectl cancellation", timeout=3)
     (output / "rollout-deadline-proof.json").write_text(json.dumps({
-        "passed": True, "backend": "kind", "command": "real kubectl rollout status deployment/payments-api",
+        "passed": True, "backend": "kind", "command": "real kubectl rollout status deployment/" + deployment,
         "action_id": action_id, "http_status": status, "elapsed_seconds": elapsed,
         "kubectl_processes_stopped": True, "configured_rollout_seconds": 30, "absolute_budget_seconds": 8, "owned_wrapper_cli_timeout_seconds": 30}, indent=2))
 

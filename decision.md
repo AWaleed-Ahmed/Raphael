@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20261026-01 — Qualify image repair on a pinned Google workload and reconcile #49 controls
+- **Status:** accepted; both Google kind cases and all seven PR checks passed on code head `73c1fd1`; evidence retained in the proof record
+- **Date:** 2026-10-26
+- **Decision:** Extend the required kind proof with Google's pinned Online Boutique product catalog workload. Inject only an absent image tag and authorize restoration only from its independently observed Ready baseline. Retain real dispatch/connector/controller execution, runtime ownership and absence gates, image-only patch assertions, independent post-fix health, and dry-run publication.
+- **Why:** The user requested company-maintained software rather than only a synthetic workload. This is an injected fault in a public Google sample, not a Google production incident.
+- **Acceptance clarification:** Supersede D-20261015-01's obsolete pending-positive status and unstructured-mock description, following PR #50 / D-20261019-02 and the released runtime. Missing/unverified pull evidence still refuses as `unknown / image_pull_evidence_unverified`; verified runtime absence without an approved healthy replacement refuses as `bad_image_reference / patch_value_unavailable`. Structured `mock_fixture` evidence is limited to the mock backend and cannot prove kind repair. No production gate is weakened.
+- **Consequences:** Retain source commit/license/hash provenance and hosted Kubernetes/trace evidence. The scoped loopback catalog does not establish live Supabase ingestion. Close #49 only after the company proof and all PR checks pass. See [proof record](docs/issue-49-google-image-proof-2026-10-26.md).
+
 ### D-20261020-01 — Defer local inference until runtime and tenant safety are proven
 - **Status:** deferred; local inference disabled by default
 - **Date:** 2026-10-20
@@ -73,7 +81,7 @@ See [qualification review](docs/qualify-11-13-17-review-2026-10-19.md).
 - **Consequences:** Persist the safe terminal envelope and replay it for an identical committed result to the same authenticated owner, including lazy terminal-state loading after restart. Completed jobs remain excluded from polling; executable patch bytes are never replayed from persistence. Older terminal records without this envelope retain their prior limitation. Distinct workers require distinct credentials/identities. This does not promise exactly-once remote publication, guaranteed cleanup against an unavailable controller, or issue closure. See [the correction record](docs/result-delivery-fix-review-2026-10-19.md).
 
 ### D-20261015-01 — Bad-image repair requires verified pull evidence
-- **Status:** accepted; correction and proof updates are in PR #48; the positive kind proof is pending under [Raphael #49](https://github.com/AWaleed-Ahmed/Raphael/issues/49) and is excluded from required checks until reviewed, released Ignis #19 evidence is pinned.
+- **Status:** superseded for current proof status and mock semantics by D-20261026-01; the original runtime provenance policy remains enforced. The text below records the October 15 checkpoint.
 - **Date:** 2026-10-15
 - **Decision:** PR #47 (`5a1771e`) added a provenance gate: automatic bad-image repair requires structured `not_found` evidence, verified Deployment/container identity, and an approved evidence source. The current mock detector does not emit those provenance fields, so the mock case must refuse as `unknown` / `image_pull_evidence_unverified`. Do not manufacture registry provenance in the mock.
 - **Why:** A pattern-matched image name or generic pull error does not establish that the image is absent or authorize replacing it. The earlier `fix_finalized` claims in D-20260918-02 and D-20260930-01 are historical pre-gate results and are superseded as claims about current behavior.

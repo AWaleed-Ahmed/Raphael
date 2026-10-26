@@ -1,0 +1,309 @@
+{
+  "baseline": {
+    "upstream": {
+      "repository": "GoogleCloudPlatform/microservices-demo",
+      "commit": "474d0f2eb73d97525234995a40d7781b7923a07d",
+      "tag": "v0.10.4",
+      "path": "release/kubernetes-manifests.yaml",
+      "source_sha256": "5350d99b2ff5652fa25408155c7399aa7c0b81a3028311bd571bced5cdb565f5",
+      "fixture_sha256": "bb661519848473988960f50e9b839c40035457e770e08ada0ac490d2471e44a1",
+      "adaptation": "Extract only the productcatalogservice Deployment, Service and ServiceAccount; preserve their source bytes. Fault injection changes only the image tag in a temporary Git checkout.",
+      "incident": "Injected absent-image fault; not a Google production incident."
+    },
+    "healthy_fixture_commit": "342efd0a6b669c332bad17e9790fd2221d11963f",
+    "failing_fixture_commit": "e2c1832f844c914f0de91328e19a0f7582bd548e",
+    "observed_healthy_image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4",
+    "image_id": "sha256:5604602ebb6f910c9e1bc906718d631e6415207f6da1e646a045eaebde86fad8",
+    "raphael_revision": "15426c238f5d703076e3b792b3784a01e2e7de1f",
+    "ignis_revision": "contracts-v1.4.2"
+  },
+  "cases": {
+    "image-without-provenance": {
+      "job_id": "d32de4e7-21bd-4149-abb4-844837081cb2",
+      "final_status": "escalated",
+      "terminal_reason": "patch_value_unavailable",
+      "signature": {
+        "class": "bad_image_reference",
+        "confidence": 0.9,
+        "evidence_refs": [
+          {
+            "excerpt": "Scheduled: Successfully assigned raphael-run-d32de4e7-21bd-4149-abb4-844837081cb2/productcatalogservice-594b845675-bl8m8 to raphael-remediation-proof-control-plane",
+            "id": "event-0",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Pulling: Pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+            "id": "event-1",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Failed to pull image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": rpc error: code = NotFound desc = failed to pull and unpack image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": failed to resolve reference \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49: not found",
+            "id": "event-2",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Error: ErrImagePull",
+            "id": "event-3",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "BackOff: Back-off pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+            "id": "event-4",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Error: ImagePullBackOff",
+            "id": "event-5",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "FailedCreate: Error creating: pods \"productcatalogservice-594b845675-\" is forbidden: error looking up service account raphael-run-d32de4e7-21bd-4149-abb4-844837081cb2/productcatalogservice: serviceaccount \"productcatalogservice\" not found",
+            "id": "event-6",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "SuccessfulCreate: Created pod: productcatalogservice-594b845675-bl8m8",
+            "id": "event-7",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "productcatalogservice-594b845675-bl8m8 phase=Pending",
+            "id": "pod-0",
+            "kind": "pod_status"
+          }
+        ],
+        "key": "image_pull:[\"Deployment\",\"productcatalogservice\",\"regular\",\"server\",\"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\",\"not_found\"]",
+        "normalized": {
+          "attributes": {
+            "container_type": "regular",
+            "evidence_source": "runtime",
+            "image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49",
+            "image_pull_cause": "not_found",
+            "owner_verified": true
+          },
+          "container": "server",
+          "message": "image pull cause: not_found",
+          "reason": "ImagePullBackOff",
+          "resource_kind": "Deployment",
+          "resource_name": "productcatalogservice"
+        },
+        "observed_at": "2026-10-26T10:26:08.545475822Z",
+        "reproduced": true,
+        "summary": "image pull failure (not_found)"
+      },
+      "verified_identity": {
+        "namespace": "raphael-run-d32de4e7-21bd-4149-abb4-844837081cb2",
+        "pod_uid": "3d57a565-6a54-4977-a2af-6a0cfc02e9d4",
+        "replica_set_uid": "21d5fb32-cf4b-4a83-8162-d5cd4d083318",
+        "deployment_uid": "df67f19e-07e0-474e-b8ea-d47a6a2ad5b2",
+        "container": "server",
+        "image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49"
+      },
+      "kubernetes_pull_events": [
+        "Pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+        "Failed to pull image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": rpc error: code = NotFound desc = failed to pull and unpack image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": failed to resolve reference \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49: not found",
+        "Back-off pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\""
+      ]
+    },
+    "image-with-verified-provenance": {
+      "job_id": "75248ff6-2e23-46e0-ba2f-a97e257f7c68",
+      "final_status": "fix_finalized",
+      "terminal_reason": "draft_pr_dry_run",
+      "signature": {
+        "class": "bad_image_reference",
+        "confidence": 0.9,
+        "evidence_refs": [
+          {
+            "excerpt": "Scheduled: Successfully assigned raphael-run-75248ff6-2e23-46e0-ba2f-a97e257f7c68/productcatalogservice-594b845675-6ffft to raphael-remediation-proof-control-plane",
+            "id": "event-0",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Pulling: Pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+            "id": "event-1",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Failed to pull image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": rpc error: code = NotFound desc = failed to pull and unpack image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": failed to resolve reference \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49: not found",
+            "id": "event-2",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Error: ErrImagePull",
+            "id": "event-3",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "BackOff: Back-off pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+            "id": "event-4",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "Failed: Error: ImagePullBackOff",
+            "id": "event-5",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "FailedCreate: Error creating: pods \"productcatalogservice-594b845675-\" is forbidden: error looking up service account raphael-run-75248ff6-2e23-46e0-ba2f-a97e257f7c68/productcatalogservice: serviceaccount \"productcatalogservice\" not found",
+            "id": "event-6",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "SuccessfulCreate: Created pod: productcatalogservice-594b845675-6ffft",
+            "id": "event-7",
+            "kind": "k8s_event"
+          },
+          {
+            "excerpt": "productcatalogservice-594b845675-6ffft phase=Pending",
+            "id": "pod-0",
+            "kind": "pod_status"
+          }
+        ],
+        "key": "image_pull:[\"Deployment\",\"productcatalogservice\",\"regular\",\"server\",\"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\",\"not_found\"]",
+        "normalized": {
+          "attributes": {
+            "container_type": "regular",
+            "evidence_source": "runtime",
+            "image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49",
+            "image_pull_cause": "not_found",
+            "owner_verified": true
+          },
+          "container": "server",
+          "message": "image pull cause: not_found",
+          "reason": "ErrImagePull",
+          "resource_kind": "Deployment",
+          "resource_name": "productcatalogservice"
+        },
+        "observed_at": "2026-10-26T10:27:13.227339751Z",
+        "reproduced": true,
+        "summary": "image pull failure (not_found)"
+      },
+      "verified_identity": {
+        "namespace": "raphael-run-75248ff6-2e23-46e0-ba2f-a97e257f7c68",
+        "pod_uid": "31c8463d-4413-464a-b7b4-c178b9e576f4",
+        "replica_set_uid": "7f741ed4-9afa-4228-9f8d-5fbe7dae540a",
+        "deployment_uid": "8cadaf3e-f678-48b2-999f-05596a2839f2",
+        "container": "server",
+        "image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49"
+      },
+      "kubernetes_pull_events": [
+        "Pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\"",
+        "Failed to pull image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": rpc error: code = NotFound desc = failed to pull and unpack image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": failed to resolve reference \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\": us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49: not found",
+        "Back-off pulling image \"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\""
+      ],
+      "changed_lines": [
+        "-        image: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49",
+        "+        image: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4"
+      ],
+      "validation": {
+        "after_signature_key": "unknown",
+        "before_signature_key": "image_pull:[\"Deployment\",\"productcatalogservice\",\"regular\",\"server\",\"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\",\"not_found\"]",
+        "checks": [
+          {
+            "command": "rollout status deployment/productcatalogservice",
+            "duration_ms": 66,
+            "exit_code": 0,
+            "kind": "rollout",
+            "mandatory": true,
+            "message": "deployment \"productcatalogservice\" successfully rolled out\n",
+            "name": "rollout:deployment/productcatalogservice",
+            "status": "passed"
+          },
+          {
+            "duration_ms": 0,
+            "exit_code": 0,
+            "kind": "signature_compare",
+            "mandatory": true,
+            "message": "before=Some(\"image_pull:[\\\"Deployment\\\",\\\"productcatalogservice\\\",\\\"regular\\\",\\\"server\\\",\\\"us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:raphael-proof-absent-20261026-49\\\",\\\"not_found\\\"]\") after=Some(\"unknown\")",
+            "name": "signature_compare",
+            "status": "passed"
+          },
+          {
+            "duration_ms": 0,
+            "exit_code": 0,
+            "kind": "fidelity",
+            "mandatory": false,
+            "message": "no material fidelity gaps",
+            "name": "fidelity_full_claim",
+            "status": "passed"
+          }
+        ],
+        "completed_at": "2026-10-26T10:27:15.530170710Z",
+        "fail_closed": false,
+        "full_validation": true,
+        "passed": true,
+        "sandbox_id": "sb-3b33cc116e56",
+        "signature_cleared": true,
+        "tool_versions": {
+          "helm": "v3.22.0+g144ca65",
+          "kubectl": "Client Version: v1.35.0",
+          "kustomize": "v5.8.3"
+        }
+      },
+      "approved_replacement": {
+        "container_name": "server",
+        "image": "us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4",
+        "resource_name": "productcatalogservice",
+        "source": {
+          "client_id": "proof-client",
+          "cluster": null,
+          "company_id": "proof-company",
+          "environment": "kind-proof",
+          "healthy_trace_id": "kind-verified-baseline",
+          "kind": "verified_healthy_trace",
+          "namespace": null,
+          "repository": "proof-source/raphael-e2e-fixture",
+          "service_name": "raphael-e2e-fixture",
+          "source_commit_sha": "342efd0a6b669c332bad17e9790fd2221d11963f"
+        }
+      },
+      "ready_pod_name": "productcatalogservice-67fb74f48d-nz2mj",
+      "ready_image_id": "sha256:5604602ebb6f910c9e1bc906718d631e6415207f6da1e646a045eaebde86fad8"
+    }
+  },
+  "artifact_files_sha256": {
+    "google-productcatalog/baseline.json": "e4c9d6ca4fc2e3f153b8ab45abecddc0abf5a0c32bbf20ed0bd3b0b086c7e18a",
+    "google-productcatalog/catalog-requests.json": "02d5a0dfed4de705611f3d565fdf19f0197f384e35492b263f12e9e7717f2072",
+    "google-productcatalog/summary.json": "0fcf517d701a6312bfaacd846ccbb67ed77c89174a2b403d20fe4ad58423b1ec",
+    "google-productcatalog/image-with-verified-provenance/release.received.json": "3f25d9e2c90f5b1285952482199a9d52c5ea7c6ee21f4ffe9d83f5cb6b0d229f",
+    "google-productcatalog/image-with-verified-provenance/trace.jsonl": "99581113aba15b01b002641b813ee32e7654383ba6fdb1403d2fcbc08c204486",
+    "google-productcatalog/image-with-verified-provenance/pod-observations.json": "6d4aaff960af0df757fd79110be2edd5101ce8449852cd7d3852c4d4277e331c",
+    "google-productcatalog/image-with-verified-provenance/runner.log": "e7ff5432b71e13b76569eba66f594b0223280c51e918356024c5548009d3e1bd",
+    "google-productcatalog/image-with-verified-provenance/initial-events.json": "28ae448402d24a5eb08f277b421750f18b65097655f0cbf4661226274090c8c8",
+    "google-productcatalog/image-with-verified-provenance/proof.json": "5e80b04db55e08b318280af0210ca44221f27c0bf6603b9cd75a8b5628eac18a",
+    "google-productcatalog/image-with-verified-provenance/verified-workload-identity.json": "8852a5fdf5d2c65ef422fe47bff4f1a9dbc92e812fac78047b608c19bedf32ac",
+    "google-productcatalog/image-with-verified-provenance/initial-pod.json": "7ed38bc3b402fd09f261c35b2419413daa7bce2c7365efb9713a7c4155d226ca",
+    "google-productcatalog/image-with-verified-provenance/initial-deployments.json": "c38665c1d0e0e13d71d079b88dba28b538c661b8ba726090efd57f3d3305a3b2",
+    "google-productcatalog/image-with-verified-provenance/release": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "google-productcatalog/image-with-verified-provenance/initial-replicasets.json": "4d77b8790a160615ac493a1015522266ba3c5fa4c2835061fad9488919dc5890",
+    "google-productcatalog/image-with-verified-provenance/ignis.log": "a07d7a7cd28d66e077064831c09480276bdf3b73ac4bf2f014240d54566ee506",
+    "google-productcatalog/image-with-verified-provenance/dispatch.log": "7762b93386fb7637605d74bcaab0812399386b931bf8ca2e35ae3f0eb3aa2a5c",
+    "google-productcatalog/image-with-verified-provenance/runner-result.json": "be455268938d58fa398cec9f76566c1315f62d3720d37ba3ce91d32c4671b81a",
+    "google-productcatalog/image-without-provenance/release.received.json": "1c06cf0b9851aa291da427a5b92e6d49669c4ff01ddd662df855fc9b422567f9",
+    "google-productcatalog/image-without-provenance/trace.jsonl": "6599fcf799c9d898f4ac40569f01a3bf40ec6d40c42d25e06d0774fb1251debb",
+    "google-productcatalog/image-without-provenance/pod-observations.json": "92e6b394599a6f605a532297f4999ae743f6eba9f3cf86f9b1928a1a4c4bc3fd",
+    "google-productcatalog/image-without-provenance/rollout-pids": "3a54c60445bb6d5f9dfd961a4f8022223f5c3128623736f8007ec8bd0c1fda4e",
+    "google-productcatalog/image-without-provenance/runner.log": "58f49fde7ad7d20f9195ab68e6d46fc19e333e4ef9c2b07f6b8754d7508d170f",
+    "google-productcatalog/image-without-provenance/initial-events.json": "0bb7f3c42db7105acb38fe02ade6727661a335210b96792e2b604d920b8a9009",
+    "google-productcatalog/image-without-provenance/rollout-deadline-response.json": "feba5f55286db1616800b59f3762848fcec130c451cf1bf1a5c53a52b6434abd",
+    "google-productcatalog/image-without-provenance/proof.json": "2a09dd831203f9f4445674d18f1aab74241bbba253ee92dd638e26bfbf662a4b",
+    "google-productcatalog/image-without-provenance/verified-workload-identity.json": "fcd8263ca1f77b2d92c1cceef1e6d1876b8938652fa044a8dcfab8cee808b588",
+    "google-productcatalog/image-without-provenance/initial-pod.json": "c4e207b3dfa720de870f395d0d1895eb21247a89d239114faaebc8bff5fe4bad",
+    "google-productcatalog/image-without-provenance/rollout-deadline-proof.json": "5d46a2883f0552bacdb43417544f4b005236458578f117f4b2070eb207d5969f",
+    "google-productcatalog/image-without-provenance/initial-deployments.json": "86f539953c98ea581a5dfd5ebee7bda65741b2aa66f4bd76ee94fe5544e8b86d",
+    "google-productcatalog/image-without-provenance/release": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "google-productcatalog/image-without-provenance/initial-replicasets.json": "15f40ec88f0695b82338de6c42a221eb6e965436ea7771e3bd5c473277787e70",
+    "google-productcatalog/image-without-provenance/ignis.log": "389cdcd091969672e147700ad9f19ce088637a979646355dc29b6148ac268533",
+    "google-productcatalog/image-without-provenance/dispatch.log": "00ee3c6d795ffa31ebf7705c9cc39bda8e66085aab9975d581b6bb4777f7b23b",
+    "google-productcatalog/image-without-provenance/runner-result.json": "6e47921f9c403c889e3ace9d3e99368aee427b5cc411b98d20d99657df7481af",
+    "google-productcatalog/image-without-provenance/bin/kubectl": "1d6c53d874a24f8b749c2169a2299f29478481b1eea3dd9a9e9f7a14dee8c51d"
+  },
+  "run_url": "https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497161",
+  "artifact_id": 12642298376,
+  "artifact_name": "kind-remediation-40306497161",
+  "artifact_archive_digest": "sha256:8b258ff2119d8f9af5b22288d993a9edb0949c9e2a6924e701df8367cceaa116",
+  "pr_head": "73c1fd1f57ac0f796108e49423b6134617e0bf97",
+  "core_ci_url": "https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497168",
+  "kubernetes_version": "v1.35.0",
+  "cleanup": "Hosted cleanup step and owned cluster deletion completed successfully."
+}

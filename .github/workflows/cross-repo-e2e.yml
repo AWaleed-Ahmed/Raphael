@@ -120,7 +120,7 @@ jobs:
           python -m pip install --require-hashes -r requirements-bootstrap.txt
           python -m pip install -e agent -e dispatch
       - name: Test proof assertions and cleanup ownership
-        run: python -m unittest e2e.test_kind_verification
+        run: python -m unittest e2e.test_kind_verification e2e.test_google_image_proof
       - uses: actions/checkout@v4
         with:
           repository: AWaleed-Ahmed/Ignis
@@ -136,12 +136,16 @@ jobs:
           wait: 120s
       - name: Preload required healthy image
         run: |
+          docker pull us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4
+          kind load docker-image us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4 --name raphael-remediation-proof
           docker pull hashicorp/http-echo:1.0
           kind load docker-image hashicorp/http-echo:1.0 --name raphael-remediation-proof
           docker tag hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
           kind load docker-image hashicorp/http-echo:missing-healthy-proof --name raphael-remediation-proof
       - name: Prove required image repair, probe repair and refusal controls
         run: python -u e2e/run_kind_verification.py
+      - name: Prove Google Online Boutique image repair and missing-baseline refusal
+        run: python -u e2e/run_google_image_proof.py
       - name: Upload actual Kubernetes and real-hook proof
         if: always()
         uses: actions/upload-artifact@v4

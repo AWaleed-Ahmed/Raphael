@@ -41,7 +41,7 @@ jobs:
         working-directory: dispatch
         run: python -m pytest -q
       - name: Test workflow, evaluation and wire assertions
-        run: python -m unittest tools.tests.test_ci_workflows tools.tests.test_security_dependencies evals.test_run_evals e2e.test_wire_harness e2e.test_kind_verification e2e.test_lease_denial
+        run: python -m unittest tools.tests.test_ci_workflows tools.tests.test_security_dependencies evals.test_run_evals e2e.test_wire_harness e2e.test_kind_verification e2e.test_google_image_proof e2e.test_lease_denial
       - name: Summarize persistence schema audit
         if: always()
         run: python tools/report_audit/escalation_report_audit.py report-audit.jsonl > report-audit-summary.json
