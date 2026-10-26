@@ -1,6 +1,7 @@
 # Issue #49: Google workload image-pull proof
 
-Status: implementation and local assertions pass; hosted Kubernetes results pending.
+Status: PASS — both Google kind cases and all seven PR checks passed on code head
+`73c1fd1f57ac0f796108e49423b6134617e0bf97`. Evidence inspected after download.
 
 ## Scope
 
@@ -40,4 +41,28 @@ Supabase ingestion. Only owned namespaces and the disposable cluster are deleted
 
 Local proof/workflow assertions: 38 passed. Image-pull gate and diagnosis
 regressions: 18 passed. Local Docker is unavailable; no local kind success is
-claimed. Hosted run links and inspected artifacts will be recorded after CI.
+claimed.
+[Cross-repository run 40306497161](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497161)
+passed all four jobs, including both Google cases and the four original kind
+controls. [Core run 40306497168](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497168)
+passed Python, frontend and contract checks: agent **502 passed / 4 skipped**,
+dispatch **88 passed**, workflow/evaluation/wire assertions **58 passed**.
+The Google-specific and original kind assertions also passed in the hosted job.
+
+[Inspected evidence and raw-file hashes](evidence/issue-49-google-image-proof-2026-10-26.json)
+retain the exact signature, Kubernetes registry `not found` messages, verified
+owner UIDs, image-only diff, validation result and healthy/repaired image IDs.
+The initial independently Ready baseline and repaired Ready Pod both resolved to
+`sha256:5604602ebb6f910c9e1bc906718d631e6415207f6da1e646a045eaebde86fad8`.
+The real-kind backend used Kubernetes `v1.35.0` and Ignis `contracts-v1.4.2`.
+GitHub tested the PR merge revision `15426c238f5d703076e3b792b3784a01e2e7de1f`;
+the evidence distinguishes it from the branch head and upstream fixture commit.
+
+The full [kind artifact](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497161/artifacts/12642298376)
+is `kind-remediation-40306497161`, archive digest
+`sha256:8b258ff2119d8f9af5b22288d993a9edb0949c9e2a6924e701df8367cceaa116`.
+It contains the baseline, traces, initial Pod/events/ReplicaSet/Deployment,
+verified identity, runner results, snapshots and successful proof summaries.
+Namespace cleanup and cluster destruction passed. This commit adds the retained
+evidence and final wording only; final-head checks are followed on
+[PR #74](https://github.com/AWaleed-Ahmed/Raphael/pull/74).

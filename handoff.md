@@ -2,7 +2,8 @@
 
 **Issue #49 company workload proof — 2026-10-26:** the required kind workflow now
 also exercises Google Online Boutique product catalog from pinned upstream
-v0.10.4. Local assertions pass; hosted proof is pending. D-20261026-01 reconciles
+v0.10.4. Both Google cases and all seven PR checks passed on code head `73c1fd1`
+in hosted run [40306497161](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40306497161); raw artifacts were independently inspected. D-20261026-01 reconciles
 the original issue wording: unverified pull evidence refuses as
 `image_pull_evidence_unverified`; verified absence without an approved replacement
 refuses as `patch_value_unavailable`. These remain separate controls, with no
