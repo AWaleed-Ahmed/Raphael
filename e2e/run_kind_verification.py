@@ -44,8 +44,8 @@ class CatalogFixture:
                 query = parse_qs(path.query)
                 fixture.requests.append({"path": path.path, "query": query})
                 rows = []
-                if path.path.endswith("/raphael_clients") and query.get("client_id") == ["eq.proof-client"]:
-                    rows = [{"client_id": "proof-client", "company_id": "proof-company", "client_name": "kind-proof", "status": "active"}]
+                if path.path.endswith("/raphael_clients") and query.get("client_id") == ["eq." + baseline["client_id"]]:
+                    rows = [{"client_id": baseline["client_id"], "company_id": baseline["company_id"], "client_name": "kind-proof", "status": "active"}]
                 elif path.path.endswith("/raphael_healthy_traces") and all(
                     query.get(key) == ["eq." + baseline[key]]
                     for key in ("company_id", "client_id", "service_name", "environment")
@@ -186,7 +186,7 @@ def install_rollout_wrapper(out, real_kubectl):
     return bin_dir
 
 
-def run_case(label, fixture, sha, output, catalog=None, expected_image="hashicorp/http-echo:1.0"):
+def run_case(label, fixture, sha, output, catalog=None, expected_image="hashicorp/http-echo:1.0", *, model_proof=False):
     out = output / label
     out.mkdir(parents=True)
     gate, trace, result_path = out / "release", out / "trace.jsonl", out / "runner-result.json"
@@ -217,8 +217,12 @@ def run_case(label, fixture, sha, output, catalog=None, expected_image="hashicor
         env["RAPHAEL_SECRET_FIXTURE_SET"] = "payments-test"
     if catalog:
         env.update(RAPHAEL_HEALTHY_CATALOG_ENABLED="1", SUPABASE_URL=catalog.url, SUPABASE_SERVICE_ROLE_KEY="synthetic-catalog-key",
-                   RAPHAEL_CLIENT_ID="proof-client", RAPHAEL_COMPANY_ID="proof-company",
+                   RAPHAEL_CLIENT_ID=catalog.baseline["client_id"], RAPHAEL_COMPANY_ID=catalog.baseline["company_id"],
                    RAPHAEL_DEFAULT_ENVIRONMENT="kind-proof")
+    if model_proof:
+        assert catalog is not None and label == "probe"
+        env.update(RAPHAEL_MODEL_ENABLED="1", RAPHAEL_MODEL_ROOT=str(ROOT / "models"),
+                   RAPHAEL_AGENT_TENANT_ID="fixture-tenant-a", E2E_REAL_TENANT_ID="fixture-tenant-a")
     namespace = None
     owned = set()
     snapshots = []
@@ -291,7 +295,22 @@ def run_case(label, fixture, sha, output, catalog=None, expected_image="hashicor
             if label in {"image-without-provenance", "image-with-verified-provenance"}:
                 identity = verify_workload_identity(initial, replica_sets, deployments, trace_evidence(records, result["job_id"])["observed_signature"], namespace)
                 (out / "verified-workload-identity.json").write_text(json.dumps(identity, indent=2))
-            if catalog:
+            if model_proof:
+                model_results = result["run_state"]["model_results"]
+                required = {"failure_classifier", "candidate_ranker", "incident_similarity", "trace_anomaly", "patch_selector"}
+                assert required <= set(model_results), model_results
+                assert all(model_results[name].get("available") is not False for name in required), model_results
+                for row in model_results["incident_similarity"].get("results", []):
+                    assert row["tenant_id"] == "fixture-tenant-a"
+                    assert row["company_id"] == catalog.baseline["company_id"]
+                    assert row["client_id"] == catalog.baseline["client_id"]
+                (out / "model-graph-proof.json").write_text(json.dumps({
+                    "passed": True, "backend": "kind", "model_results": model_results,
+                    "fixture_commit": sha, "raphael_revision": os.getenv("GITHUB_SHA"),
+                    "audit": result["run_state"]["audit_events"],
+                    "limits": "Controlled probe fixture; trace is not a captured APM trace; patch decision may use rules.",
+                }, indent=2))
+            if catalog and label != "probe":
                 approved = result["run_state"]["localization_result"]["approved_image_replacement"]
                 for field in ("source_commit_sha", "repository", "service_name", "environment"):
                     assert approved["source"][field] == catalog.baseline[field]

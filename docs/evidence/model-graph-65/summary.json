@@ -1,0 +1,197 @@
+{
+  "compiled_graph": {
+    "catalog_http_requests": 202,
+    "elapsed_ms": 229.957,
+    "model_results": {
+      "candidate_ranker": {
+        "candidates": [
+          {
+            "candidate_line": 42,
+            "candidate_path": "deploy/manifests",
+            "candidate_symbol": "readinessProbe.httpGet.port",
+            "candidate_type": "kubernetes_manifest",
+            "changed_file_match": 0,
+            "changed_line_overlap": 0,
+            "dependency_distance": 1,
+            "evidence_score": 0.1355,
+            "failure_class_compatible": 1,
+            "first_divergent_span": 0,
+            "historical_similarity": 0.7,
+            "learned_score": 0.004596,
+            "log_callsite_match": 0,
+            "model_score": 0.089683,
+            "route_handler_match": 0,
+            "runtime_anchor_score": 0.285,
+            "stack_frame_depth": 0,
+            "stack_trace_match": 0,
+            "trace_divergence_match": 0
+          }
+        ],
+        "execution_source": "trained_inference",
+        "learned_execution": true
+      },
+      "failure_classifier": {
+        "abstained": true,
+        "abstention_reason": "out_of_distribution",
+        "alternatives": [
+          {
+            "confidence": 0.827268,
+            "failure_class": "bad_image_reference"
+          },
+          {
+            "confidence": 0.077837,
+            "failure_class": "probe_misconfiguration"
+          },
+          {
+            "confidence": 0.07038,
+            "failure_class": "invalid_missing_config"
+          }
+        ],
+        "confidence": 0.827268,
+        "execution_source": "abstention",
+        "failure_class": null,
+        "learned_execution": true,
+        "minimum_confidence": 0.5,
+        "model_failure_class": "bad_image_reference",
+        "rule_based": false,
+        "rule_evidence": null
+      },
+      "incident_similarity": {
+        "execution_source": "trained_inference",
+        "learned_execution": true,
+        "minimum_similarity": 0.2,
+        "results": []
+      },
+      "patch_selector": {
+        "allowed_probability": 0.99,
+        "alternatives_evaluated": [],
+        "execution_source": "deterministic_rule_override",
+        "learned_execution": false,
+        "policy_allowed": true,
+        "requires_sandbox_validation": true,
+        "rule_based": true,
+        "rule_evidence": "normalized_reason:ReadinessProbePortMismatch",
+        "safe_template": "fix_probe_port_mismatch",
+        "template_confidence": 0.99
+      },
+      "trace_anomaly": {
+        "abstained": false,
+        "abstention_reason": null,
+        "anomaly_probability": 0.000247,
+        "baseline_status": "valid",
+        "execution_source": "trained_inference",
+        "is_anomaly": false,
+        "learned_anomaly_probability": 0.000247,
+        "learned_execution": true,
+        "rule_based": false,
+        "rule_evidence": null,
+        "threshold": 0.2
+      }
+    },
+    "sandbox": "recorded responses, not a live repair",
+    "status": "success_draft_pr_ready"
+  },
+  "libraries": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.2",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.18.1"
+  },
+  "measurement_scope": "Local source-linked replay; hosted live-kind result is recorded separately on the PR and in the report.",
+  "models": {
+    "candidate_ranker": {
+      "abstentions": 0,
+      "artifact_sha256": "036eca89dc9bb450d665dab516096f8012fb31775f6e187af6a05db2e1cd6b47",
+      "available": 50,
+      "available_label_denominator": 50,
+      "cases": 50,
+      "cold_load_ms": 23.476,
+      "fixture_sha256": "34be838b12619911be2d166d9a1de1ba4294b672dfbfc085f9bd2acba226417d",
+      "label_denominator": 50,
+      "label_matches": 37,
+      "learned_execution": 50,
+      "median_ms": 1.77,
+      "p95_ms": 2.059,
+      "rule_overrides": 0,
+      "unavailable_reasons": {}
+    },
+    "failure_classifier": {
+      "abstentions": 0,
+      "artifact_sha256": "c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80",
+      "available": 40,
+      "available_label_denominator": 40,
+      "cases": 50,
+      "cold_load_ms": 983.252,
+      "fixture_sha256": "c736e80d82586005493b17731a6136b9fd5f3d80347e12fb05584174c85789cf",
+      "label_denominator": 50,
+      "label_matches": 40,
+      "learned_execution": 40,
+      "median_ms": 1.904,
+      "p95_ms": 2.754,
+      "rule_overrides": 40,
+      "unavailable_reasons": {
+        "image_pull_evidence_unverified": 10
+      }
+    },
+    "incident_similarity": {
+      "abstentions": 0,
+      "artifact_sha256": "5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644",
+      "available": 50,
+      "available_label_denominator": 50,
+      "cases": 50,
+      "cold_load_ms": 102.903,
+      "fixture_sha256": "6859f93b14fd3453768543b52b2c6a4fd7a237320ecc9a7d1b1593bc42e6a826",
+      "label_denominator": 50,
+      "label_matches": 44,
+      "learned_execution": 50,
+      "median_ms": 5.155,
+      "p95_ms": 6.413,
+      "rule_overrides": 0,
+      "unavailable_reasons": {}
+    },
+    "patch_selector": {
+      "abstentions": 22,
+      "artifact_sha256": "ed7a9ed3f9713b64bf102e54e734b445b3b6be3e12df8fede4101f6f15741c49",
+      "available": 41,
+      "available_label_denominator": 40,
+      "cases": 51,
+      "cold_load_ms": 56.517,
+      "fixture_sha256": "99a693823ee67859dd271ad32a7c887ca7d292178fdb0dd7729a7ab86e4dfe61",
+      "label_denominator": 50,
+      "label_matches": 12,
+      "learned_execution": 1,
+      "median_ms": 1.165,
+      "p95_ms": 1.383,
+      "rule_overrides": 40,
+      "unavailable_reasons": {
+        "patch_target_unavailable": 10
+      }
+    },
+    "trace_anomaly": {
+      "abstentions": 0,
+      "artifact_sha256": "b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020",
+      "available": 50,
+      "available_label_denominator": 50,
+      "cases": 50,
+      "cold_load_ms": 5.203,
+      "fixture_sha256": "b3a201c5b95856a15af80a59cacfac6991b3f6803ba0ea470d552842febaa9e8",
+      "label_denominator": 50,
+      "label_matches": 38,
+      "learned_execution": 50,
+      "median_ms": 3.797,
+      "p95_ms": 4.273,
+      "rule_overrides": 15,
+      "unavailable_reasons": {}
+    }
+  },
+  "peak_process_rss_kib": 194052,
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "revision": "3cef7b3a7bdc340d47aef77b0fce2294cfdbdad4",
+  "source_sha256": {
+    "agent/raphael_agent/graph/nodes.py": "55bdd0dc44d99f417c6ba4fea221f813a722b1743090e862db4ba8e62453aaf3",
+    "agent/raphael_agent/model_gateway.py": "9df0458c7c5f8086209914f4d0769deb0dc16d07ed2d28f3ba6d33da673373f7",
+    "agent/raphael_agent/model_outputs.py": "22f6266087e0fefa0a49e1e9c74e61384c719741eaab5effce46b36191466209",
+    "agent/scripts/qualify_model_graph.py": "011d0517b4c9593b1492a2d33b38ea66c6b0b5b7af3e033de8ca58a62a072839"
+  }
+}

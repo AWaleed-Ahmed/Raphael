@@ -36,6 +36,7 @@ from raphael_agent.localization import (
 )
 from raphael_agent.localization.supabase_catalog import span_name
 from raphael_agent.model_gateway import ModelGateway, model_error
+from raphael_agent.model_outputs import execution_source
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.sandbox_config import secret_fixture_args
 from raphael_agent.schema_util import for_run_record_validation
@@ -101,6 +102,14 @@ def _escalation(
         "result_id": state.get("result_id"),
         "escalated_at": utc_now(),
     }
+
+
+def _model_audit(state: RunState, node: str, capability: str, result: dict[str, Any] | None,
+                 gateway: ModelGateway) -> list[dict[str, Any]]:
+    source = execution_source(result, model_error(gateway))
+    learned = bool((result or {}).get("learned_execution"))
+    return append_audit(state, node, "model_execution",
+                        f"capability={capability} source={source} learned_execution={learned}")
 
 
 def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
@@ -195,6 +204,7 @@ def node_evidence(state: RunState) -> dict[str, Any]:
     updates["audit_events"] = append_audit(
         {**state, **updates}, "evidence", "trace_model", trace_detail
     )
+    updates["audit_events"] = _model_audit({**state, **updates}, "evidence", "trace_anomaly", trace_prediction, gateway)
     return updates
 
 
@@ -229,6 +239,7 @@ def node_diagnose(state: RunState) -> dict[str, Any]:
                 "available": False,
                 "reason": model_error(gateway),
             }
+        updates["audit_events"] = _model_audit({**state, **updates}, "diagnose", "failure_classifier", model_prediction, gateway)
     updates["model_results"] = model_results
     attempts = dict(state.get("attempt_count") or {"diagnosis": 0, "patch": 0})
     attempts["diagnosis"] = int(attempts.get("diagnosis", 0)) + 1
@@ -588,6 +599,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
             "reason": model_error(gateway),
         }
     updates["model_results"] = model_results
+    updates["audit_events"] = _model_audit({**state, **updates}, "localize", "incident_similarity", similarity, gateway)
 
     try:
         store = SupabaseHealthyCatalogStore()
@@ -694,6 +706,12 @@ def node_localize(state: RunState) -> dict[str, Any]:
         if client_name:
             updates["client_name"] = str(client_name)
         updates["healthy_trace_comparisons"] = comparisons
+        trace_prediction = gateway.trace_anomaly({**state, **updates}, baseline=baselines[0] if baselines else None)
+        if trace_prediction is not None:
+            updates["model_results"]["trace_anomaly"] = trace_prediction
+        else:
+            updates["model_results"]["trace_anomaly"] = {"available": False, "reason": model_error(gateway)}
+        updates["audit_events"] = _model_audit({**state, **updates}, "localize", "trace_anomaly", trace_prediction, gateway)
 
         anchors = list(stack_anchors)
         spans = observation.get("span_sequence") or observation.get("spans") or []
@@ -777,6 +795,7 @@ def node_localize(state: RunState) -> dict[str, Any]:
                 "reason": model_error(gateway),
             }
             updates["model_results"] = model_results
+        updates["audit_events"] = _model_audit({**state, **updates}, "localize", "candidate_ranker", ranked.get("model") if ranked else None, gateway)
         updates["fault_candidates"] = canonical_candidates
         updates["localization_result"] = {
             "status": "completed",
@@ -922,6 +941,7 @@ def node_patch(state: RunState) -> dict[str, Any]:
         }
         updates["model_results"] = model_results
 
+    updates["audit_events"] = _model_audit({**state, **updates}, "patch", "patch_selector", model_selection, gateway)
     try:
         proposal = propose_patch(merged_for_patch)
     except TemplateRefusal as refusal:

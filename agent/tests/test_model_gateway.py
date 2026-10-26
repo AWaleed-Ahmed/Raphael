@@ -73,7 +73,7 @@ def test_candidate_output_adapter_preserves_fault_candidate_contract(monkeypatch
     assert result is not None
     assert result["candidates"][0]["score"] == 0.88
     assert result["candidates"][0]["path"] == "deploy/deployment.yaml"
-    assert "historical_similarity" in result["candidates"][0]["mapping_methods"]
+    assert result["candidates"][0]["mapping_methods"] == candidates[0]["mapping_methods"]
 
 
 def test_patch_input_adapter_selects_bounded_template(monkeypatch):

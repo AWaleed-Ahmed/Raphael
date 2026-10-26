@@ -223,6 +223,31 @@ and the [pilot guide](docs/pilot-install.md) for authentication and complete pro
 Keep backend credentials out of browser bundles. Live GitHub publication needs
 separate credentials and policy configuration; setting one publish flag is insufficient.
 
+## Local model qualification
+
+Measured on **251 source-linked public fixture inputs** through production graph
+nodes and the production gateway, plus an actual compiled graph control. Local
+inference remains **off by default**. The detailed [graph qualification report](docs/model-graph-qualification-65.md)
+records inputs, outputs, artifact identities, timing methodology, safety gates and
+separate live-environment evidence, including a passed model-enabled kind repair
+with partial sandbox fidelity. These figures are fixture results, not
+production accuracy or a rollout approval.
+
+| Capability | Fixture result and limits | Learned / rule paths | Warm median / p95 |
+| --- | --- | --- | --- |
+| Failure classification | 40/40 emitted classifications match (100%); 40/50 overall (80%); 10 image-policy stops | 40 / 40 | 1.09 / 1.47 ms |
+| Candidate ranking | 37/50 top-1 fix-file matches (74%); gateway projection of benchmark candidates | 50 / 0 | 1.00 / 1.11 ms |
+| Incident similarity | 44/50 top-1 class matches (88%); queries overlap the owned fixture index | 50 / 0 | 3.16 / 3.52 ms |
+| Trace anomaly | 38/50 fault-window matches (76%); weak per-trace labels | 50 / 15 | 2.09 / 2.17 ms |
+| Patch selection | 12/50 safe-template hypothesis matches (24%); 41/51 outputs, 22 refusals; not repair accuracy | 1 / 40 | 0.66 / 0.69 ms |
+
+[Hosted CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40354545306) supplies
+the shown latency values (Linux, Python 3.12.15). Latency is for the measured warm
+node/adapter call, including local catalog HTTP
+where applicable. Rule paths can overlap final refusals. Effective overrides and abstentions are
+reported separately; learned
+execution does not mean the learned answer determined the final decision.
+
 ## Roadmap
 
 The [release milestones](docs/release-milestones-2026-10-18.md) track acceptance
