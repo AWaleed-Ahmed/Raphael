@@ -150,7 +150,7 @@ full input/output/audit replay records separately.
   authoritative. An unsupported suggestion is an auditable refusal, not a new
   template or a successful repair.
 - Audit records distinguish trained inference, deterministic override, abstention,
-  disabled runtime and unavailable fallback. A separate `learned_execution` flag
+  disabled runtime, unavailable fallback and non-applicable calls. A separate `learned_execution` flag
   records whether estimator work occurred even when a rule/refusal determined
   the effective answer.
 - Existing adversarial non-abstaining stub tests remain in place for blocked
@@ -175,7 +175,8 @@ is installed, and no GitHub publication credentials are supplied.
 
 **Hosted result: passed.** All seven checks passed for implementation commit
 `3cef7b3` / tested PR merge revision `bb2ccd2f9d714efdf61f3ff8d94f6a11761cf2f9`.
-The later finalization adds a non-JSON output refusal/control and documentation;
+The later finalization adds a non-JSON output refusal/control and records
+non-applicable calls (such as no candidates) separately from runtime failures;
 current-head CI is linked on [PR #77](https://github.com/AWaleed-Ahmed/Raphael/pull/77).
 
 - [Core CI](https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40354545306)

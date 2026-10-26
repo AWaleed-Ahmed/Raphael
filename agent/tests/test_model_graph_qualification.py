@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from raphael_agent.graph import nodes
 from raphael_agent.model_gateway import ModelGateway, model_error
+from raphael_agent.model_outputs import execution_source
 from scripts.qualify_model_graph import (
     OWNER,
     Catalog,
@@ -205,6 +206,10 @@ def test_unknown_patch_family_cannot_reach_private_handoff(
     assert result and not result["policy_allowed"]
     assert result["safe_template"] is None
     assert result["reason"] == "unsupported_template"
+    assert execution_source(None, None) == "not_applicable"
+    assert (
+        execution_source(None, "artifact_files_unavailable") == "unavailable_fallback"
+    )
 
 
 @pytest.mark.parametrize("mode", ["disabled", "missing"])
