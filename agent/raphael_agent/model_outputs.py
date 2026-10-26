@@ -49,10 +49,12 @@ def finite_tree(value: Any) -> bool:
     if isinstance(value, float):
         return math.isfinite(value)
     if isinstance(value, dict):
-        return all(finite_tree(item) for item in value.values())
+        return all(
+            isinstance(key, str) and finite_tree(item) for key, item in value.items()
+        )
     if isinstance(value, list):
         return all(finite_tree(item) for item in value)
-    return True
+    return value is None or isinstance(value, (str, bool, int))
 
 
 def valid_output(

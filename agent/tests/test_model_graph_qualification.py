@@ -296,3 +296,18 @@ def test_runtime_error_falls_back_without_exposing_message(
     gateway._predict_module = SimpleNamespace(classify_failure=broken)
     assert gateway.classify_failure({}) is None
     assert model_error(gateway) == "RuntimeError"
+
+
+def test_non_json_model_metadata_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RAPHAEL_MODEL_ENABLED", "1")
+    gateway = ModelGateway()
+    gateway._predict_module = SimpleNamespace(
+        classify_failure=lambda *args: {
+            "confidence": 0.9,
+            "abstained": False,
+            "failure_class": "probe_misconfiguration",
+            "unexpected": object(),
+        }
+    )
+    assert gateway.classify_failure({}) is None
+    assert model_error(gateway) == "invalid_model_output"

@@ -7,143 +7,143 @@
   },
   "audit_events": [
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "ingest"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "event accepted",
       "event": "normalized",
       "node": "ingest"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "evidence"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "n=2",
       "event": "collected",
       "node": "evidence"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "anomaly=False abstained=True",
       "event": "trace_model",
       "node": "evidence"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=trace_anomaly source=abstention learned_execution=True",
       "event": "model_execution",
       "node": "evidence"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "diagnose"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=failure_classifier source=abstention learned_execution=True",
       "event": "model_execution",
       "node": "diagnose"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "selected=hyp-probe-port conf=0.93",
       "event": "ranked",
       "node": "diagnose"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "reproduce"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "source=derived",
       "event": "fix_rules",
       "node": "reproduce"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "sb-recorded-001",
       "event": "recorded_stub",
       "node": "reproduce"
     },
     {
-      "at": "2026-10-26T15:56:16Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "localize"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=incident_similarity source=trained_inference learned_execution=True",
       "event": "model_execution",
       "node": "localize"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=trace_anomaly source=trained_inference learned_execution=True",
       "event": "model_execution",
       "node": "localize"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=candidate_ranker source=trained_inference learned_execution=True",
       "event": "model_execution",
       "node": "localize"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "baselines=1 comparisons=1 candidates=1",
       "event": "completed",
       "node": "localize"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "patch"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "capability=patch_selector source=deterministic_rule_override learned_execution=False",
       "event": "model_execution",
       "node": "patch"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "patch-1",
       "event": "proposed",
       "node": "patch"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "validate"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "top=deploy/manifests:42 patch_paths=1 matched=none",
       "event": "localized_candidate_patch_mismatch",
       "node": "validate"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "res-recorded-001",
       "event": "recorded_stub",
       "node": "validate"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "event": "enter",
       "node": "publish_or_escalate"
     },
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "detail": "Dry-run draft PR prepared for result_id=res-recorded-001; no GitHub mutation (RAPHAEL_PARTNER_MODE=dry_run or RAPHAEL_PUBLISH_MODE!=live)",
       "event": "success_draft_pr_ready",
       "node": "publish_or_escalate"
@@ -151,7 +151,7 @@
   ],
   "audit_id": "compiled-real-model-proof",
   "budget_snapshot": {
-    "deadline_at": "2026-10-26T16:26:16Z",
+    "deadline_at": "2026-10-26T16:33:54Z",
     "max_cost_usd": 0.0,
     "max_diagnosis_attempts": 2,
     "max_patch_attempts": 3,
@@ -161,7 +161,7 @@
   "candidate_patches": [
     {
       "attempt": 1,
-      "created_at": "2026-10-26T15:56:17Z",
+      "created_at": "2026-10-26T16:03:54Z",
       "files": [
         {
           "action": "modify",
@@ -195,7 +195,7 @@
   "client_name": "public-fixture",
   "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "company_id": "fixture-company-a",
-  "created_at": "2026-10-26T15:56:16Z",
+  "created_at": "2026-10-26T16:03:54Z",
   "delivery_mode": "draft_pr",
   "diagnosis": {
     "analyzer": {
@@ -210,7 +210,7 @@
     },
     "confidence": 0.93,
     "confidence_threshold": 0.7,
-    "diagnosed_at": "2026-10-26T15:56:16Z",
+    "diagnosed_at": "2026-10-26T16:03:54Z",
     "hypotheses": [
       {
         "candidate_fix_hint": "align readinessProbe.httpGet.port with containerPort",
@@ -238,7 +238,7 @@
   "errors": [],
   "evidence": [
     {
-      "collected_at": "2026-10-26T15:56:16Z",
+      "collected_at": "2026-10-26T16:03:54Z",
       "content_excerpt": "Readiness probe failed for payments-api",
       "evidence_id": "ev-ci-1",
       "kind": "ci_log",
@@ -257,7 +257,7 @@
       "summary": "Deployment job failed readiness check"
     },
     {
-      "collected_at": "2026-10-26T15:56:16Z",
+      "collected_at": "2026-10-26T16:03:54Z",
       "content_excerpt": "Readiness probe failed: HTTP probe failed with statuscode: 503",
       "evidence_id": "ev-k8s-1",
       "kind": "k8s_event",
@@ -314,7 +314,7 @@
     }
   ],
   "fix_rules": {
-    "created_at": "2026-10-26T15:56:16Z",
+    "created_at": "2026-10-26T16:03:54Z",
     "must": [],
     "must_not": [
       "Do not introduce secrets or credentials",
@@ -453,7 +453,7 @@
   },
   "policy_decisions": [
     {
-      "at": "2026-10-26T15:56:17Z",
+      "at": "2026-10-26T16:03:54Z",
       "decision": "allow",
       "message": "Phase 2/6 patch policy allow",
       "rule": "patch_allowlist_and_secrets"
@@ -527,9 +527,9 @@
   },
   "trigger": {
     "kind": "fixture",
-    "received_at": "2026-10-26T15:56:16Z"
+    "received_at": "2026-10-26T16:03:54Z"
   },
-  "updated_at": "2026-10-26T15:56:17Z",
+  "updated_at": "2026-10-26T16:03:54Z",
   "validated_fix_record": {
     "after_signature": {
       "class": "healthy",

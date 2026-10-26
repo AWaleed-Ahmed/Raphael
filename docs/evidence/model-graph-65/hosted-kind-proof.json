@@ -1,0 +1,230 @@
+{
+  "artifact_url": "https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40354545955/artifacts/12665523524",
+  "audit": [
+    {
+      "at": "2026-10-26T16:05:42Z",
+      "event": "enter",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "capability=failure_classifier source=deterministic_rule_override learned_execution=True",
+      "event": "model_execution",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "selected=hyp-probe-port conf=0.93",
+      "event": "ranked",
+      "node": "diagnose"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "event": "enter",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "capability=incident_similarity source=trained_inference learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "capability=trace_anomaly source=abstention learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "capability=candidate_ranker source=trained_inference learned_execution=True",
+      "event": "model_execution",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "baselines=0 comparisons=0 candidates=1",
+      "event": "completed",
+      "node": "localize"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "event": "enter",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "source=derived",
+      "event": "fix_rules",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "capability=patch_selector source=deterministic_rule_override learned_execution=False",
+      "event": "model_execution",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T16:05:43Z",
+      "detail": "patch-1",
+      "event": "proposed",
+      "node": "patch"
+    },
+    {
+      "at": "2026-10-26T16:05:45Z",
+      "event": "enter",
+      "node": "publish_or_escalate"
+    },
+    {
+      "at": "2026-10-26T16:05:45Z",
+      "detail": "Dry-run draft PR prepared for result_id=res-e50a99c9b66920f1; no GitHub mutation (RAPHAEL_PARTNER_MODE=dry_run or RAPHAEL_PUBLISH_MODE!=live)",
+      "event": "success_draft_pr_ready",
+      "node": "publish_or_escalate"
+    }
+  ],
+  "backend": "kind",
+  "elapsed_seconds": 7.009742736816406,
+  "final_status": "fix_finalized",
+  "fixture_commit": "73cb12a5475ca2fa277609c1e2c8ed4a4b7610f7",
+  "initial_pod_uid": "593086d0-b956-4e2d-9c1f-2c506ca3ebb0",
+  "initial_ready": false,
+  "kubernetes_version": "v1.35.0",
+  "limits": "Controlled probe fixture; trace is not a captured APM trace; patch decision may use rules.",
+  "model_results": {
+    "candidate_ranker": {
+      "candidates": [
+        {
+          "candidate_line": 42,
+          "candidate_path": "deploy/manifests/deployment.yaml",
+          "candidate_symbol": "readinessProbe.httpGet.port",
+          "candidate_type": "kubernetes_manifest",
+          "changed_file_match": 0,
+          "changed_line_overlap": 0,
+          "dependency_distance": 1,
+          "evidence_score": 0.1355,
+          "failure_class_compatible": 1,
+          "first_divergent_span": 0,
+          "historical_similarity": 0.0,
+          "learned_score": 9.5e-05,
+          "log_callsite_match": 0,
+          "model_score": 0.088108,
+          "route_handler_match": 0,
+          "runtime_anchor_score": 0.285,
+          "stack_frame_depth": 0,
+          "stack_trace_match": 0,
+          "trace_divergence_match": 0
+        }
+      ],
+      "execution_source": "trained_inference",
+      "learned_execution": true
+    },
+    "failure_classifier": {
+      "abstained": false,
+      "abstention_reason": null,
+      "alternatives": [
+        {
+          "confidence": 0.54151,
+          "failure_class": "bad_image_reference"
+        },
+        {
+          "confidence": 0.397507,
+          "failure_class": "probe_misconfiguration"
+        },
+        {
+          "confidence": 0.035664,
+          "failure_class": "invalid_missing_config"
+        }
+      ],
+      "confidence": 0.54151,
+      "execution_source": "deterministic_rule_override",
+      "failure_class": "probe_misconfiguration",
+      "learned_execution": true,
+      "minimum_confidence": 0.5,
+      "model_failure_class": "bad_image_reference",
+      "rule_based": true,
+      "rule_evidence": "normalized_reason:ReadinessProbePortMismatch"
+    },
+    "incident_similarity": {
+      "execution_source": "trained_inference",
+      "learned_execution": true,
+      "minimum_similarity": 0.2,
+      "results": []
+    },
+    "patch_selector": {
+      "allowed_probability": 0.99,
+      "alternatives_evaluated": [],
+      "execution_source": "deterministic_rule_override",
+      "learned_execution": false,
+      "policy_allowed": true,
+      "requires_sandbox_validation": true,
+      "rule_based": true,
+      "rule_evidence": "normalized_reason:ReadinessProbePortMismatch",
+      "safe_template": "fix_probe_port_mismatch",
+      "template_confidence": 0.99
+    },
+    "trace_anomaly": {
+      "abstained": true,
+      "abstention_reason": "no_healthy_baseline_or_explicit_error",
+      "anomaly_probability": 0.000247,
+      "baseline_status": "missing",
+      "execution_source": "abstention",
+      "is_anomaly": false,
+      "learned_anomaly_probability": 0.000247,
+      "learned_execution": true,
+      "rule_based": false,
+      "rule_evidence": null,
+      "threshold": 0.2
+    }
+  },
+  "namespace": "raphael-run-88cfe093-38e9-44ed-8f80-c78a54411af8",
+  "passed": true,
+  "raphael_revision": "bb2ccd2f9d714efdf61f3ff8d94f6a11761cf2f9",
+  "ready_observed": true,
+  "validation_results": [
+    {
+      "after_signature_key": "unknown",
+      "before_signature_key": "probe_port_mismatch:payments-api:8080!=9090",
+      "checks": [
+        {
+          "command": "rollout status deployment/payments-api",
+          "duration_ms": 1112,
+          "exit_code": 0,
+          "kind": "rollout",
+          "mandatory": true,
+          "message": "Waiting for deployment \"payments-api\" rollout to finish: 1 old replicas are pending termination...\nWaiting for deployment \"payments-api\" rollout to finish: 1 old replicas are pending termination...\nWaiting for deployment \"payments-api\" rollout to finish: 1 old replicas are pending termination...\ndeployment \"payments-api\" successfully rolled out\n",
+          "name": "rollout:deployment/payments-api",
+          "status": "passed"
+        },
+        {
+          "duration_ms": 0,
+          "exit_code": 0,
+          "kind": "signature_compare",
+          "mandatory": true,
+          "message": "before=Some(\"probe_port_mismatch:payments-api:8080!=9090\") after=Some(\"unknown\")",
+          "name": "signature_compare",
+          "status": "passed"
+        },
+        {
+          "duration_ms": 0,
+          "exit_code": 1,
+          "kind": "fidelity",
+          "mandatory": false,
+          "message": "material fidelity gaps prevent full validation claim: production secret values not present",
+          "name": "fidelity_full_claim",
+          "status": "failed"
+        }
+      ],
+      "completed_at": "2026-10-26T16:05:45.051709031Z",
+      "fail_closed": false,
+      "full_validation": false,
+      "passed": true,
+      "sandbox_id": "sb-754e05e5e12c",
+      "signature_cleared": true,
+      "tool_versions": {
+        "helm": "v3.22.0+g144ca65",
+        "kubectl": "Client Version: v1.35.0",
+        "kustomize": "v5.8.3"
+      }
+    }
+  ]
+}
