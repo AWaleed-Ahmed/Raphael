@@ -6,17 +6,18 @@ preprocessing and rules only. Training code and datasets are not distributed.
 an ignored directory, a developer path or the current working directory.
 
 `RAPHAEL_MODEL_ENABLED` remains **0 by default**. The pilot remains disabled.
-This delivery qualifies packaging and artifact execution, not tenant-safe
-incident retrieval, production accuracy, full graph qualification or rollout.
-Those follow-ups remain under #40. No model was retrained or downloaded by the
-runtime, and the tracked model bytes are unchanged.
+The original #63 delivery qualified packaging and artifact execution. The #64
+update adds [tenant-safe incident retrieval and a format-2 fixture index](incident-isolation-64.md);
+production accuracy, full graph qualification and rollout remain separate under
+#40. The runtime does not retrain or download models. Only the similarity fixture
+was rebuilt offline for #64; the other four tracked model bundles are unchanged.
 
 ## Install and artifact layout
 
 Qualified on Linux x86-64, CPython 3.12.3, joblib 1.6.0, NumPy 2.5.2,
 SciPy 1.18.1 and scikit-learn 1.9.0. The runtime accepts CPython 3.12 with
 that exact library set; other Python minors/library versions fail closed.
-The manifests record training with joblib 1.5.3 and SciPy 1.18.0. Compatibility
+The four unchanged model manifests record training with joblib 1.5.3 and SciPy 1.18.0. The new scoped similarity fixture uses the qualified runtime versions. Compatibility
 with the qualified newer patch versions was exercised against all five real
 bundles; this is not a general cross-version compatibility guarantee.
 
@@ -77,7 +78,7 @@ include file paths, input evidence or raw deserialization messages.
 |---|---:|---|
 | candidate_ranker | 37018 | `036eca89dc9bb450d665dab516096f8012fb31775f6e187af6a05db2e1cd6b47` |
 | failure_classifier | 120859 | `c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80` |
-| incident_similarity | 4456283 | `38115467e972fd9498637e33b5a9cfab3f6e08029af8d09f34bb5b707bc45a41` |
+| incident_similarity (format 2) | 2424029 | `5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644` |
 | patch_selector | 269845 | `ed7a9ed3f9713b64bf102e54e734b445b3b6be3e12df8fede4101f6f15741c49` |
 | trace_anomaly | 3324 | `b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020` |
 
@@ -131,6 +132,8 @@ the original learned probability separately from any rule override.
 cd agent
 /tmp/raphael-model-env/bin/python -m pytest -q
 cd ..
+RAPHAEL_AGENT_TENANT_ID=fixture-tenant-a \
+RAPHAEL_COMPANY_ID=fixture-company-a RAPHAEL_CLIENT_ID=fixture-client-a1 \
 /tmp/raphael-model-env/bin/python agent/scripts/qualify_local_inference.py \
   --model-root models --cases-root agent/tests/fixtures/local_inference \
   --output /tmp/local-inference-63.json

@@ -9,6 +9,7 @@ import platform
 from pathlib import Path
 from typing import Any
 
+from raphael_agent.incident_scope import configured_scope
 from raphael_agent.local_inference import predict
 from raphael_agent.local_inference.artifacts import RUNTIME_VERSIONS, TRUSTED_ARTIFACTS
 
@@ -36,7 +37,7 @@ def qualify(model_root: Path, cases_root: Path) -> dict[str, Any]:
                 payload = payload["candidates"]
             function = getattr(predict, method)
             result = (
-                function(model_root, payload, 5)
+                function(model_root, payload, 5, scope=configured_scope())
                 if name == "incident_similarity"
                 else function(model_root, payload)
             )

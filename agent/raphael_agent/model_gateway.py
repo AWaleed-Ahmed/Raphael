@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .incident_scope import IncidentScope, incident_similarity_scores, scope_for_run
+
 
 DEFAULT_MODEL_ROOT = Path(sys.prefix) / "share" / "raphael" / "models"
 
@@ -68,14 +70,21 @@ class ModelGateway:
             self._load_error = type(exc).__name__
             return None
 
-    def _invoke(self, method: str, payload: Any, *, top_k: int = 5) -> dict[str, Any] | None:
+    def _invoke(
+        self,
+        method: str,
+        payload: Any,
+        *,
+        top_k: int = 5,
+        scope: IncidentScope | None = None,
+    ) -> dict[str, Any] | None:
         module = self._load()
         if module is None:
             return None
         try:
             function = getattr(module, method)
             if method == "retrieve_incidents":
-                result = function(self.model_root, payload, top_k)
+                result = function(self.model_root, payload, top_k, scope=scope)
             else:
                 result = function(self.model_root, payload)
             self._load_error = None
@@ -104,7 +113,9 @@ class ModelGateway:
     def _failure_record(cls, state: dict[str, Any]) -> dict[str, Any]:
         observation = cls._observation(state)
         signature = state.get("failure_signature") or {}
-        normalized = signature.get("normalized") if isinstance(signature.get("normalized"), dict) else {}
+        normalized = signature.get("normalized")
+        if not isinstance(normalized, dict):
+            normalized = {}
         evidence = state.get("evidence") or []
         evidence_text = " ".join(
             str(item.get("summary") or item.get("content_excerpt") or "")
@@ -162,9 +173,22 @@ class ModelGateway:
         """Adapt fingerprints/evidence to the failure-classifier model."""
         return self._invoke("classify_failure", self._failure_record(state))
 
-    def similar_incidents(self, state: dict[str, Any], *, top_k: int = 5) -> dict[str, Any] | None:
+    def similar_incidents(
+        self, state: dict[str, Any], *, top_k: int = 5
+    ) -> dict[str, Any] | None:
         """Adapt the current incident to the historical similarity model."""
-        return self._invoke("retrieve_incidents", self._failure_record(state), top_k=top_k)
+        scope = None
+        if self.enabled:
+            from .local_inference.artifacts import ArtifactUnavailable
+
+            try:
+                scope = scope_for_run(state)
+            except ArtifactUnavailable as exc:
+                self._load_error = str(exc)
+                return None
+        return self._invoke(
+            "retrieve_incidents", self._failure_record(state), top_k=top_k, scope=scope
+        )
 
     @staticmethod
     def _candidate_record(
@@ -194,11 +218,7 @@ class ModelGateway:
             "failure_class_compatible": int(bool(failure_class)),
             "historical_similarity": max(
                 [float(item.get("confidence") or 0.0) for item in comparisons]
-                + [
-                    float(item.get("similarity") or 0.0)
-                    for item in ((state.get("model_results") or {}).get("incident_similarity") or {}).get("results", [])
-                    if isinstance(item, dict)
-                ]
+                + incident_similarity_scores(state)
                 or [0.0]
             ),
             "dependency_distance": 0 if diff_hunk else 1,

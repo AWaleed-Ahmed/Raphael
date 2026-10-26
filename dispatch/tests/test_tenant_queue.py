@@ -197,3 +197,38 @@ def test_completed_action_handover_denies_stale_renewal_without_extending_claim(
     assert wrong_owner.status_code == 409 and "claim" not in wrong_owner.json()
     wrong_claim = c.post(endpoint, headers=headers, json={**renewal, "claim_id": str(uuid4())})
     assert wrong_claim.status_code == 409 and "claim" not in wrong_claim.json()
+
+
+def test_authenticated_run_tenant_bounds_real_incident_retrieval(monkeypatch):
+    from pathlib import Path
+    from raphael_agent.model_gateway import ModelGateway, model_error
+    root = Path(__file__).resolve().parents[2]
+    monkeypatch.setenv("RAPHAEL_DISPATCH_TOKENS", json.dumps({
+        "producer-a": {"tenant_id": "fixture-tenant-a", "role": "producer"},
+        "producer-b": {"tenant_id": "fixture-tenant-b", "role": "producer"},
+    }))
+    monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", "fixture-tenant-a")
+    monkeypatch.setenv("RAPHAEL_COMPANY_ID", "fixture-company-a")
+    monkeypatch.setenv("RAPHAEL_CLIENT_ID", "fixture-client-a1")
+    monkeypatch.setenv("RAPHAEL_MODEL_ENABLED", "1")
+    c = TestClient(create_app())
+    denied = c.post("/v1/tenants/fixture-tenant-a/jobs", headers={"Authorization": "Bearer producer-b"}, json=job("b"))
+    assert denied.status_code == 403
+    case = json.loads((root / "agent/tests/fixtures/local_inference/incident_similarity.jsonl").read_text().splitlines()[0])["input"]
+    gateway = ModelGateway(root / "models")
+    for tenant in ("a", "b"):
+        payload = job(tenant)
+        response = c.post(f"/v1/tenants/fixture-tenant-{tenant}/jobs", headers={"Authorization": f"Bearer producer-{tenant}"}, json=payload)
+        assert response.status_code == 202
+        state = c.app.state.orchestrator.jobs[payload["job_id"]]
+        assert state["tenant_id"] == f"fixture-tenant-{tenant}"
+        # Untrusted incident content cannot change the token-derived run tenant.
+        state["failure_fingerprint"] = case["fingerprint"]
+        state["evidence"] = [{"summary": case["summary"]}]
+        state["runtime_observation"] = {"normalized_reason": case["normalized_reason"]}
+        result = gateway.similar_incidents(state)
+        if tenant == "a":
+            assert result and result["results"] and result["learned_execution"]
+            assert all(row["client_id"] == "fixture-client-a1" for row in result["results"])
+        else:
+            assert result is None and model_error(gateway) == "incident_scope_mismatch"

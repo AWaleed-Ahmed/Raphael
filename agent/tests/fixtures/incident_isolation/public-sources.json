@@ -1,0 +1,458 @@
+{
+  "fixture_sha256": "6859f93b14fd3453768543b52b2c6a4fd7a237320ecc9a7d1b1593bc42e6a826",
+  "public_reports": 50,
+  "verified_sources": 49,
+  "sources": [
+    {
+      "url": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350",
+      "verified": true,
+      "title": "Missing 590 driver support for 2150.8",
+      "created_at": "2026-08-14T13:49:45Z",
+      "updated_at": "2026-08-18T15:56:36Z",
+      "body_sha256": "cffa103f6d3d7a69f05d04956a7eddab94d19fea378fd68f782f83f4cc946965",
+      "fixture_input_sha256": "8936b27300a1721f302c7b3a13d1f6f92251b2c6f1c28a55e6467d5beba8bb4a"
+    },
+    {
+      "url": "https://github.com/janakiramm/kubernetes-101/issues/6",
+      "verified": true,
+      "title": "Status ImagePullBackOff in kubectl get pods",
+      "created_at": "2018-01-05T01:04:06Z",
+      "updated_at": "2018-01-05T06:55:01Z",
+      "body_sha256": "28c2c704f1ab96fa969afab2dadf53350834b7ac114eebfc1787e3a0c524c83c",
+      "fixture_input_sha256": "1af2098b3c8cd674abe928520c89d24c61ee518cc0cd201f030b7841bd5ec24a"
+    },
+    {
+      "url": "https://github.com/kubeflow/pipelines/issues/13192",
+      "verified": true,
+      "title": "bug(backend): complete structured pod failure diagnostics in native tasks",
+      "created_at": "2026-04-01T09:52:12Z",
+      "updated_at": "2026-10-12T01:39:47Z",
+      "body_sha256": "75f5bdc1414c449201447a451a3416f718393b69066b9eb900ea9b52200c3712",
+      "fixture_input_sha256": "f6e1e287d1e3a6085acb0ed1e89762d8b7bd2343d5ccd76c481db4ed3b652970"
+    },
+    {
+      "url": "https://github.com/titansoft-pte-ltd/imagepullsecret-patcher/issues/10",
+      "verified": true,
+      "title": "ImagePullBackOff on first Deployement of Pods",
+      "created_at": "2020-08-03T14:17:47Z",
+      "updated_at": "2022-07-20T02:01:03Z",
+      "body_sha256": "9ed5fb09a56df69a78deb8cbaf654402c02fa7ab7e07b2fb14d2a89b32f18eb1",
+      "fixture_input_sha256": "5bf16a136712848c9f4036103f0e3b2df69aab76dfe757fdb58aba66f8a71a1d"
+    },
+    {
+      "url": "https://github.com/Helicone/HELM/issues/12",
+      "verified": true,
+      "title": "Imagepullbackoff issue with the bitnami images",
+      "created_at": "2025-07-31T05:12:56Z",
+      "updated_at": "2025-07-31T05:12:56Z",
+      "body_sha256": "7b2a246df39d7c75e2772c1fc84f4568b7ab9617d37f6a63d2fd62133b0d318c",
+      "fixture_input_sha256": "47fb48dd4403a03d5a5c7d0c72ace78eea91453aa0ff29875809d56de4c3f1cc"
+    },
+    {
+      "url": "https://github.com/feast-dev/feast/issues/6409",
+      "verified": true,
+      "title": "Docker images not published for versions 0.62.0 and 0.63.0 - Helm chart deployment fails with ImagePullBackOff",
+      "created_at": "2026-05-16T08:46:00Z",
+      "updated_at": "2026-07-16T10:39:27Z",
+      "body_sha256": "3b2dff95bc88b139e1a83637ab632dbaa2871870aea0e8b04cf4af449353250e",
+      "fixture_input_sha256": "47512a041071bd4e1d67ca253b5e7f6a8c424979d64d901f637c7febb1f3fc24"
+    },
+    {
+      "url": "https://github.com/kubernetes/minikube/issues/23264",
+      "verified": true,
+      "title": "Flaky test: TestFunctional/parallel/MySQL",
+      "created_at": "2026-06-29T20:05:41Z",
+      "updated_at": "2026-08-22T14:48:20Z",
+      "body_sha256": "fc203f5652c0146612d1bc0716518e6fd2d3832dde37490e351f5c9035dcd25a",
+      "fixture_input_sha256": "927935a1a12bfed4268d3c0d090d35e9c87ab3170d62e9433389ade236bfd632"
+    },
+    {
+      "url": "https://github.com/eclipse-tractusx/industry-core-hub/issues/654",
+      "verified": true,
+      "title": "Documentation references Umbrella 2.6.0 but deployment could not be completed on a current environment",
+      "created_at": "2026-07-15T07:07:34Z",
+      "updated_at": "2026-10-06T12:15:40Z",
+      "body_sha256": "257692643bcbd099afe2e7997affdf5cfb62bc4ac4e086c9414a31a6b7ede323",
+      "fixture_input_sha256": "f05c49ac2092882f85394a8d938de5dedad3fca302ec7447b5bc140af9c0c122"
+    },
+    {
+      "url": "https://github.com/passga/kube-diag-ai/issues/2",
+      "verified": true,
+      "title": "Add local k3d development environment for pod diagnostics",
+      "created_at": "2026-05-27T09:04:32Z",
+      "updated_at": "2026-05-27T09:06:56Z",
+      "body_sha256": "2112ad698e25150c5767d82b5b03cfbe7d97f16d498571386fbb70ceeb4cd1cd",
+      "fixture_input_sha256": "cb056afb87449c16f3305817c3e750f71f82e63218095fb53dbdbf1a3852e66d"
+    },
+    {
+      "url": "https://github.com/reportportal/kubernetes/issues/507",
+      "verified": true,
+      "title": "Deprecated Support for Free Bitnami Images causing Kubernetes ImagePullBackOff on restarts or during  autoscaling",
+      "created_at": "2025-10-01T15:14:09Z",
+      "updated_at": "2026-06-17T12:21:17Z",
+      "body_sha256": "7bc1ddb02925bfad231ced1e4016f41046b54e9fec13c3072fae8e9f4013e40c",
+      "fixture_input_sha256": "3d74529a4b0c2ef58ad2a7d8109d1b93e815d9478cc369cb0d0c464407b8f3e6"
+    },
+    {
+      "url": "https://github.com/juicedata/juicefs-csi-driver/issues/1648",
+      "verified": true,
+      "title": "Mount pod OOMKilled hourly; kills stopped after --backup-meta 0 \u2014 should automatic metadata backup be able to OOM the mount client?",
+      "created_at": "2026-08-06T00:20:43Z",
+      "updated_at": "2026-09-24T12:44:12Z",
+      "body_sha256": "ca4fca594467e5d2429d202c6f0401fecd39b047ebc2325463cd72efa0c36e62",
+      "fixture_input_sha256": "7a4fc2689bfe9b4fb37f6cbd511468c17bab151a3cec474ddf8ad44baadb1a80"
+    },
+    {
+      "url": "https://github.com/openova-io/openova/issues/5465",
+      "verified": true,
+      "title": "Sovereign catalyst-api OOMKilled AT the post-#5352 4Gi limit, 63min into fresh hw291, mid-cutover \u2014 limit chase does not converge; resume machinery survived (first production proof)",
+      "created_at": "2026-07-29T12:53:57Z",
+      "updated_at": "2026-08-06T09:30:33Z",
+      "body_sha256": "7b398a40d8c6ee7fd59f63a21db6ae86f72e968c04f01993d10dec4e956a5b79",
+      "fixture_input_sha256": "4dc2b110f0e9b9a54f0b38b24f6e593cb2655178f215b137e9c36533ad6dbdee"
+    },
+    {
+      "url": "https://github.com/notch8/hykuup_knapsack/issues/684",
+      "verified": true,
+      "title": "\ud83e\udd84 Spike: Vertical/Horizontal Scaling",
+      "created_at": "2026-04-23T16:48:03Z",
+      "updated_at": "2026-08-31T18:17:21Z",
+      "body_sha256": "fb5a278471b886113d50ad9c61c3b12cf9cb1030feb7fa57fc9969e5a41b2def",
+      "fixture_input_sha256": "265e489492daa3420b37ff9735bfbac8925be3c2cb1964fcd0d57898d8af327e"
+    },
+    {
+      "url": "https://github.com/luxfi/node/issues/143",
+      "verified": false,
+      "reason": "public_api_unavailable"
+    },
+    {
+      "url": "https://github.com/kubernetes/kubernetes/issues/138760",
+      "verified": true,
+      "title": "In-place container memory resize does not work when pod is in status OOMKilled",
+      "created_at": "2026-05-04T15:03:39Z",
+      "updated_at": "2026-08-27T15:19:50Z",
+      "body_sha256": "b9f706dbbf36f5ba3148ffb699fc38b90fbb8931a33febe97617b971c4b9231b",
+      "fixture_input_sha256": "2726c86df5c1002e2d9409d8a7b42bf0963ba5a2220b0ab302c2871104460c5e"
+    },
+    {
+      "url": "https://github.com/HathorNetwork/hathor-wallet-service/issues/465",
+      "verified": true,
+      "title": "wallet-service-daemon slow memory leak causing fleet-wide OOMKills",
+      "created_at": "2026-06-26T16:06:58Z",
+      "updated_at": "2026-06-26T16:14:43Z",
+      "body_sha256": "c7e8efeda6a36ed6f8d5153a4fd6dc36c8881585b95c4a01247d16fbb65289dc",
+      "fixture_input_sha256": "f8386f6d57747902dffd25b6fddb2f89eebc7913cd915279876a0a90ed5e3604"
+    },
+    {
+      "url": "https://github.com/phuoctmse/ckad-cka-journey/issues/33",
+      "verified": true,
+      "title": "[PHASE 2][W13] LabEx: Kubernetes Troubleshooting labs",
+      "created_at": "2026-06-04T08:50:07Z",
+      "updated_at": "2026-06-04T08:50:07Z",
+      "body_sha256": "e23fe95fbf3b41c245472c482c9544207930366fc5667c3d5ea2e4807f885853",
+      "fixture_input_sha256": "810662a521a4c3f8b5e2a7c679139f703e180d494690958c26043fc5996f4f7b"
+    },
+    {
+      "url": "https://github.com/fluffels/kubernia/issues/872",
+      "verified": true,
+      "title": "iSAQB-2026-07-14: ACL-Leck schlie\u00dfen \u2014 broken.type\u2192Anzeigetext hinter markup/clustersync",
+      "created_at": "2026-07-14T17:26:32Z",
+      "updated_at": "2026-09-29T14:09:20Z",
+      "body_sha256": "0addf8f80aff8c2928f7ab6a774138bded06f4083e00bda75fdff0248286a196",
+      "fixture_input_sha256": "c1fd4696059834f81a98302964406c5dc136007eafbb70c9a3a749d849d3a2fe"
+    },
+    {
+      "url": "https://github.com/jgezelscorp/sre-lab/issues/1",
+      "verified": true,
+      "title": "Incident: Order pipeline outage \u2014 OOMKilled, NetworkPolicy block, AMQP protocol mismatch (AKS pets namespace)",
+      "created_at": "2026-05-16T13:14:21Z",
+      "updated_at": "2026-05-16T13:14:21Z",
+      "body_sha256": "a99a0cdf65df1046a07ec84fd9a5475baad44d479c8f7e8f9f8f921144f66472",
+      "fixture_input_sha256": "00cd04201d5cbf5db85bd31ff71b5fcff36a0cf9683650211598abfda32fda24"
+    },
+    {
+      "url": "https://github.com/andrelair-platform/minicloud-gitops/issues/97",
+      "verified": true,
+      "title": "[CHANGE] 2026-07-18 \u2014 feat(monitoring): close k8s monitoring gaps 1-4",
+      "created_at": "2026-07-18T21:49:14Z",
+      "updated_at": "2026-09-10T21:30:24Z",
+      "body_sha256": "66be3dc913af9eff4ec4a547d2b0a1842b58c7f2003bcb0185312051e092c2d5",
+      "fixture_input_sha256": "0062eb5d62bc66d53ceeba9214f5a744d23564bf165062d59bdf9409be2a78af"
+    },
+    {
+      "url": "https://github.com/emorghub/sovereign-agentic-os/issues/5",
+      "verified": true,
+      "title": "[bug] Data-catalog service (OpenMetadata) is down, and this quietly breaks several other things",
+      "created_at": "2026-07-31T13:58:12Z",
+      "updated_at": "2026-08-06T13:25:51Z",
+      "body_sha256": "40263e16c9176c1db1012875dacb3494c2259f98818e522af116ae948fc8bbca",
+      "fixture_input_sha256": "451182ed1f0696ee82ff4a3f751f3ece720c043aff6c0bbf30f578e600313aef"
+    },
+    {
+      "url": "https://github.com/Mininglamp-OSS/octo-lib/issues/108",
+      "verified": true,
+      "title": "configmap \"octo-admin-config\" not found",
+      "created_at": "2026-07-14T09:31:09Z",
+      "updated_at": "2026-08-06T05:46:04Z",
+      "body_sha256": "d1e943068c7919e04450f119f5dc235c73927b42ca6f2372d2689478cff6b813",
+      "fixture_input_sha256": "6671a3dcfac18cb5bcf01ebba153916d1e19b1677c7809c6c329d0b9eab1a67c"
+    },
+    {
+      "url": "https://github.com/RijksICTGilde/RIG-Cluster/issues/153",
+      "verified": true,
+      "title": "SOPS-secret lifecycle na component-prune: her-encryptie-churn + cookie-secret rotatie",
+      "created_at": "2026-07-08T11:10:55Z",
+      "updated_at": "2026-09-22T16:30:02Z",
+      "body_sha256": "c7e0791f482d98c8f82a45fa8fe9a25e7c9ca57ea564cefdf488944904e015af",
+      "fixture_input_sha256": "e17fbdc40a64a3872afe4a6e80859aea749e27e3c8c218eacfd3adb9de424b7f"
+    },
+    {
+      "url": "https://github.com/kuptan/terraform-operator/issues/32",
+      "verified": true,
+      "title": "Terraform stuck in running state when using dependencyRef variable on non existing key",
+      "created_at": "2022-07-22T08:51:39Z",
+      "updated_at": "2022-07-22T08:51:39Z",
+      "body_sha256": "4308d09f0f73b5ce2b22d9bf2d6991bea5b887febf600225ba32f55ab7781d60",
+      "fixture_input_sha256": "1c5aad945e8a1ca07eb4bc101291a8010c9824b8817b9a5ab2d287d199c842dc"
+    },
+    {
+      "url": "https://github.com/zalando/postgres-operator/issues/2101",
+      "verified": true,
+      "title": "Delayed update of `PostgresClusterStatus` when pods in error state",
+      "created_at": "2022-11-04T14:42:38Z",
+      "updated_at": "2022-11-04T14:42:38Z",
+      "body_sha256": "aed3c29cc43e8d785c3125c52c0a5c06406cf9b41606029a09121dd29732c8f5",
+      "fixture_input_sha256": "f769bba4f1b6ad2da0f69c0fdcb991cd2f7fb0ec875bc98e049e21a0263ef959"
+    },
+    {
+      "url": "https://github.com/strukalex/rhdh-test/issues/6",
+      "verified": true,
+      "title": "[SRE Agent] WARNING: LLM analysis unavailable",
+      "created_at": "2026-03-11T19:59:47Z",
+      "updated_at": "2026-03-11T19:59:47Z",
+      "body_sha256": "7d84d5a737072705f5699deb5bb5a1d8f37a71894220a97d2ac0cb2f1e39bc00",
+      "fixture_input_sha256": "7006add7f2e5b5a1507012395fc8fd64a89196a576c291c85da86e2620af0ecf"
+    },
+    {
+      "url": "https://github.com/numaproj/numaflow/issues/2759",
+      "verified": true,
+      "title": "if InterstepBufferService and Pipeline are both deleted, there is no guarantee that the Pipeline Cleanup Job will work",
+      "created_at": "2025-06-27T21:05:37Z",
+      "updated_at": "2025-06-28T02:47:21Z",
+      "body_sha256": "39fe30f77469b7e879878aaaae391da12a5383afbd64b4c2cb020b0974f47f4f",
+      "fixture_input_sha256": "31e07b728e226a7a3d1c16f77246c84444f5ee5418b032a83126f49593ee25d4"
+    },
+    {
+      "url": "https://github.com/kubernetes-sigs/descheduler/issues/1341",
+      "verified": true,
+      "title": "Pods strategies don't work",
+      "created_at": "2024-01-18T16:59:52Z",
+      "updated_at": "2025-04-03T06:33:43Z",
+      "body_sha256": "f146c437401191b2b9ff64b82a162c815902e6fcc79e44bf4239c329c7c11c8c",
+      "fixture_input_sha256": "34811e6b5250d43534279eb73ed44f80c71b4cdbf910f3fcfdf7075fc0a6ebfb"
+    },
+    {
+      "url": "https://github.com/canonical/microk8s/issues/5197",
+      "verified": true,
+      "title": "calico and metallb controllers getting CrashLoopBackOff  error",
+      "created_at": "2025-08-25T10:48:42Z",
+      "updated_at": "2026-08-23T00:02:51Z",
+      "body_sha256": "b9adc32c61603715d4e3079378888c013a3e8550046918952b38ef00c46cb40d",
+      "fixture_input_sha256": "92f88ce07a49eb647bf4e26f2e228ca1a8e0ffade76573290a6896eaea41d747"
+    },
+    {
+      "url": "https://github.com/openova-io/openova/issues/6040",
+      "verified": true,
+      "title": "hw293: region-B ClusterMesh never established \u2014 a dormant chart's census failure 503s half of every fresh TCP connection",
+      "created_at": "2026-08-10T17:11:36Z",
+      "updated_at": "2026-08-11T01:40:27Z",
+      "body_sha256": "b1904be02a889e9a45d85c81b8c6e0e27d39ac0cbc07dff5028de8d4dc59042e",
+      "fixture_input_sha256": "c891793bffbc86747930ffaae26fb16d678f79eac00b70fb8481aa5132fca3a3"
+    },
+    {
+      "url": "https://github.com/confidential-dot-ai/c8s/issues/208",
+      "verified": true,
+      "title": "operator: liveness probe can kill it during its own startup (no startupProbe)",
+      "created_at": "2026-07-31T22:11:41Z",
+      "updated_at": "2026-10-13T17:41:35Z",
+      "body_sha256": "fcaacc016b6285ac9406e2a6bc7c7c8175c45da75ffdfd6cb6e3d805d800c735",
+      "fixture_input_sha256": "e27cb8c8eebe00b1ccc765d29ab5bb4255e1a542623dc36ccd1b8d0ff1cd7a46"
+    },
+    {
+      "url": "https://github.com/k8ssandra/k8ssandra/issues/1560",
+      "verified": true,
+      "title": "Pods in the multi-cluster deployment shows - Readiness probe failed: HTTP probe failed with statuscode: 500",
+      "created_at": "2023-01-05T16:57:15Z",
+      "updated_at": "2023-01-09T09:55:43Z",
+      "body_sha256": "562fd86c35031f1e5f9c3fa033315a30d488dc650b3ef3bf44a50aa721e98e08",
+      "fixture_input_sha256": "e71d79038636dbcd9c39aff23bafdbd6bafebc937eb95a5296d1c610491b56da"
+    },
+    {
+      "url": "https://github.com/Matcham89/AI-powered-SRE/issues/2",
+      "verified": true,
+      "title": "RCA: sample-api \u2014 Readiness Probe Failure (connection refused) [Revision 3]",
+      "created_at": "2026-04-24T13:19:24Z",
+      "updated_at": "2026-04-24T13:19:24Z",
+      "body_sha256": "0a469b7b8b9eb052f9bbea00cb10dd5fb1c3e9f15f817ae3306a8b66f46a1406",
+      "fixture_input_sha256": "e28c77a67ce1e94b5465edbb7bdf98cba6f9edb49a4ec8ce4050381a59db2db3"
+    },
+    {
+      "url": "https://github.com/scylladb/scylladb/issues/28058",
+      "verified": true,
+      "title": "[Bug]: handle gossiper unavailable during Scylla upgrade case better (REST API status code, severity, message)",
+      "created_at": "2026-01-08T15:51:53Z",
+      "updated_at": "2026-01-12T15:14:22Z",
+      "body_sha256": "0e1f12a25e9b6f6ef62e031fa65aaa5f0695b48ff49f8cfa739081aa6fa9fd1c",
+      "fixture_input_sha256": "11e999f1686330d9dcd3c4b6519640ca815ff8edbc40cef8466858a925c290d7"
+    },
+    {
+      "url": "https://github.com/prometheus-operator/prometheus-operator/issues/3587",
+      "verified": true,
+      "title": "Ability to control Readiness probe & Liveness probe",
+      "created_at": "2020-10-13T16:48:56Z",
+      "updated_at": "2026-04-19T07:04:40Z",
+      "body_sha256": "b1c8f199b29b2661c1240bb5d7044ee03824990f892739ad0080d48c9552eb09",
+      "fixture_input_sha256": "ce7b8d6beba8a770ea2a672cb7d4bc8020323a050cc83d9eb639497af14487c7"
+    },
+    {
+      "url": "https://github.com/travisjeffery/proglog/issues/11",
+      "verified": true,
+      "title": "Kubernetes gRPC liveness probes fail",
+      "created_at": "2022-06-21T12:06:54Z",
+      "updated_at": "2023-12-07T22:18:04Z",
+      "body_sha256": "d5d74fc4158e7909e6939fb0e63b5400fe0dee999e18188b3913b364f76dcbf6",
+      "fixture_input_sha256": "754ece9b4a76c0cf017a58230a9a9c0dd1b80f29cbd4781bcf97c4940909915b"
+    },
+    {
+      "url": "https://github.com/BingoBonzo/grubify/issues/7",
+      "verified": true,
+      "title": "[P1] Payment Service OOM Crash Loop \u2014 Orders Failing Platform-Wide",
+      "created_at": "2026-06-20T09:06:23Z",
+      "updated_at": "2026-06-20T09:06:23Z",
+      "body_sha256": "b316248538a12c03a9a5a7ccb60ba8cc41b827375541b403b8c9229902dfeb73",
+      "fixture_input_sha256": "0bcb2cf8bbee2a94100a93e451266e36405502018bee74af01a61c0dfdfc1573"
+    },
+    {
+      "url": "https://github.com/FalkorDB/FalkorDB/issues/888",
+      "verified": true,
+      "title": "falorkdb  LOADING Redis is loading the dataset in memory",
+      "created_at": "2024-12-30T09:30:41Z",
+      "updated_at": "2026-08-03T22:03:11Z",
+      "body_sha256": "37f81c454c296bbf553ba602947d32978356f4f2635383c8d4e8f1999534aace",
+      "fixture_input_sha256": "6460aec6a6807bd39482af4de52ab6dd2f2736d9f92c1dbaed0428541bb25403"
+    },
+    {
+      "url": "https://github.com/neicnordic/sensitive-data-archive/issues/1540",
+      "verified": true,
+      "title": "[s3inbox] log reason for readiness failure",
+      "created_at": "2025-04-01T11:54:44Z",
+      "updated_at": "2026-09-01T11:54:21Z",
+      "body_sha256": "2cb8b30417a6c6e80297e2b85f243da548c8e9577b1c44b33e077ed8485d1c33",
+      "fixture_input_sha256": "39dcce368e5f8b984254018770f15999ea3d2d255b64a21e09db42cb4106be34"
+    },
+    {
+      "url": "https://github.com/carvel-dev/kapp/issues/148",
+      "verified": true,
+      "title": "Provide more informations in deploy progress log",
+      "created_at": "2020-10-12T15:48:13Z",
+      "updated_at": "2021-05-07T14:33:58Z",
+      "body_sha256": "b8d5789c0d9bd3cb637b447374fb6830a6889f4163ed943b4cf9effc9b482957",
+      "fixture_input_sha256": "d1f23ee31dfd80b97ae3c13c3aa26ec59ae6d29e6559b6dfe7f016eb10790a46"
+    },
+    {
+      "url": "https://github.com/kubernetes-csi/csi-lib-iscsi/issues/94",
+      "verified": true,
+      "title": "IPv6 iSCSI portals are unusable: connectTarget splits the portal on every ':', so device-path detection never matches",
+      "created_at": "2026-07-13T04:16:02Z",
+      "updated_at": "2026-10-22T17:17:30Z",
+      "body_sha256": "63890fec96397cebb51f84c177719518707d7bd772e7774e105c7f18584c7eaa",
+      "fixture_input_sha256": "d1bd5c793b31e1a73322b12266b7f17ad0446f548a2c14176bd1c972c5ae17f8"
+    },
+    {
+      "url": "https://github.com/meshery/meshery/issues/20704",
+      "verified": true,
+      "title": "Incorrect Logger Usage in GraphQL Resolver (`fmt.Printf` inside `r.Log.Debug`)",
+      "created_at": "2026-07-16T15:28:25Z",
+      "updated_at": "2026-07-17T03:38:21Z",
+      "body_sha256": "e9a274ac1a52682d10814416aec09d645778d93516854302cf8e3a0e68896f1f",
+      "fixture_input_sha256": "b6a48b85d35d085539e180d9e9d753a621a5d1e01a9808dd1c57d8ba4cc5ac09"
+    },
+    {
+      "url": "https://github.com/kedgeproject/json-schema-generator/issues/15",
+      "verified": true,
+      "title": "targetport should be integer",
+      "created_at": "2017-11-07T03:19:41Z",
+      "updated_at": "2017-11-07T13:08:16Z",
+      "body_sha256": "d2e3dae36d8cea0928932cdf82b8977793d2d97123e0e2044c8acd981e411054",
+      "fixture_input_sha256": "107551ce57232015e9918dd231fe0543fa22fdd278989ccba4a1dd62099c6f90"
+    },
+    {
+      "url": "https://github.com/kubernetes-sigs/kustomize/issues/4752",
+      "verified": true,
+      "title": "patchesStrategicMerge is not working for service of single port but multiple protocols.",
+      "created_at": "2022-08-09T03:01:46Z",
+      "updated_at": "2026-06-10T01:51:23Z",
+      "body_sha256": "ceed1f210096afbedd0903ec1121d064c34968b7ae635215870b12b680badeaa",
+      "fixture_input_sha256": "1b4c204cf47a2860371c3645b3be3226cd615b63d61faf15428bfab17c48cbd4"
+    },
+    {
+      "url": "https://github.com/verdaccio/charts/issues/195",
+      "verified": true,
+      "title": "cachingNginx sidecar does not work on IPv6-only Kubernetes clusters ",
+      "created_at": "2026-06-24T15:22:54Z",
+      "updated_at": "2026-06-24T15:23:12Z",
+      "body_sha256": "3b912e117d4777f4d9a0c2fce7f71a0bcb82cd7434a7cbebaaeeb777b02544dd",
+      "fixture_input_sha256": "bc88b06c21877ae999757f244a5338210a2e917370d79a9eb8162fc2b7295504"
+    },
+    {
+      "url": "https://github.com/msp-architect-2026/kim-minji-wiki/issues/187",
+      "verified": true,
+      "title": "[TROUBLE] MySQL: Service targetPort \uc124\uc815 \uc624\ub958\ub85c Endpoints \ubbf8\uc0dd\uc131",
+      "created_at": "2026-03-10T01:48:22Z",
+      "updated_at": "2026-03-10T01:48:22Z",
+      "body_sha256": "b2ad4961cf4b6f4865d00b600da971431aed7cd5b1039a8fdf0656304d9eb8b6",
+      "fixture_input_sha256": "210148fd48f078d18d809082d2937e5aca963d4de4a1262b46e96c91cc7e627f"
+    },
+    {
+      "url": "https://github.com/Azure/bicep-types-az/issues/2433",
+      "verified": true,
+      "title": "Kubernetes core/Service: targetPort doesn't accept number",
+      "created_at": "2025-02-13T15:55:06Z",
+      "updated_at": "2025-02-13T15:55:06Z",
+      "body_sha256": "c782f36fc84dd41559b6309be89f1dc6bef557d9b4d5634d540a1e3186685ccd",
+      "fixture_input_sha256": "384470f3826bd9cb80d9d9ddb35f1c74eb27158d7ba11b5f67bf569beeb997d5"
+    },
+    {
+      "url": "https://github.com/habeeba-ahead/monolithic-petclinic/issues/575",
+      "verified": true,
+      "title": "Author Kubernetes manifests for monolith and activemq services",
+      "created_at": "2026-07-07T13:53:31Z",
+      "updated_at": "2026-07-07T13:53:31Z",
+      "body_sha256": "f3c9dc33c369134a2da33bb573f90dd0d3352d7f7605dc7335698c5674119813",
+      "fixture_input_sha256": "8cdb7e38cfb3172492c609357de5c36fffafa766340b3055a0c80b223136c176"
+    },
+    {
+      "url": "https://github.com/SoapboxRaceWorld/soapbox-race-core/issues/104",
+      "verified": true,
+      "title": "kubernetes",
+      "created_at": "2024-04-08T10:56:38Z",
+      "updated_at": "2025-06-15T08:22:49Z",
+      "body_sha256": "03170682838e48517302100236ec096229df5c58b5047677b43767afc622a44e",
+      "fixture_input_sha256": "c79b5fef0dd3e8d7634f822f3377ebc81e5a6b4dabe845ff93b913d3f887ec3d"
+    },
+    {
+      "url": "https://github.com/peak-scale/observability-tenancy/issues/98",
+      "verified": true,
+      "title": "targetPort on cortex proxy should be 'http' not 'metrics'",
+      "created_at": "2026-03-03T11:17:30Z",
+      "updated_at": "2026-03-03T11:24:29Z",
+      "body_sha256": "294bd36fb13368faae40db260320aa237dbb1844891a77a1951368ec80f5376c",
+      "fixture_input_sha256": "d7ae05d7b9f6a4da40c6620addc4a0253baef96b80409a4500c9a739a236bfc8"
+    }
+  ],
+  "limits": [
+    "Public issue existence/source verification, not validated root cause or fix correctness.",
+    "Customer ownership is explicitly synthetic and separate from source authorship."
+  ],
+  "verified_on": "2026-10-26"
+}
