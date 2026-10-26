@@ -84,13 +84,14 @@ Priors nudge diagnosis confidence / escalate sooner on chronically rejected clas
 
 ### Local ML model adapters
 
-A clean installation cannot run the tracked trained artifacts: the prediction
-implementation is under the ignored training directory. Merged
-[PR #59](https://github.com/AWaleed-Ahmed/Raphael/pull/59) defaults
-`RAPHAEL_MODEL_ENABLED` to `0` and records unavailable diagnostics when explicitly
-enabled without the runtime. The canonical pilot explicitly sets it to `0` too. [Issue #40](https://github.com/AWaleed-Ahmed/Raphael/issues/40)
-therefore remains open. Artifact files/training metrics are not runtime proof.
-See the [local inference investigation](../docs/local-inference-resolution-2026-10-20.md).
+The inference-only runtime is packaged under `raphael_agent.local_inference`.
+Install the qualified dependency set with `pip install './agent[local-inference]'`
+and deploy the approved bundles separately using `RAPHAEL_MODEL_ROOT`.
+Local inference remains **off by default** (`RAPHAEL_MODEL_ENABLED=0`), including
+in the pilot. Missing, unapproved or incompatible artifacts preserve the
+unavailable/deterministic path. Packaging does not qualify tenant-safe retrieval
+or a graph/pilot rollout; those remain follow-ups under #40.
+See [installation, artifact trust and verification](../docs/local-inference-runtime.md).
 
 ### Optional external model (BYOK)
 

@@ -20,6 +20,14 @@ dependencies = [
   "scikit-learn>=1.4",
 ]
 
+[project.optional-dependencies]
+local-inference = [
+  "joblib==1.6.0",
+  "numpy==2.5.2",
+  "scipy==1.18.1",
+  "scikit-learn==1.9.0",
+]
+
 [project.scripts]
 raphael-agent-smoke = "raphael_agent.scripts.smoke:main"
 raphael-agent-serve = "raphael_agent.http_api.app:main"

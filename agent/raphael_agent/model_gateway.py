@@ -1,24 +1,20 @@
 """Model-layer adapters for the optional local Raphael classifiers.
 
-The model package is intentionally kept separate from the agent package.  This
-module is the boundary between provider-neutral ``RunState`` data and the
-JSON-friendly model functions in ``raphael/model/predict.py``.  Models are
-best-effort: deterministic analyzers and sandbox policy remain authoritative
-when artifacts or runtime dependencies are unavailable.
+This module adapts provider-neutral RunState data to the packaged local runtime.
+Models are best-effort: deterministic analyzers and sandbox policy remain
+authoritative when artifacts or runtime dependencies are unavailable.
 """
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import os
 import sys
 from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL_ROOT = REPO_ROOT / "models"
-MODEL_SCRIPT = REPO_ROOT / "raphael" / "model" / "predict.py"
+DEFAULT_MODEL_ROOT = Path(sys.prefix) / "share" / "raphael" / "models"
 
 # The model classifier uses a slightly broader taxonomy than the public agent
 # diagnosis contract.  Keep the conversion explicit and fail closed for labels
@@ -64,26 +60,12 @@ class ModelGateway:
             return None
         if self._predict_module is not None:
             return self._predict_module
-        if not MODEL_SCRIPT.is_file():
-            self._load_error = "predict_script_missing:raphael/model/predict.py is not packaged"
-            return None
         try:
-            # predict.py intentionally has dependency-light sibling imports
-            # (common.py/rules.py), so expose that directory while loading it.
-            model_dir = str(MODEL_SCRIPT.parent)
-            if model_dir not in sys.path:
-                sys.path.insert(0, model_dir)
-            spec = importlib.util.spec_from_file_location(
-                "raphael_local_model_predict", MODEL_SCRIPT
-            )
-            if spec is None or spec.loader is None:
-                raise ImportError("unable to create model adapter module spec")
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            module = importlib.import_module("raphael_agent.local_inference.predict")
             self._predict_module = module
             return module
         except Exception as exc:  # noqa: BLE001 - model path is best-effort
-            self._load_error = f"{type(exc).__name__}:{exc}"
+            self._load_error = type(exc).__name__
             return None
 
     def _invoke(self, method: str, payload: Any, *, top_k: int = 5) -> dict[str, Any] | None:
@@ -96,9 +78,12 @@ class ModelGateway:
                 result = function(self.model_root, payload, top_k)
             else:
                 result = function(self.model_root, payload)
+            self._load_error = None
             return result if isinstance(result, dict) else None
         except Exception as exc:  # noqa: BLE001 - deterministic fallback must survive
-            self._load_error = f"{type(exc).__name__}:{exc}"
+            from .local_inference.artifacts import ArtifactUnavailable
+
+            self._load_error = str(exc) if isinstance(exc, ArtifactUnavailable) else type(exc).__name__
             return None
 
     @staticmethod
