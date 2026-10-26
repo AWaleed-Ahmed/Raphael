@@ -1,0 +1,95 @@
+{
+  "artifact_identity": [
+    "8eda85b8a4486165c66e1103f49203ffeb29d04feb9f986da54af8a9fcb68b54",
+    "5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644",
+    2424029
+  ],
+  "default_off_preserved": true,
+  "excluded_source_urls": [
+    "https://github.com/luxfi/node/issues/143"
+  ],
+  "limits": [
+    "Public reports; tenant/company/client ownership is explicitly synthetic.",
+    "Four partitions repeat 49 reports, not 196 independent incidents.",
+    "In-sample retrieval and isolation proof, not root-cause accuracy or customer rollout.",
+    "Only environment configuration is patched; no predictions or vectorizers are stubbed."
+  ],
+  "partitions": [
+    {
+      "authorized_queries": 49,
+      "direct_unscoped_call_refused": true,
+      "forged_scope_denials": 147,
+      "predictions_sha256": "ffc41216c044a0a4790e498f9848c793e981e617a704bc5fa9eecc3cbfe4238d",
+      "sample_query_source": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350",
+      "sample_top_match": {
+        "incident_id": "test-fixture-client-a1-000",
+        "similarity": 1.0,
+        "source_url": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350"
+      },
+      "scope": {
+        "client_id": "fixture-client-a1",
+        "company_id": "fixture-company-a",
+        "tenant_id": "fixture-tenant-a"
+      },
+      "wrong_scope_ranking_unchanged": true
+    },
+    {
+      "authorized_queries": 49,
+      "direct_unscoped_call_refused": true,
+      "forged_scope_denials": 147,
+      "predictions_sha256": "55b638f3ead0e99b52494fc6d3e5945bda9af728000f57839170e5a033731184",
+      "sample_query_source": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350",
+      "sample_top_match": {
+        "incident_id": "test-fixture-client-a2-000",
+        "similarity": 1.0,
+        "source_url": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350"
+      },
+      "scope": {
+        "client_id": "fixture-client-a2",
+        "company_id": "fixture-company-a",
+        "tenant_id": "fixture-tenant-a"
+      },
+      "wrong_scope_ranking_unchanged": true
+    },
+    {
+      "authorized_queries": 49,
+      "direct_unscoped_call_refused": true,
+      "forged_scope_denials": 147,
+      "predictions_sha256": "2298d714c31ee88050daf70dd9dc9a82ae3a08740776f17fe56f78456c9f1251",
+      "sample_query_source": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350",
+      "sample_top_match": {
+        "incident_id": "test-fixture-client-b1-000",
+        "similarity": 1.0,
+        "source_url": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350"
+      },
+      "scope": {
+        "client_id": "fixture-client-b1",
+        "company_id": "fixture-company-b",
+        "tenant_id": "fixture-tenant-b"
+      },
+      "wrong_scope_ranking_unchanged": true
+    },
+    {
+      "authorized_queries": 49,
+      "direct_unscoped_call_refused": true,
+      "forged_scope_denials": 147,
+      "predictions_sha256": "11b5624dcfa273ace3a019a7f1c174dec97ef911f5887a14212db06854acd9f4",
+      "sample_query_source": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350",
+      "sample_top_match": {
+        "incident_id": "test-fixture-client-b2-000",
+        "similarity": 1.0,
+        "source_url": "https://github.com/gardenlinux/gardenlinux-nvidia-installer/issues/350"
+      },
+      "scope": {
+        "client_id": "fixture-client-b2",
+        "company_id": "fixture-company-b",
+        "tenant_id": "fixture-tenant-b"
+      },
+      "wrong_scope_ranking_unchanged": true
+    }
+  ],
+  "passed": true,
+  "public_source_reports": 49,
+  "source_verification_sha256": "324bb42fe3d80d7a6eeb20d94605d6f4000f65d79790f0d0a14063902111f26e",
+  "test_partitions": 4
+}

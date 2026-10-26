@@ -89,8 +89,11 @@ Install the qualified dependency set with `pip install './agent[local-inference]
 and deploy the approved bundles separately using `RAPHAEL_MODEL_ROOT`.
 Local inference remains **off by default** (`RAPHAEL_MODEL_ENABLED=0`), including
 in the pilot. Missing, unapproved or incompatible artifacts preserve the
-unavailable/deterministic path. Packaging does not qualify tenant-safe retrieval
-or a graph/pilot rollout; those remain follow-ups under #40.
+unavailable/deterministic path. Incident retrieval requires an explicit backend
+`RAPHAEL_AGENT_TENANT_ID` / `RAPHAEL_COMPANY_ID` / `RAPHAEL_CLIENT_ID` binding and
+a format-2 index with exact ownership partitions. See [scope, migration and
+public-data isolation proof](../docs/incident-isolation-64.md). Full graph/pilot
+qualification remains separate under #40; default-off is unchanged.
 See [installation, artifact trust and verification](../docs/local-inference-runtime.md).
 
 ### Optional external model (BYOK)

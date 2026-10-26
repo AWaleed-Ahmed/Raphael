@@ -1,5 +1,13 @@
 # Raphael contributor map
 
+**Issue #64 candidate — 2026-10-26:** packaged incident retrieval now requires
+an operator-owned tenant/company/client binding, exact run identity and an
+independent format-2 ownership partition before scoring. Public-source replay
+covers 49 verified reports in four synthetic test scopes; wrong-scope cached
+hints cannot affect ranking. Legacy unowned index bytes are not migrated by
+relabelling. Default-off remains, and #65 is still separate. See
+[scope, migration, verification and limits](docs/incident-isolation-64.md).
+
 **Issue #49 company workload proof — 2026-10-26:** the required kind workflow now
 also exercises Google Online Boutique product catalog from pinned upstream
 v0.10.4. Both Google cases and all seven PR checks passed on code head `73c1fd1`

@@ -1,28 +1,29 @@
 {
   "artifact": "model.joblib",
-  "artifact_bytes": 4456283,
-  "artifact_sha256": "38115467e972fd9498637e33b5a9cfab3f6e08029af8d09f34bb5b707bc45a41",
-  "created_at_unix": 1786902172,
+  "artifact_bytes": 2424029,
+  "artifact_sha256": "5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644",
   "dataset_files": [
     {
-      "bytes": 921463,
-      "path": "/home/home/Documents/work/Projects/Raphael/raphael/data/incident_similarity/incidents.jsonl",
-      "sha256": "faa4b9b1bb62ce1f58922c1655815732600d082a21085f5ad49c4447ec4ece89"
+      "cases": 49,
+      "path": "agent/tests/fixtures/local_inference/incident_similarity.jsonl",
+      "sha256": "6859f93b14fd3453768543b52b2c6a4fd7a237320ecc9a7d1b1593bc42e6a826"
     }
   ],
-  "intended_use": "Retrieve similar validated historical incidents and fix templates.",
+  "format_version": 2,
   "libraries": {
-    "joblib": "1.5.3",
+    "joblib": "1.6.0",
     "numpy": "2.5.2",
-    "scikit_learn": "1.9.0",
-    "scipy": "1.18.0"
+    "scikit-learn": "1.9.0",
+    "scipy": "1.18.1"
   },
   "limitations": [
-    "Retrieval similarity is supporting evidence, not a causal decision.",
-    "The synthetic corpus must be replaced or augmented with validated customer incidents.",
-    "Do not return a fix below minimum_similarity."
+    "Public issue reports and marker-derived labels, not validated customer fixes.",
+    "Four test partitions repeat the same 49 available source reports to exercise overlapping text.",
+    "No implicit public/shared corpus; no claim of production accuracy or rollout."
   ],
   "model_name": "incident_similarity",
-  "python_version": "3.12.3",
-  "training_seconds": 2.361
+  "ownership": "Explicit synthetic test assignments; public source authors are not customer tenants.",
+  "python_version": "3.12",
+  "scope_policy": "Exact tenant/company/client partitions with independently fitted TF-IDF indexes.",
+  "source_verification_sha256": "324bb42fe3d80d7a6eeb20d94605d6f4000f65d79790f0d0a14063902111f26e"
 }

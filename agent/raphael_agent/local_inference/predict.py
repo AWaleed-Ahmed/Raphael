@@ -8,7 +8,8 @@ from typing import Any
 import numpy as np
 from sklearn.preprocessing import normalize
 
-from .artifacts import load_bundle
+from ..incident_scope import IncidentScope, check_scope_hints, require_scope
+from .artifacts import ArtifactUnavailable, load_bundle
 from .features import feature_matrix, stable_text
 from .rules import (
     candidate_evidence_score,
@@ -107,21 +108,45 @@ def rank_candidates(root: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def retrieve_incidents(
-    root: Path, record: dict[str, Any], top_k: int
+    root: Path,
+    record: dict[str, Any],
+    top_k: int,
+    *,
+    scope: IncidentScope | None = None,
 ) -> dict[str, Any]:
+    """Select an authorized index before transformation, scoring or top-k."""
+    verified = require_scope(scope)
+    check_scope_hints(record, verified)
+    authorized = verified.as_dict()
+    if type(top_k) is not int or not 1 <= top_k <= 100:
+        raise ArtifactUnavailable("invalid_similarity_limit")
     bundle = load_bundle(root, "incident_similarity")
-    text = stable_text(record, bundle["text_fields"])
-    query = normalize(bundle["vectorizer"].transform([text]), norm="l2")
-    similarities = np.asarray((query @ bundle["matrix"].T).toarray()[0])
+    partitions = [
+        item for item in bundle["partitions"] if item.get("scope") == authorized
+    ]
+    if len(partitions) != 1:
+        raise ArtifactUnavailable("incident_partition_unavailable")
+    partition = partitions[0]
+    records = partition["records"]
+    if partition["matrix"].shape[0] != len(records) or any(
+        any(item.get(key) != value for key, value in authorized.items())
+        for item in records
+    ):
+        raise ArtifactUnavailable("incident_record_scope_unverified")
+    features = {
+        **record,
+        "evidence_text": record.get("evidence_text") or record.get("summary", ""),
+    }
+    text = stable_text(features, bundle["text_fields"])
+    query = normalize(partition["vectorizer"].transform([text]), norm="l2")
+    similarities = np.asarray((query @ partition["matrix"].T).toarray()[0])
     minimum = float(bundle["minimum_similarity"])
     results = []
     for position in np.argsort(-similarities)[:top_k]:
         score = float(similarities[position])
         if score < minimum:
             continue
-        results.append(
-            {**bundle["records"][int(position)], "similarity": round(score, 6)}
-        )
+        results.append({**records[int(position)], "similarity": round(score, 6)})
     return {
         "results": results,
         "minimum_similarity": minimum,

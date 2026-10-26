@@ -30,6 +30,14 @@
 
 ## Decision log (newest first)
 
+### D-20261026-02 — Bind incident retrieval to operator scope and independent indexes
+- **Status:** implemented candidate; local qualification passed; PR review pending
+- **Date:** 2026-10-26
+- **Decision:** Require an explicit backend `RAPHAEL_AGENT_TENANT_ID` / company / client binding and an exact matching run tenant. Treat payload IDs only as consistency hints. Pass immutable scope separately from model features; require it again at the runtime boundary. Select an exact ownership partition before vectorization, scoring and top-k, with independently fitted TF-IDF statistics and matrices. Ignore wrong-owner or unowned cached similarity hints in candidate ranking.
+- **Why:** Filtering global search output would still allow unauthorized incidents to influence learned text statistics, result selection and downstream ranking. The shared interface bearer is not a tenant JWT; this follows the existing one-company/client-per-backend catalog posture rather than inventing request-based authorization.
+- **Artifact migration:** Replace only the unowned format-1 similarity fixture with release-pinned format 2. Never infer ownership for old rows or authorize a customer-provided pickle. The new corpus uses 49 currently verified public GitHub reports with explicit synthetic test ownership in four partitions. One unavailable source is excluded; there is no implicit public/shared corpus. Existing deployments must ship matching code, manifest and model bytes from one reviewed revision; old or mismatched artifacts refuse.
+- **Consequences:** Missing/conflicting/unverified scope abstains without model-record disclosure; deterministic execution and default-off remain. This qualifies local-index isolation, not Supabase RLS, customer data, accuracy, all-five graph integration (#65), or pilot rollout. See [scope contract and reproducible evidence](docs/incident-isolation-64.md).
+
 ### D-20261026-01 — Qualify image repair on a pinned Google workload and reconcile #49 controls
 - **Status:** accepted; both Google kind cases and all seven PR checks passed on code head `73c1fd1`; evidence retained in the proof record
 - **Date:** 2026-10-26

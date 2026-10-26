@@ -96,7 +96,13 @@ def test_missing_artifacts_fall_back_for_each_capability(monkeypatch, tmp_path, 
     if capability == "rank_candidates":
         result = gateway.rank_candidates(_state(), [{"path": "src/app.py", "line": 1}], [])
     else:
-        result = getattr(gateway, capability)(_state())
+        state = _state()
+        if capability == "similar_incidents":
+            monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", "fixture-tenant-a")
+            monkeypatch.setenv("RAPHAEL_COMPANY_ID", "fixture-company-a")
+            monkeypatch.setenv("RAPHAEL_CLIENT_ID", "fixture-client-a1")
+            state["tenant_id"] = "fixture-tenant-a"
+        result = getattr(gateway, capability)(state)
     assert result is None
     assert model_error(gateway) == "artifact_files_unavailable"
 

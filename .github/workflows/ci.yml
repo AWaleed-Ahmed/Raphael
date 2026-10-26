@@ -28,15 +28,29 @@ jobs:
         working-directory: agent
         run: python -m pytest -q
       - name: Replay real local-inference inputs
+        env:
+          # Explicit test ownership of public records, never production tenants.
+          RAPHAEL_AGENT_TENANT_ID: fixture-tenant-a
+          RAPHAEL_COMPANY_ID: fixture-company-a
+          RAPHAEL_CLIENT_ID: fixture-client-a1
         run: >-
           python agent/scripts/qualify_local_inference.py
           --model-root models --cases-root agent/tests/fixtures/local_inference
           --output local-inference-qualification.json
+      - name: Prove tenant isolation with public incident reports
+        run: >-
+          python agent/scripts/qualify_incident_isolation.py
+          --model-root models
+          --cases agent/tests/fixtures/local_inference/incident_similarity.jsonl
+          --source-verification agent/tests/fixtures/incident_isolation/public-sources.json
+          --output incident-isolation-qualification.json
       - name: Upload local-inference qualification
         uses: actions/upload-artifact@v4
         with:
           name: local-inference-${{ github.sha }}
-          path: local-inference-qualification.json
+          path: |
+            local-inference-qualification.json
+            incident-isolation-qualification.json
       - name: Test dispatch
         working-directory: dispatch
         run: python -m pytest -q

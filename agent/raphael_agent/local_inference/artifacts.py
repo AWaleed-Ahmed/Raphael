@@ -25,9 +25,9 @@ TRUSTED_ARTIFACTS = {
         120859,
     ),
     "incident_similarity": (
-        "3e5f4bed2ebfdad39b07b707c7f97ba8fa7acbf78439c6b8632065b96158917d",
-        "38115467e972fd9498637e33b5a9cfab3f6e08029af8d09f34bb5b707bc45a41",
-        4456283,
+        "8eda85b8a4486165c66e1103f49203ffeb29d04feb9f986da54af8a9fcb68b54",
+        "5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644",
+        2424029,
     ),
     "patch_selector": (
         "b2ee948ca4c4eaf2c8dd9c4bc4e6f42f3bdcaf35841e291305c36fb9605f1c79",
@@ -95,6 +95,8 @@ def _load_bundle(root: Path, name: str) -> dict[str, Any]:
             value = joblib.load(BytesIO(data))
     except Exception as exc:
         raise ArtifactUnavailable("artifact_deserialization_failed") from exc
-    if not isinstance(value, dict) or value.get("format_version") != 1:
+    if not isinstance(value, dict) or value.get("format_version") != (
+        2 if name == "incident_similarity" else 1
+    ):
         raise ArtifactUnavailable("unsupported_artifact_format")
     return value
