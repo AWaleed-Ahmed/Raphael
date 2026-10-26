@@ -20,12 +20,23 @@ jobs:
       - name: Install agent
         run: |
           python -m pip install --require-hashes -r requirements-bootstrap.txt
-          python -m pip install -e agent
+          python -m pip install 'setuptools>=68' wheel
+          python -m pip install -e 'agent[local-inference]'
       - name: Install dispatch
         run: python -m pip install -e dispatch
       - name: Test agent
         working-directory: agent
         run: python -m pytest -q
+      - name: Replay real local-inference inputs
+        run: >-
+          python agent/scripts/qualify_local_inference.py
+          --model-root models --cases-root agent/tests/fixtures/local_inference
+          --output local-inference-qualification.json
+      - name: Upload local-inference qualification
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-inference-${{ github.sha }}
+          path: local-inference-qualification.json
       - name: Test dispatch
         working-directory: dispatch
         run: python -m pytest -q

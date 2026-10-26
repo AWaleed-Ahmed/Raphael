@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-import raphael_agent.model_gateway as model_gateway
 from raphael_agent.model_gateway import ModelGateway, model_error
 
 
@@ -91,16 +90,15 @@ def test_patch_input_adapter_selects_bounded_template(monkeypatch):
 @pytest.mark.parametrize("capability", [
     "classify_failure", "trace_anomaly", "similar_incidents", "rank_candidates", "select_patch",
 ])
-def test_missing_runtime_falls_back_for_each_capability(monkeypatch, tmp_path, capability):
+def test_missing_artifacts_fall_back_for_each_capability(monkeypatch, tmp_path, capability):
     monkeypatch.setenv("RAPHAEL_MODEL_ENABLED", "1")
-    monkeypatch.setattr(model_gateway, "MODEL_SCRIPT", tmp_path / "missing_predict.py")
-    gateway = ModelGateway()
+    gateway = ModelGateway(model_root=tmp_path)
     if capability == "rank_candidates":
         result = gateway.rank_candidates(_state(), [{"path": "src/app.py", "line": 1}], [])
     else:
         result = getattr(gateway, capability)(_state())
     assert result is None
-    assert model_error(gateway) == "predict_script_missing:raphael/model/predict.py is not packaged"
+    assert model_error(gateway) == "artifact_files_unavailable"
 
 
 def test_disabled_trace_status_is_recorded_by_graph(monkeypatch):
