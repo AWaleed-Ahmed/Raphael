@@ -2,7 +2,7 @@
 
 Date: 2026-10-27. Status: proposed implementation plan; no partner/environment has been authorized by this document.
 Tracking: #78 checkpoints **17–21**.
-Prerequisites: [Phase 1](phase-1-data-and-acceptance.md), [Phase 2](phase-2-model-evaluation.md), [Phase 3](phase-3-runtime-reliability.md), [Phase 4](phase-4-operations-and-rollback.md).
+Prerequisites: [Phase 1](phase-1-data-and-acceptance.md), [Phase 2](phase-2-model-evaluation.md), Phase 3 runtime qualification, [Phase 4](phase-4-operations-and-rollback.md).
 
 ## Goal and evidence boundary
 

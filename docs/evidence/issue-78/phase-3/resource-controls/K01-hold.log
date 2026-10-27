@@ -1,7 +1,0 @@
-Running as unit: raphael-phase3-control-1acf08cd0d.service; invocation ID: c46248653c4a4dc98402a62fae9b3673
-Finished with result: signal
-Main processes terminated with: code=killed/status=KILL
-Service runtime: 944ms
-CPU time consumed: 944ms
-Memory peak: 512.0K
-Memory swap peak: 0B

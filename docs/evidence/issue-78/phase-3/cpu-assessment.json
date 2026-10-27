@@ -1,9 +1,0 @@
-{
-  "average_logical_cores_used": 0.06901793003031712,
-  "boundary": "cgroup counter difference between first and last steady samples; includes benchmark and worker threads, excludes warmup and final quantile aggregation; not a cloud billing quote",
-  "completed_jobs_between_samples": 28784,
-  "cpu_seconds": 496.860385,
-  "fraction_of_two_core_quota": 0.03450896501515856,
-  "sample_interval_seconds": 7199.004443943,
-  "throttled_seconds": 0.0
-}

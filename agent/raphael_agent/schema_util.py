@@ -47,19 +47,9 @@ def schema_registry() -> Registry:
         for path in directory.glob("*.json"):
             contents = _load_json(path)
             uri = contents.get("$id") or path.as_uri()
-            resources.append(
-                (
-                    uri,
-                    Resource.from_contents(contents, default_specification=DRAFT202012),
-                )
-            )
+            resources.append((uri, Resource.from_contents(contents, default_specification=DRAFT202012)))
             # Also register by file URI so relative ../sandbox/... refs resolve.
-            resources.append(
-                (
-                    path.as_uri(),
-                    Resource.from_contents(contents, default_specification=DRAFT202012),
-                )
-            )
+            resources.append((path.as_uri(), Resource.from_contents(contents, default_specification=DRAFT202012)))
     registry: Registry = Registry()
     for uri, resource in resources:
         registry = registry.with_resource(uri, resource)
@@ -78,9 +68,7 @@ def validate_against(schema: dict[str, Any], instance: Any) -> None:
     """Validate instance; raises jsonschema.ValidationError on failure."""
     schema_id = schema.get("$id")
     if schema_id:
-        Draft202012Validator({"$ref": schema_id}, registry=schema_registry()).validate(
-            instance
-        )
+        Draft202012Validator({"$ref": schema_id}, registry=schema_registry()).validate(instance)
     else:
         Draft202012Validator(schema, registry=schema_registry()).validate(instance)
 

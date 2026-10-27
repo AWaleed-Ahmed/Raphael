@@ -1,7 +1,0 @@
-Running as unit: raphael-phase3-control-4266adb1c6.service; invocation ID: 70ca0d9f8b364e30ab8da61f8167a3ca
-Finished with result: oom-kill
-Main processes terminated with: code=killed/status=KILL
-Service runtime: 926ms
-CPU time consumed: 926ms
-Memory peak: 256.0K
-Memory swap peak: 0B

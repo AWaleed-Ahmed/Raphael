@@ -2,7 +2,7 @@
 
 Date: 2026-10-27. Status: proposed implementation plan.
 Tracking: #78 checkpoints **14–16**.
-Prerequisites: [Phase 2](phase-2-model-evaluation.md), [Phase 3](phase-3-runtime-reliability.md). Next: [Phase 5](phase-5-shadow-pilot-and-decision.md).
+Prerequisites: [Phase 2](phase-2-model-evaluation.md), Phase 3 runtime qualification. Next: [Phase 5](phase-5-shadow-pilot-and-decision.md).
 
 ## Goal
 
