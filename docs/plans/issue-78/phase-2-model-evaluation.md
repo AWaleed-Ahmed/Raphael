@@ -1,6 +1,7 @@
 # Phase 2 — Model evaluation and supported repair validation
 
-Date: 2026-10-27. Status: proposed implementation plan.
+Date: 2026-10-27. Status: development replay implemented; final acceptance pending.
+Execution: [Phase 2 development report](../../model-readiness-phase-2.md).
 Tracking: #78 checkpoints **5–9**, evaluated through #66.
 Prerequisite: [Phase 1](phase-1-data-and-acceptance.md); next: [Phase 3](phase-3-runtime-reliability.md).
 
