@@ -20,6 +20,7 @@ def test_clean_installed_runtime_outside_repository(tmp_path: Path) -> None:
         source / "raphael_agent",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
+    shutil.copytree(ROOT / "contracts", tmp_path / "contracts")
     target = tmp_path / "installed"
     subprocess.run(
         [
@@ -39,8 +40,15 @@ def test_clean_installed_runtime_outside_repository(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
+    # Wheel installation must preserve every public contract byte, including refs.
+    for family in ("agent", "sandbox"):
+        for original in (ROOT / "contracts" / family).glob("*.json"):
+            assert (
+                target / "share/raphael/contracts" / family / original.name
+            ).read_bytes() == original.read_bytes()
     # Destroy the build source so an accidental editable/source import cannot pass.
     shutil.rmtree(source)
+    shutil.rmtree(tmp_path / "contracts")
     shutil.copytree(ROOT / "models", tmp_path / "deployment-models")
     shutil.copytree(
         Path(__file__).parent / "fixtures" / "local_inference", tmp_path / "cases"
@@ -62,6 +70,17 @@ from raphael_agent.model_gateway import ModelGateway, model_error
 from raphael_agent.local_inference import predict
 from raphael_agent.incident_scope import configured_scope
 assert pathlib.Path(predict.__file__).is_relative_to(pathlib.Path("installed").resolve())
+from raphael_agent.schema_util import CONTRACTS_ROOT, validate_agent
+assert CONTRACTS_ROOT.is_relative_to(pathlib.Path("installed").resolve())
+# A schema lookup must succeed after both checkout/build sources are removed.
+try:
+    validate_agent("fault_candidate.json", {})
+except Exception as exc:
+    from jsonschema import ValidationError
+    assert isinstance(exc, ValidationError), type(exc).__name__
+else:
+    raise AssertionError("installed schema accepted an invalid candidate")
+
 gateway = ModelGateway()
 assert not gateway.enabled
 assert gateway.classify_failure({}) is None

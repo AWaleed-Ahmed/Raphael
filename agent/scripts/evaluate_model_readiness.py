@@ -391,9 +391,17 @@ def predict(cache: Path, output: Path) -> dict[str, Any]:
 
 
 def validate_predictions(
-    directory: Path, manifest: dict[str, Any], protocol: dict[str, Any]
+    directory: Path,
+    manifest: dict[str, Any],
+    protocol: dict[str, Any],
+    *,
+    require_current_sources: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Reject altered files, missing/duplicate arms or unpaired input contexts."""
+    """Reject altered evidence and unpaired contexts.
+
+    Historical audits may validate the sealed dataset without certifying the
+    current runtime. New scoring always requires current source hashes.
+    """
     seal = json.loads((directory / "seal.json").read_text())
     if (
         seal["predictions_sha256"] != digest_file(directory / "predictions.jsonl")
@@ -401,13 +409,19 @@ def validate_predictions(
         or seal["protocol_sha256"] != canonical_digest(protocol)
         or seal["production_baseline"] != protocol["baseline"]
         or seal["policy"] != protocol["policy"]
-        or seal["runtime_sources"]
-        != {
-            p.relative_to(ROOT).as_posix(): digest_file(p)
-            for p in sorted((ROOT / "agent/raphael_agent").rglob("*.py"))
-        }
+        or (
+            require_current_sources
+            and (
+                seal["runtime_sources"]
+                != {
+                    p.relative_to(ROOT).as_posix(): digest_file(p)
+                    for p in sorted((ROOT / "agent/raphael_agent").rglob("*.py"))
+                }
+                or seal["verifier_sources"]
+                != {p: digest_file(ROOT / p) for p in SOURCE_PATHS}
+            )
+        )
         or seal["reproductions_sha256"] != digest_file(REPRODUCTIONS)
-        or seal["verifier_sources"] != {p: digest_file(ROOT / p) for p in SOURCE_PATHS}
     ):
         raise ReadinessError("prediction_seal_mismatch")
     rows = [

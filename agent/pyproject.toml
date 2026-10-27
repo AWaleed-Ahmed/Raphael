@@ -51,3 +51,7 @@ pythonpath = ["."]
 markers = [
   "kind: exercises live sandbox controller (kind cluster on RAPHAEL_SANDBOX_URL)",
 ]
+
+[tool.setuptools.data-files]
+"share/raphael/contracts/agent" = ["../contracts/agent/*.json"]
+"share/raphael/contracts/sandbox" = ["../contracts/sandbox/*.json"]
