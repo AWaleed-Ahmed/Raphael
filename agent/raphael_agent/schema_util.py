@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,24 @@ from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONTRACTS_ROOT = REPO_ROOT / "contracts"
+# Wheels install shared contracts under the environment prefix; pip --target
+# puts them beside the imported package. Only a real source checkout uses the
+# repository-relative directory.
+_PACKAGE = Path(__file__).resolve().parent
+_CONTRACT_LOCATIONS = [
+    _PACKAGE.parent / "share" / "raphael" / "contracts",
+    Path(sys.prefix) / "share" / "raphael" / "contracts",
+]
+if (REPO_ROOT / "agent" / "raphael_agent").resolve() == _PACKAGE:
+    _CONTRACT_LOCATIONS.insert(0, REPO_ROOT / "contracts")
+CONTRACTS_ROOT = next(
+    (
+        root
+        for root in _CONTRACT_LOCATIONS
+        if (root / "agent").is_dir() and (root / "sandbox").is_dir()
+    ),
+    _CONTRACT_LOCATIONS[0],
+)
 AGENT_CONTRACTS = CONTRACTS_ROOT / "agent"
 SANDBOX_CONTRACTS = CONTRACTS_ROOT / "sandbox"
 
