@@ -1,0 +1,11 @@
+{
+  "exit_code": 2,
+  "summary": {
+    "status": "prepared_not_scored",
+    "cases": 12,
+    "paired_jobs": 24,
+    "predictions": 0,
+    "final_freeze_blockers": 51
+  },
+  "meaning": "Expected refusal of unreviewed/undersized final dataset; not an evaluation failure or production-readiness approval."
+}

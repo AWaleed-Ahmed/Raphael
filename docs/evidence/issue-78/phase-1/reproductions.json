@@ -1,0 +1,99 @@
+[
+  {
+    "case_id": "B01",
+    "command": [
+      "<legacy-python-3.8.20>",
+      "-m",
+      "unittest",
+      "-q",
+      "tornado.test.websocket_test.WebSocketTest.test_nodelay"
+    ],
+    "environment_deviation": "Compatibility replay, not exact historical interpreter reproduction.",
+    "historical_python": "3.7.0",
+    "local_transcript_sha256": "77d55a115c112759c287463aee7118bff9fda32ff8fc5415ebb58ab30aa6ae51",
+    "python": "3.8.20",
+    "runs": [
+      {
+        "exit_code": 1,
+        "log_sha256": "6325a055371c9d510df4ae5e71037fc50de130c6491a5a0f237027dd284dc836",
+        "mode": "buggy"
+      },
+      {
+        "exit_code": 0,
+        "log_sha256": "9d90f78102df533913a53da4d5b61485561b7980010eb5ef9d3a975ff0283742",
+        "mode": "fixed"
+      }
+    ],
+    "source_artifacts": {
+      "B01/buggy-source.tar.gz": "ee41fd6dd6a2d33447f6089e2cc1611b97f0bb3ee857abf0f4613f302c5ea84d",
+      "B01/fixed-source.tar.gz": "bb094e64afe77f97684b149d1e13686d32e60817ac2067d021ce52363c15393e"
+    },
+    "test_overlay": "Unmodified fixed-revision test file over buggy tree, as upstream BugsInPy checkout does.",
+    "test_sha256": "9678331d294b7ef3137ddbca0a94c73c16366b04112cefdeacae42380c00fb53"
+  },
+  {
+    "case_id": "B02",
+    "command": [
+      "<legacy-python-3.8.20>",
+      "-m",
+      "pytest",
+      "-q",
+      "pandas/tests/dtypes/test_dtypes.py::TestCategoricalDtype::test_not_string"
+    ],
+    "environment_deviation": "Compatibility replay; GCC 13 with CFLAGS=-Wno-error=array-bounds to compile historical Cython output. No library-source change.",
+    "historical_python": "3.8.3",
+    "local_transcript_sha256": "ff792c433316451df17d8e9a9e1c4cd7bc9ac9a2a1c7caeadb2144c4cf7e7161",
+    "python": "3.8.20",
+    "runs": [
+      {
+        "exit_code": 1,
+        "log_sha256": "5a9184f0f5afc0d869133d69d28b2aa5bbd0d47ad0634251cb6622669ede1559",
+        "mode": "buggy"
+      },
+      {
+        "exit_code": 0,
+        "log_sha256": "3be6ffcaecf85b5bd3eef3693ab214b0e7c9eb4e36d117fcf1825652de5eb298",
+        "mode": "fixed"
+      }
+    ],
+    "source_artifacts": {
+      "B02/buggy-source.tar.gz": "e29e5532f7576c224b6eb8a6cb1fe29fcbd6da49c0288514603997ad77199305",
+      "B02/fixed-source.tar.gz": "f0fc4279e5ccc2e8df803b5fa396cb5463ddfa142ed906769fdc35eb288c7c24"
+    },
+    "test_overlay": "Unmodified fixed-revision test file over buggy tree, as upstream BugsInPy checkout does.",
+    "test_sha256": "83b84f5bb0dcf7994a8ceeba8ecabb4356a70884c41f71a116f0d1ac44f08bd5"
+  },
+  {
+    "case_id": "B03",
+    "command": [
+      "<legacy-python-3.8.20>",
+      "-m",
+      "unittest",
+      "-q",
+      "tests.test_spidermiddleware_offsite.TestOffsiteMiddleware4._get_spiderargs",
+      "tests.test_spidermiddleware_offsite.TestOffsiteMiddleware4.test_process_spider_output"
+    ],
+    "environment_deviation": "Compatibility replay; Linux subset of historical dependency set (Windows-only requirements omitted).",
+    "historical_python": "3.8.3",
+    "local_transcript_sha256": "706fb735d007dc74ac7adc6136c073c941a10ae78c3752f8d811e31d99a63a96",
+    "python": "3.8.20",
+    "runs": [
+      {
+        "exit_code": 1,
+        "log_sha256": "bb4cbb733bb72b24ac2a67ec75681918371452c53e06fe1e444cbd3344d5a196",
+        "mode": "buggy"
+      },
+      {
+        "exit_code": 0,
+        "log_sha256": "f13f1a7558915c3af101959eb939c18fa9ae294577d091281dbe2870f0b02464",
+        "mode": "fixed"
+      }
+    ],
+    "source_artifacts": {
+      "B03/buggy-source.tar.gz": "2281b8411eb1f5563e7d40071cf0ec9fea86e45bd33beae60cd6261dd091c602",
+      "B03/fixed-source.tar.gz": "420b6a1d27adc739b645859668661b79861fe6261064e651b8630a1aa691206e"
+    },
+    "test_overlay": "Unmodified fixed-revision test file over buggy tree, as upstream BugsInPy checkout does.",
+    "test_sha256": "8613733941e8a2b68221d10f9964625e52e5d1bf7f35f8daf7e3d0d92516200c"
+  }
+]
