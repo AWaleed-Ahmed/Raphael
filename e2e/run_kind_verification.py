@@ -109,7 +109,12 @@ def verify_case(label, result, records, initial_pod, final_ready, expected_image
         assert state.get("sandbox_backend") not in {None, "", "mock"}
         assert evidence["observed_signature"]["class"] == "healthy"
         assert evidence["observed_signature"]["reproduced"] is False
-        assert result["final_status"] == "escalated" and state["terminal_reason"] == "low_confidence"
+        # A Ready workload may retain a failed startup probe event. Diagnosis
+        # or the observed non-reproduction gate must stop it before patching.
+        assert result["final_status"] == "escalated"
+        assert state["terminal_reason"] in {"low_confidence", "reproduction_failed"}
+        if state["terminal_reason"] == "reproduction_failed":
+            assert (state.get("reproduction_result") or {}).get("reproduced") is False
         assert not state.get("candidate_patches") and not state.get("pull_request_url")
         assert not evidence["patch_files"] and evidence["validation"] is None
         assert result["terminal"]["payload"]["instructions"] == "discard_local_copy"

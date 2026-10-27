@@ -1,0 +1,9 @@
+{
+  "artifact": "https://github.com/AWaleed-Ahmed/Raphael/actions/runs/40486187307/artifacts/12725790948",
+  "control": "owned disposable-kind operational control; not a historical accuracy case",
+  "files": {
+    "initial-pod.json": "ef25f94661ca6031d3edf91db62a14be224c65b606f8f0894928d30f4f067783",
+    "runner-result.json": "86ff38c51d2220ddf18bc5fe5e755ae50426abddf4ad05d844c221d82cf4c4f7",
+    "trace.jsonl": "da478ec3feb9163c75111142b45ab34770d663d3bb05eb4be7765bbe1384b73a"
+  }
+}

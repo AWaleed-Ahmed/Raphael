@@ -251,3 +251,21 @@ class WorkloadIdentityTests(unittest.TestCase):
         evidence["observed_signature"]["class"] = "bad_image_reference"
         with patch.object(proof, "trace_evidence", return_value=evidence), self.assertRaises(AssertionError):
             proof.verify_case("healthy-sentinel", result, [], initial, True)
+
+    def test_recorded_ready_workload_with_startup_probe_event(self):
+        # Authentic hosted Kubernetes trace: a Ready pod retains a startup event.
+        root = Path(__file__).resolve().parents[1] / "docs/evidence/issue-78/phase-3/ci-healthy-startup"
+        result = json.loads((root / "runner-result.json").read_text())
+        records = proof.trace_records(root / "trace.jsonl")
+        initial = json.loads((root / "initial-pod.json").read_text())
+        self.assertEqual(result["run_state"]["terminal_reason"], "reproduction_failed")
+        proof.verify_case("healthy-sentinel", result, records, initial, True)
+        for invalid in ("budget_exhausted", "patch_value_unavailable"):
+            with self.subTest(reason=invalid):
+                result["run_state"]["terminal_reason"] = invalid
+                with self.assertRaises(AssertionError):
+                    proof.verify_case("healthy-sentinel", result, records, initial, True)
+        result["run_state"]["terminal_reason"] = "reproduction_failed"
+        result["run_state"]["reproduction_result"]["reproduced"] = True
+        with self.assertRaises(AssertionError):
+            proof.verify_case("healthy-sentinel", result, records, initial, True)

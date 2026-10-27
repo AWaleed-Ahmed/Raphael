@@ -1,0 +1,388 @@
+{
+  "dispatch_log": "/home/runner/work/Raphael/Raphael/e2e/kind-remediation-out/healthy-sentinel/dispatch.log",
+  "elapsed_seconds": 4.005987882614136,
+  "final_status": "escalated",
+  "ignis_log": "/home/runner/work/Raphael/Raphael/e2e/kind-remediation-out/healthy-sentinel/ignis.log",
+  "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+  "run_state": {
+    "active_patch_id": null,
+    "affected_resources": [],
+    "attempt_count": {
+      "diagnosis": 1,
+      "patch": 0
+    },
+    "audit_events": [
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "event": "enter",
+        "node": "diagnose"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "detail": "capability=failure_classifier source=disabled learned_execution=False",
+        "event": "model_execution",
+        "node": "diagnose"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "detail": "selected=hyp-probe-port conf=0.86",
+        "event": "ranked",
+        "node": "diagnose"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "event": "enter",
+        "node": "localize"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "event": "enter",
+        "node": "patch"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "detail": "source=derived",
+        "event": "fix_rules",
+        "node": "patch"
+      },
+      {
+        "at": "2026-10-27T10:14:04Z",
+        "detail": "reproduction_failed",
+        "event": "escalated",
+        "node": "patch"
+      }
+    ],
+    "audit_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+    "budget_snapshot": {
+      "deadline_at": "2026-10-27T10:24:00Z",
+      "max_cost_usd": 0.0,
+      "max_diagnosis_attempts": 2,
+      "max_patch_attempts": 3,
+      "max_wall_seconds": 600,
+      "sandbox_http_timeout_seconds": 180.0
+    },
+    "candidate_patches": [],
+    "changed_diff_hunks": [],
+    "client_id": null,
+    "client_name": null,
+    "commit_sha": "3f14f89b1d8ae1953730337e3c6e29ad93424b8d",
+    "company_id": null,
+    "correlation": null,
+    "created_at": "2026-10-27T10:14:00Z",
+    "current_node": "patch",
+    "delivery_mode": "draft_pr",
+    "diagnosis": {
+      "analyzer": {
+        "mode": "deterministic",
+        "name": "evidence_probe",
+        "version": "0.2.0"
+      },
+      "classification": {
+        "blocked_reason": null,
+        "category": "supported",
+        "failure_class": "probe_misconfiguration"
+      },
+      "confidence": 0.86,
+      "confidence_threshold": 0.7,
+      "diagnosed_at": "2026-10-27T10:14:04Z",
+      "hypotheses": [
+        {
+          "candidate_fix_hint": "deploy/manifests readinessProbe.port",
+          "confidence": 0.86,
+          "contradicting_evidence_ids": [],
+          "expected_signature_key": null,
+          "failure_class": "probe_misconfiguration",
+          "hypothesis_id": "hyp-probe-port",
+          "rank": 1,
+          "statement": "Readiness/liveness probe misconfiguration indicated by evidence",
+          "supporting_evidence_ids": [
+            "job-context:4622ffca-254d-46fa-a743-954cd82e7ca5",
+            "rendered-file:4622ffca-254d-46fa-a743-954cd82e7ca5:0",
+            "connector-result:1273c435-8027-4558-bdb9-afe819c4df31"
+          ]
+        }
+      ],
+      "notes": "Deterministic analyzers only",
+      "selected_hypothesis_id": "hyp-probe-port",
+      "supporting_evidence_ids": [
+        "job-context:4622ffca-254d-46fa-a743-954cd82e7ca5",
+        "rendered-file:4622ffca-254d-46fa-a743-954cd82e7ca5:0",
+        "connector-result:1273c435-8027-4558-bdb9-afe819c4df31"
+      ]
+    },
+    "diagnosis_only": false,
+    "dispatch": {
+      "claim": {
+        "action_deadline_at": "2026-10-27T10:24:00Z",
+        "action_id": "1273c435-8027-4558-bdb9-afe819c4df31",
+        "claim_id": "719702d9-a42c-490d-abf3-26bedcca6e3f",
+        "connector_id": "2ec720f7878dd3460b74ce97bdef83ae5ed272fa90e8e607d3a809f0afd47c6f",
+        "job_deadline_at": "2026-10-27T10:24:00Z",
+        "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+        "lease_expires_at": "2026-10-27T10:24:00Z",
+        "lease_ttl_seconds": 600,
+        "renewal_sequence": 0
+      },
+      "last_activity_at": "2026-10-27T10:14:04.093509Z",
+      "lease_ttl_seconds": 600,
+      "pending_action": null,
+      "processed_actions": {
+        "1273c435-8027-4558-bdb9-afe819c4df31": {
+          "at": "2026-10-27T10:14:04.102633Z",
+          "claim_id": "719702d9-a42c-490d-abf3-26bedcca6e3f",
+          "connector_id": "2ec720f7878dd3460b74ce97bdef83ae5ed272fa90e8e607d3a809f0afd47c6f",
+          "fingerprint": "809710f30efee4ba6f3c7dc6bf38b88e4f974c05204334b59d3c5b2990028de0"
+        },
+        "d7d673e8-8b43-4042-9889-8cd445a42cde": {
+          "at": "2026-10-27T10:14:00.969359Z",
+          "claim_id": "9d746217-74f7-445c-9815-9240aea7686a",
+          "connector_id": "2ec720f7878dd3460b74ce97bdef83ae5ed272fa90e8e607d3a809f0afd47c6f",
+          "fingerprint": "37282e1cf901b68b670a6c7a7fac4c7845d03567d70af190700cf2e19d9a2d4d"
+        },
+        "f06eda7a-90cd-428e-b0c8-e72e62351ee5": {
+          "at": "2026-10-27T10:14:03.872065Z",
+          "claim_id": "06be0347-91ee-4a6f-8562-fd87ed62d7bf",
+          "connector_id": "2ec720f7878dd3460b74ce97bdef83ae5ed272fa90e8e607d3a809f0afd47c6f",
+          "fingerprint": "363326fa88da0d82a47bb55d87fe11d553635b6353125e25070c343f512c77ff"
+        }
+      },
+      "requires_patch_input": true,
+      "stage": "terminal",
+      "terminal_message": {
+        "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+        "kind": "terminal",
+        "message_id": "af24ba5a-0e7c-445c-ad94-c895086c366c",
+        "payload": {
+          "final_status": "escalated",
+          "instructions": "discard_local_copy",
+          "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5"
+        },
+        "protocol_version": "1.0",
+        "sent_at": "2026-10-27T10:14:04.102206Z"
+      }
+    },
+    "errors": [],
+    "escalation_report": {
+      "attempts": [
+        {
+          "detail": "connector observation received",
+          "kind": "reproduce",
+          "status": "failed"
+        }
+      ],
+      "escalated_at": "2026-10-27T10:14:04Z",
+      "evidence_ids": [
+        "job-context:4622ffca-254d-46fa-a743-954cd82e7ca5",
+        "rendered-file:4622ffca-254d-46fa-a743-954cd82e7ca5:0",
+        "connector-result:1273c435-8027-4558-bdb9-afe819c4df31"
+      ],
+      "hypotheses_considered": [
+        {
+          "confidence": 0.86,
+          "hypothesis_id": "hyp-probe-port",
+          "statement": "Readiness/liveness probe misconfiguration indicated by evidence"
+        }
+      ],
+      "reason_code": "reproduction_failed",
+      "recommended_next_checks": [
+        "Inspect sandbox fidelity gaps",
+        "Confirm workload manifests in the fixture workspace"
+      ],
+      "result_id": null,
+      "sandbox_id": "sb-1af11738e778",
+      "summary": "Failure signature was not reproduced in sandbox",
+      "what_happened": "Reproduce node did not observe a reproduced failure signature",
+      "why_no_fix": "Cannot propose a validated fix without reproduction"
+    },
+    "evidence": [
+      {
+        "collected_at": "2026-10-27T10:14:00.137227Z",
+        "evidence_id": "job-context:4622ffca-254d-46fa-a743-954cd82e7ca5",
+        "kind": "other",
+        "provenance": {
+          "collector": "dispatch",
+          "query": "connector job context"
+        },
+        "redacted": false,
+        "source": {
+          "ref": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+          "system": "other"
+        },
+        "summary": "narrowed_location={\"file_path\": \"deploy/manifests/app.yaml\"}"
+      },
+      {
+        "collected_at": "2026-10-27T10:14:03.871387Z",
+        "content_excerpt": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      containers:\n        - name: api\n          image: hashicorp/http-echo:missing-healthy-proof\n          imagePullPolicy: Never\n          args: [\"-listen=:8080\", \"-text=healthy\"]\n          ports:\n            - containerPort: 8080\n          readinessProbe:\n            httpGet:\n              path: /\n              port: 8080\n            periodSeconds: 1\n          livenessProbe:\n            httpGet:\n              path: /\n              port: 8080\n            initialDelaySeconds: 30\n            periodSeconds: 2\n          resources:\n            requests:\n              cpu: 10m\n              memory: 8Mi\n            limits:\n              cpu: 100m\n              memory: 32Mi\n",
+        "evidence_id": "rendered-file:4622ffca-254d-46fa-a743-954cd82e7ca5:0",
+        "kind": "manifest",
+        "provenance": {
+          "collector": "dispatch",
+          "query": "deploy_revision rendered_files"
+        },
+        "redacted": false,
+        "source": {
+          "ref": "deploy/manifests/app.yaml",
+          "system": "sandbox"
+        },
+        "summary": "Rendered manifest: deploy/manifests/app.yaml"
+      },
+      {
+        "evidence_id": "connector-result:1273c435-8027-4558-bdb9-afe819c4df31",
+        "kind": "artifact",
+        "provenance": {},
+        "redacted": true,
+        "source": {},
+        "summary": "{\"artifact_ids\": [\"artifact-01dc5070-4a63-44c8-8166-6bad15702ce5\", \"artifact-dbd93de8-7b9d-4d9d-988e-1fcf3562dfdc\", \"event-0\", \"event-1\", \"event-2\", \"event-3\", \"event-4\", \"event-5\", \"event-6\", \"pod-0\"], \"fidelity\": {\"checklist\": {\"dependencies_available\": true, \"equivalent_k8s_semantics\": true, \"equivalent_non_secret_config\": \"[REDACTED]\", \"same_commit\": true, \"same_image_digest_or_tag\": true, \"same_render_path\": true}, \"material_gaps\": [], \"score\": 1.0, \"secret_coverage\": {\"complete\": true, \"format_version\": 1, \"references\": [], \"truncated\": false}}, \"sandbox_id\": \"sb-1af11738e778\", \"signature\": {\"class\": \"healthy\", \"confidence\": 0.8, \"evidence_refs\": [{\"excerpt\": \"Scheduled: Successfully assigned raphael-run-4622ffca-254d-46fa-a743-954cd82e7ca5/payments-api-54689d9c5d-chbvm to raphael-remediation-proof-control-plane\", \"id\": \"event-0\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"Pulled: Container image \\\"hashicorp/http-echo:missing-healthy-proof\\\" already present on machine and can be accessed by the pod\", \"id\": \"event-1\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"Created: Container created\", \"id\": \"event-2\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"Started: Container started\", \"id\": \"event-3\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"Unhealthy: Readiness probe failed: Get \\\"[redacted] dial tcp 10.244.0.11:8080: connect: connection refused\", \"id\": \"event-4\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"SuccessfulCreate: Created pod: payments-api-54689d9c5d-chbvm\", \"id\": \"event-5\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"ScalingReplicaSet: Scaled up replica set payments-api-54689d9c5d from 0 to 1\", \"id\": \"event-6\", \"kind\": \"k8s_event\"}, {\"excerpt\": \"payments-api-54689d9c5d-chbvm phase=Running\", \"id\": \"pod-0\", \"kind\": \"pod_status\"}], \"key\": \"healthy\", \"normalized\": {\"message\": \"all containers ready\", \"reason\": \"Healthy\", \"resource_kind\": \"Pod\", \"resource_name\": \"payments-api-54689d9c5d-chbvm\"}, \"observed_at\": \"2026-10-27T10:14:03.977545955Z\", \"reproduced\": false, \"summary\": \"healthy\"}}"
+      }
+    ],
+    "failure_fingerprint": null,
+    "failure_signature": {
+      "class": "healthy",
+      "confidence": 0.8,
+      "evidence_refs": [
+        {
+          "excerpt": "Scheduled: Successfully assigned raphael-run-4622ffca-254d-46fa-a743-954cd82e7ca5/payments-api-54689d9c5d-chbvm to raphael-remediation-proof-control-plane",
+          "id": "event-0",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "Pulled: Container image \"hashicorp/http-echo:missing-healthy-proof\" already present on machine and can be accessed by the pod",
+          "id": "event-1",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "Created: Container created",
+          "id": "event-2",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "Started: Container started",
+          "id": "event-3",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "Unhealthy: Readiness probe failed: Get \"[redacted] dial tcp 10.244.0.11:8080: connect: connection refused",
+          "id": "event-4",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "SuccessfulCreate: Created pod: payments-api-54689d9c5d-chbvm",
+          "id": "event-5",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "ScalingReplicaSet: Scaled up replica set payments-api-54689d9c5d from 0 to 1",
+          "id": "event-6",
+          "kind": "k8s_event"
+        },
+        {
+          "excerpt": "payments-api-54689d9c5d-chbvm phase=Running",
+          "id": "pod-0",
+          "kind": "pod_status"
+        }
+      ],
+      "key": "healthy",
+      "normalized": {
+        "message": "all containers ready",
+        "reason": "Healthy",
+        "resource_kind": "Pod",
+        "resource_name": "payments-api-54689d9c5d-chbvm"
+      },
+      "observed_at": "2026-10-27T10:14:03.977545955Z",
+      "reproduced": false,
+      "summary": "healthy"
+    },
+    "fault_candidates": [],
+    "fix_rules": {
+      "created_at": "2026-10-27T10:14:04Z",
+      "must": [],
+      "must_not": [
+        "Do not introduce secrets or credentials",
+        "Do not modify files outside writable_path_prefixes"
+      ],
+      "notes": "No repo rule files found; using global patch allowlist only",
+      "source": "derived",
+      "source_paths": [],
+      "test_commands": [],
+      "writable_path_prefixes": [
+        "deploy/",
+        "k8s/",
+        "kubernetes/",
+        "manifests/",
+        "charts/",
+        "helm/",
+        "overlays/",
+        ".github/workflows/"
+      ]
+    },
+    "healthy_trace_comparisons": [],
+    "localization_result": {
+      "reason": "catalog_disabled",
+      "status": "skipped"
+    },
+    "manifests": null,
+    "model_results": {
+      "failure_classifier": {
+        "available": false,
+        "reason": "disabled_by_environment"
+      }
+    },
+    "narrowed_location": {
+      "file_path": "deploy/manifests/app.yaml"
+    },
+    "policy_decisions": [],
+    "pull_request_url": null,
+    "redaction_report": null,
+    "repository": {
+      "clone_url": "file:///tmp/remediation-source-thel2_kh/proof-source/healthy-sentinel",
+      "name": "raphael-e2e-fixture",
+      "owner": "proof-source"
+    },
+    "reproduction_result": {
+      "message": "connector observation received",
+      "reproduced": false,
+      "signature_key": "healthy"
+    },
+    "result_id": null,
+    "run_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+    "runtime_observation": null,
+    "sandbox_backend": "kubectl",
+    "sandbox_id": "sb-1af11738e778",
+    "sandbox_mode": "connector",
+    "secret_coverage": {
+      "complete": true,
+      "format_version": 1,
+      "references": [],
+      "truncated": false
+    },
+    "status": "escalated",
+    "target_environment": null,
+    "tenant_id": "real-test",
+    "terminal_reason": "reproduction_failed",
+    "token_and_cost_usage": {
+      "estimated_cost_usd": 0.0,
+      "model_tokens": 0
+    },
+    "trigger": {
+      "kind": "connector_job",
+      "received_at": "2026-10-27T10:14:00.137121Z"
+    },
+    "updated_at": "2026-10-27T10:14:04.103229Z",
+    "validation_results": [],
+    "workspace_path": null
+  },
+  "status": "terminal",
+  "terminal": {
+    "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5",
+    "kind": "terminal",
+    "message_id": "af24ba5a-0e7c-445c-ad94-c895086c366c",
+    "payload": {
+      "final_status": "escalated",
+      "instructions": "discard_local_copy",
+      "job_id": "4622ffca-254d-46fa-a743-954cd82e7ca5"
+    },
+    "protocol_version": "1.0",
+    "sent_at": "2026-10-27T10:14:04.102206Z"
+  },
+  "trace_file": "/home/runner/work/Raphael/Raphael/e2e/kind-remediation-out/healthy-sentinel/trace.jsonl"
+}
