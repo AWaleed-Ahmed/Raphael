@@ -1,0 +1,226 @@
+[
+  {
+    "case_id": "O01",
+    "system": "Bank",
+    "task_id": "task_1",
+    "files": [
+      {
+        "member": "Bank/telemetry/2021_03_04/trace/trace_span.csv",
+        "columns": [
+          "timestamp",
+          "cmdb_id",
+          "parent_id",
+          "span_id",
+          "trace_id",
+          "duration"
+        ],
+        "bytes": 1256254711,
+        "sha256": "b0babcbd67be0e68b7970151733cfa4d9e1ae60668e15a0f32281362a2a8f545",
+        "role": "input"
+      },
+      {
+        "member": "Bank/telemetry/2021_03_04/metric/metric_app.csv",
+        "columns": [
+          "timestamp",
+          "rr",
+          "sr",
+          "cnt",
+          "mrt",
+          "tc"
+        ],
+        "bytes": 617331,
+        "sha256": "80932766feb1a7611a17ed27a8070b044f429b69138c1ab3cb2e501fa45300c1",
+        "role": "input"
+      },
+      {
+        "member": "Bank/query.csv",
+        "columns": [
+          "task_index",
+          "instruction",
+          "scoring_points"
+        ],
+        "bytes": 56803,
+        "sha256": "605d3b5c863928caf1611d97858379765858595e150efad2f77d2f733774f588",
+        "role": "oracle"
+      },
+      {
+        "member": "Bank/record.csv",
+        "columns": [
+          "level",
+          "component",
+          "timestamp",
+          "datetime",
+          "reason"
+        ],
+        "bytes": 8668,
+        "sha256": "eea788a8c6d07d5d9567067d1e740fe71f3221d8357f0e12e1c643c42cbd15f7",
+        "role": "oracle"
+      },
+      {
+        "member": "Bank/query.csv",
+        "columns": [
+          "On March 4",
+          " 2021",
+          " within the time range of 14:30 to 15:00",
+          " a single failure was detected in the system. The exact time when the root cause occurred is unknown. Please identify the specific occurrence time of the root cause."
+        ],
+        "bytes": 224,
+        "sha256": "13d0b36873ce8d9414a7338a723aba24efe3e879ae2d097aa57c26e7e22a5c74",
+        "role": "input"
+      }
+    ],
+    "compatibility": "No field meaning, healthy baseline, repository identity or span-level label is inferred from column names."
+  },
+  {
+    "case_id": "O02",
+    "system": "Telecom",
+    "task_id": "task_2",
+    "files": [
+      {
+        "member": "Telecom/telemetry/2020_04_11/trace/trace_span.csv",
+        "columns": [
+          "callType",
+          "startTime",
+          "elapsedTime",
+          "success",
+          "traceId",
+          "id",
+          "pid",
+          "cmdb_id",
+          "dsName",
+          "serviceName"
+        ],
+        "bytes": 1165827254,
+        "sha256": "4a75e1ac9430d7b19b14f77dd985bef9e3252c46b59c8b2afa5dae9bcda788dd",
+        "role": "input"
+      },
+      {
+        "member": "Telecom/telemetry/2020_04_11/metric/metric_app.csv",
+        "columns": [
+          "serviceName",
+          "startTime",
+          "avg_time",
+          "num",
+          "succee_num",
+          "succee_rate"
+        ],
+        "bytes": 15952,
+        "sha256": "1a533b149e44cd13e1a0bca579ded7fb1ae9d4a5fbdd4137ee3845ccf6b256f5",
+        "role": "input"
+      },
+      {
+        "member": "Telecom/query.csv",
+        "columns": [
+          "task_index",
+          "instruction",
+          "scoring_points"
+        ],
+        "bytes": 20356,
+        "sha256": "c2726ea18183a05c83dfb22796d20cb7a371ce4db51ce3da3fda3f6e793735b5",
+        "role": "oracle"
+      },
+      {
+        "member": "Telecom/record.csv",
+        "columns": [
+          "level",
+          "reason",
+          "component",
+          "timestamp",
+          "datetime"
+        ],
+        "bytes": 3030,
+        "sha256": "a98aa504db6604d6008dc815d3a30babb96caedc199bffcaf70b6677da2f65e2",
+        "role": "oracle"
+      },
+      {
+        "member": "Telecom/query.csv",
+        "columns": [
+          "During the specified time range of April 11",
+          " 2020",
+          " from 00:00 to 00:30",
+          " there was one failure reported. The exact reason for this failure is currently unknown. Your task is to identify the root cause reason for the failure during this period."
+        ],
+        "bytes": 243,
+        "sha256": "eafafa24d17c87719e903ce670d2c53af9e26e4a706a458bb323ca60d5d88a1e",
+        "role": "input"
+      }
+    ],
+    "compatibility": "No field meaning, healthy baseline, repository identity or span-level label is inferred from column names."
+  },
+  {
+    "case_id": "O03",
+    "system": "Market",
+    "task_id": "task_6",
+    "files": [
+      {
+        "member": "Market/cloudbed-1/telemetry/2022_03_20/trace/trace_span.csv",
+        "columns": [
+          "timestamp",
+          "cmdb_id",
+          "span_id",
+          "trace_id",
+          "duration",
+          "type",
+          "status_code",
+          "operation_name",
+          "parent_span"
+        ],
+        "bytes": 1357227973,
+        "sha256": "42057b3325dc32bda37fc98feaf07a9edb48bcf394f5b511e18b38f23670f550",
+        "role": "input"
+      },
+      {
+        "member": "Market/cloudbed-1/telemetry/2022_03_20/metric/metric_service.csv",
+        "columns": [
+          "service",
+          "timestamp",
+          "rr",
+          "sr",
+          "mrt",
+          "count"
+        ],
+        "bytes": 1009707,
+        "sha256": "07d4f251a8e8acff46f38726479b39278af6e668cf4a2e8cd596ef91433e5f33",
+        "role": "input"
+      },
+      {
+        "member": "Market/cloudbed-1/query.csv",
+        "columns": [
+          "task_index",
+          "instruction",
+          "scoring_points"
+        ],
+        "bytes": 33649,
+        "sha256": "3512ba2d72648f251e7e01733f079c492a4ff573de557a0223ea538bd9c06742",
+        "role": "oracle"
+      },
+      {
+        "member": "Market/cloudbed-1/record.csv",
+        "columns": [
+          "timestamp",
+          "level",
+          "component",
+          "reason",
+          "datetime"
+        ],
+        "bytes": 5356,
+        "sha256": "6246b65915ecaa948037875a149a3d50afdc730371c8b4e3785799995d589324",
+        "role": "oracle"
+      },
+      {
+        "member": "Market/cloudbed-1/query.csv",
+        "columns": [
+          "The cloud service system",
+          " cloudbed-1",
+          " experienced one failure within the time range of March 20",
+          " 2022",
+          " from 09:00 to 09:30. The specific component responsible for this failure and the underlying reason are currently unknown. You are tasked with identifying the root cause component and the root cause reason."
+        ],
+        "bytes": 309,
+        "sha256": "b99c84c9a5136cdae9d08d8c446d2c0b2f1c69b630ea4dcb6d9b3bf0fd9439e3",
+        "role": "input"
+      }
+    ],
+    "compatibility": "No field meaning, healthy baseline, repository identity or span-level label is inferred from column names."
+  }
+]

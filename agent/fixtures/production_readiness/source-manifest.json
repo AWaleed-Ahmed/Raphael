@@ -1,0 +1,964 @@
+{
+  "cases": [
+    {
+      "capabilities": [
+        "candidate_ranker"
+      ],
+      "commits": {
+        "buggy": "6a5a0bfa370b6c0d3dbbf9589a560a98202d2baa",
+        "fixed": "4677c54cc18bbfbdf0f4dadf11610fab6203fd63"
+      },
+      "evidence_tier": "reproduced_code",
+      "files": [
+        {
+          "bytes": 197,
+          "path": "B01/bug.info",
+          "role": "oracle",
+          "sha256": "453a311f228494491bf8601e26d8bbe79adc9abb2af5b2be477acee6849bc675",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/bugs/1/bug.info"
+        },
+        {
+          "bytes": 76,
+          "path": "B01/run_test.sh",
+          "role": "environment",
+          "sha256": "824b5decbe6517adcba0b9c8e773f810f1490c510b7cec960278d6f46eca777b",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/bugs/1/run_test.sh"
+        },
+        {
+          "bytes": 15,
+          "path": "B01/requirements.txt",
+          "role": "environment",
+          "sha256": "7cc93dfddc6a9e281aac790929b60059027ce22f1be5eebc2846981d0902b713",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/bugs/1/requirements.txt"
+        },
+        {
+          "bytes": 1153,
+          "path": "B01/bug_patch.txt",
+          "role": "oracle",
+          "sha256": "7488c814d5d1855da7fac12c1d59e8be97ea5403a5c1997d176578ebbf10b475",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/bugs/1/bug_patch.txt"
+        },
+        {
+          "bytes": 75,
+          "path": "B01/project.info",
+          "role": "environment",
+          "sha256": "c989c473f4436ee8733726a5594294e81e84a00fcaf61b5912784037a6025961",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/project.info"
+        },
+        {
+          "bytes": 6695,
+          "path": "B01/buggy-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "environment",
+          "sha256": "4a7ca060479517f7e3d6400a8a67711e08b797a93da950623305233771b94956",
+          "url": "https://api.github.com/repos/tornadoweb/tornado/commits/6a5a0bfa370b6c0d3dbbf9589a560a98202d2baa"
+        },
+        {
+          "bytes": 504853,
+          "path": "B01/buggy-source.tar.gz",
+          "role": "input",
+          "sha256": "ee41fd6dd6a2d33447f6089e2cc1611b97f0bb3ee857abf0f4613f302c5ea84d",
+          "url": "https://codeload.github.com/tornadoweb/tornado/tar.gz/6a5a0bfa370b6c0d3dbbf9589a560a98202d2baa"
+        },
+        {
+          "bytes": 6827,
+          "path": "B01/fixed-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "oracle",
+          "sha256": "b2ff72564e12222f164b9156b6c26b2a2b3ef14878bef5fc1deb087970952d2d",
+          "url": "https://api.github.com/repos/tornadoweb/tornado/commits/4677c54cc18bbfbdf0f4dadf11610fab6203fd63"
+        },
+        {
+          "bytes": 504923,
+          "path": "B01/fixed-source.tar.gz",
+          "role": "oracle",
+          "sha256": "bb094e64afe77f97684b149d1e13686d32e60817ac2067d021ce52363c15393e",
+          "url": "https://codeload.github.com/tornadoweb/tornado/tar.gz/4677c54cc18bbfbdf0f4dadf11610fab6203fd63"
+        }
+      ],
+      "id": "B01",
+      "incident_group": "tornadoweb/tornado:1",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Fixed commit/diff are evaluator-only; not visible to model.",
+        "Original upstream regression reproduced fail-before/pass-after in a documented Python 3.8.20 compatibility replay.",
+        "See docs/evidence/issue-78/phase-1/reproductions.json; historical interpreter/dependency differences remain explicit."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": "tornadoweb/tornado",
+      "reproduction_status": "fail_before_pass_after",
+      "reviews": [],
+      "source_kind": "original_code",
+      "source_url": "https://github.com/soarsmu/BugsInPy/tree/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/tornado/bugs/1",
+      "split": "development",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "candidate_ranker"
+      ],
+      "commits": {
+        "buggy": "3fd150c9e6e3a1a39622577745a7d821611c09d3",
+        "fixed": "e41ee47a90bb1d8a1fa28fcefcd45ed8ef5cb946"
+      },
+      "evidence_tier": "reproduced_code",
+      "files": [
+        {
+          "bytes": 155,
+          "path": "B02/bug.info",
+          "role": "oracle",
+          "sha256": "e85b965a5d15674a3e352527fff2d854538e88613ffe776512d50f19d0ef5e50",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/bugs/1/bug.info"
+        },
+        {
+          "bytes": 81,
+          "path": "B02/run_test.sh",
+          "role": "environment",
+          "sha256": "423c3e6acc7ed0d01f5957261bdc1b27516512a16993b1a401a3cef352d2f7a9",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/bugs/1/run_test.sh"
+        },
+        {
+          "bytes": 427,
+          "path": "B02/requirements.txt",
+          "role": "environment",
+          "sha256": "768395331eafae50bdc4be121e76c37a3aa1623df0bd35474f000fcf71f29b38",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/bugs/1/requirements.txt"
+        },
+        {
+          "bytes": 639,
+          "path": "B02/bug_patch.txt",
+          "role": "oracle",
+          "sha256": "d209979c990883c42d576b458afdc1bd8765e037124f4b54470ac0a9c6c4655b",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/bugs/1/bug_patch.txt"
+        },
+        {
+          "bytes": 74,
+          "path": "B02/project.info",
+          "role": "environment",
+          "sha256": "d7930a4f9732f741bbd561d9bd882b686a6c8da298307860e6272123a5c9ebd7",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/project.info"
+        },
+        {
+          "bytes": 5616,
+          "path": "B02/buggy-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "environment",
+          "sha256": "2396d50efd9fd577d9d6681349bae059c7c78b2408e83d1e0251658967fd9d58",
+          "url": "https://api.github.com/repos/pandas-dev/pandas/commits/3fd150c9e6e3a1a39622577745a7d821611c09d3"
+        },
+        {
+          "bytes": 8598608,
+          "path": "B02/buggy-source.tar.gz",
+          "role": "input",
+          "sha256": "e29e5532f7576c224b6eb8a6cb1fe29fcbd6da49c0288514603997ad77199305",
+          "url": "https://codeload.github.com/pandas-dev/pandas/tar.gz/3fd150c9e6e3a1a39622577745a7d821611c09d3"
+        },
+        {
+          "bytes": 7564,
+          "path": "B02/fixed-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "oracle",
+          "sha256": "302cf809643c2e2cf486756d2b4de72689dd6eae9f0aa44600f7794dd2ea3268",
+          "url": "https://api.github.com/repos/pandas-dev/pandas/commits/e41ee47a90bb1d8a1fa28fcefcd45ed8ef5cb946"
+        },
+        {
+          "bytes": 8599912,
+          "path": "B02/fixed-source.tar.gz",
+          "role": "oracle",
+          "sha256": "f0fc4279e5ccc2e8df803b5fa396cb5463ddfa142ed906769fdc35eb288c7c24",
+          "url": "https://codeload.github.com/pandas-dev/pandas/tar.gz/e41ee47a90bb1d8a1fa28fcefcd45ed8ef5cb946"
+        }
+      ],
+      "id": "B02",
+      "incident_group": "pandas-dev/pandas:1",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Fixed commit/diff are evaluator-only; not visible to model.",
+        "Original upstream regression reproduced fail-before/pass-after in a documented Python 3.8.20 compatibility replay.",
+        "See docs/evidence/issue-78/phase-1/reproductions.json; historical interpreter/dependency differences remain explicit."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": "pandas-dev/pandas",
+      "reproduction_status": "fail_before_pass_after",
+      "reviews": [],
+      "source_kind": "original_code",
+      "source_url": "https://github.com/soarsmu/BugsInPy/tree/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/pandas/bugs/1",
+      "split": "development",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "candidate_ranker"
+      ],
+      "commits": {
+        "buggy": "c57512fa669e6f6b1b766a7639206a380f0d10ce",
+        "fixed": "9d9dea0d69709ef0f7aef67ddba1bd7bda25d273"
+      },
+      "evidence_tier": "reproduced_code",
+      "files": [
+        {
+          "bytes": 191,
+          "path": "B03/bug.info",
+          "role": "oracle",
+          "sha256": "3253ba4da33bac07f80e10bcc69161ae200b946f9ec3da0170de13b640640709",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/bugs/1/bug.info"
+        },
+        {
+          "bytes": 204,
+          "path": "B03/run_test.sh",
+          "role": "environment",
+          "sha256": "fcdb910c48de6fa7d66c991091fb1895e6da9a6033e3b79bc7ba5d81d339ff10",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/bugs/1/run_test.sh"
+        },
+        {
+          "bytes": 1606,
+          "path": "B03/requirements.txt",
+          "role": "environment",
+          "sha256": "d0c59c2ffe0ade81c4fb3d5d64a132d346e206b1891de0e57895aa146b0de6e0",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/bugs/1/requirements.txt"
+        },
+        {
+          "bytes": 1056,
+          "path": "B03/bug_patch.txt",
+          "role": "oracle",
+          "sha256": "b88279ca3d18201391f70ebe629ad388e3e8a32133a4191d878eaa65e9209740",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/bugs/1/bug_patch.txt"
+        },
+        {
+          "bytes": 71,
+          "path": "B03/project.info",
+          "role": "environment",
+          "sha256": "32e7b621a1df6bf2fa994483d2973c8d5d99b8e72b6c22ee3f6410f736b03c72",
+          "url": "https://raw.githubusercontent.com/soarsmu/BugsInPy/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/project.info"
+        },
+        {
+          "bytes": 14622,
+          "path": "B03/buggy-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "environment",
+          "sha256": "3c63fde5a60f6459f9037e80e0ca8598191fa3a512be157fcf72617d397c00b2",
+          "url": "https://api.github.com/repos/scrapy/scrapy/commits/c57512fa669e6f6b1b766a7639206a380f0d10ce"
+        },
+        {
+          "bytes": 1197258,
+          "path": "B03/buggy-source.tar.gz",
+          "role": "input",
+          "sha256": "2281b8411eb1f5563e7d40071cf0ec9fea86e45bd33beae60cd6261dd091c602",
+          "url": "https://codeload.github.com/scrapy/scrapy/tar.gz/c57512fa669e6f6b1b766a7639206a380f0d10ce"
+        },
+        {
+          "bytes": 6984,
+          "path": "B03/fixed-commit.json",
+          "projection": "canonical_commit_json",
+          "role": "oracle",
+          "sha256": "3c56f59410d829d09083fd18b3df8fb18b174101ca9c9e9ef3dcef8950028f13",
+          "url": "https://api.github.com/repos/scrapy/scrapy/commits/9d9dea0d69709ef0f7aef67ddba1bd7bda25d273"
+        },
+        {
+          "bytes": 1197566,
+          "path": "B03/fixed-source.tar.gz",
+          "role": "oracle",
+          "sha256": "420b6a1d27adc739b645859668661b79861fe6261064e651b8630a1aa691206e",
+          "url": "https://codeload.github.com/scrapy/scrapy/tar.gz/9d9dea0d69709ef0f7aef67ddba1bd7bda25d273"
+        }
+      ],
+      "id": "B03",
+      "incident_group": "scrapy/scrapy:1",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Fixed commit/diff are evaluator-only; not visible to model.",
+        "Original upstream regression reproduced fail-before/pass-after in a documented Python 3.8.20 compatibility replay.",
+        "See docs/evidence/issue-78/phase-1/reproductions.json; historical interpreter/dependency differences remain explicit."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": "scrapy/scrapy",
+      "reproduction_status": "fail_before_pass_after",
+      "reviews": [],
+      "source_kind": "original_code",
+      "source_url": "https://github.com/soarsmu/BugsInPy/tree/11c5f1eea954a42132cfd06bf257766a7963e0fd/projects/scrapy/bugs/1",
+      "split": "development",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 4343,
+          "path": "K01/issue.json",
+          "role": "raw",
+          "sha256": "befbf82507d5dd7adcb279ed201e1db53ce83f767fcbbb12d68bbb91da651299",
+          "url": "https://api.github.com/repos/volcano-sh/dashboard/issues/295"
+        },
+        {
+          "bytes": 7058,
+          "path": "K01/comments.json",
+          "role": "oracle",
+          "sha256": "a38020bf7b0dfb0c9002d8684b6d8b6ad0f0ebe7df959a79a88402ae00320731",
+          "url": "https://api.github.com/repos/volcano-sh/dashboard/issues/295/comments?per_page=100"
+        },
+        {
+          "bytes": 1826,
+          "derived_from": "K01/issue.json",
+          "path": "K01/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "671c3b9c3df83f7183e4c5acc59e458ebf6235682da36fa0fe1b809d93a492c5",
+          "url": "https://github.com/volcano-sh/dashboard/issues/295"
+        }
+      ],
+      "id": "K01",
+      "incident_group": "volcano-sh/dashboard:295",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 4/4; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "overlap",
+        "training": "unknown"
+      },
+      "repository": "volcano-sh/dashboard",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/volcano-sh/dashboard/issues/295",
+      "split": "regression",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 5964,
+          "path": "K02/issue.json",
+          "role": "raw",
+          "sha256": "70fc40199415a7f86b3e7928b576f59a23e507035c998e4ef55329ed972985b1",
+          "url": "https://api.github.com/repos/weaveworks/weave/issues/3917"
+        },
+        {
+          "bytes": 10741,
+          "path": "K02/comments.json",
+          "role": "oracle",
+          "sha256": "91e5a013b69a254f4d5a92d22d0daa6fa9750c35b0ef75bde01ba752d69e1124",
+          "url": "https://api.github.com/repos/weaveworks/weave/issues/3917/comments?per_page=100"
+        },
+        {
+          "bytes": 3456,
+          "derived_from": "K02/issue.json",
+          "path": "K02/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "fab6bdf269fbc2c821e4700eab28891c7f22559b745fa6b9232c5fa0d0767ad7",
+          "url": "https://github.com/weaveworks/weave/issues/3917"
+        }
+      ],
+      "id": "K02",
+      "incident_group": "weaveworks/weave:3917",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 5/5; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "overlap",
+        "training": "unknown"
+      },
+      "repository": "weaveworks/weave",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/weaveworks/weave/issues/3917",
+      "split": "regression",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 13293,
+          "path": "K03/issue.json",
+          "role": "raw",
+          "sha256": "46c466bb3ff3b995f197da5678dad67dca5408c5cd0b09737b74ce9588f572cc",
+          "url": "https://api.github.com/repos/jenkinsci/kubernetes-plugin/issues/2772"
+        },
+        {
+          "bytes": 4089,
+          "path": "K03/comments.json",
+          "role": "oracle",
+          "sha256": "c7a7c17121e26e86a38c2bfbcb606e1496547950c408326fdff6b3256bf55fda",
+          "url": "https://api.github.com/repos/jenkinsci/kubernetes-plugin/issues/2772/comments?per_page=100"
+        },
+        {
+          "bytes": 10403,
+          "derived_from": "K03/issue.json",
+          "path": "K03/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "b815c430b1d1c0c3f4ee18bbbe1697b8116b1fe34f49efe63881eb498f525f1b",
+          "url": "https://github.com/jenkinsci/kubernetes-plugin/issues/2772"
+        }
+      ],
+      "id": "K03",
+      "incident_group": "jenkinsci/kubernetes-plugin:2772",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 2/2; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "overlap",
+        "training": "unknown"
+      },
+      "repository": "jenkinsci/kubernetes-plugin",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/jenkinsci/kubernetes-plugin/issues/2772",
+      "split": "regression",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 5052,
+          "path": "K04/issue.json",
+          "role": "raw",
+          "sha256": "00d46cb6fb2022daba486c8340e4a2055ec74097559953a5c92c78f5505ca601",
+          "url": "https://api.github.com/repos/zalando/postgres-operator/issues/1722"
+        },
+        {
+          "bytes": 2227,
+          "path": "K04/comments.json",
+          "role": "oracle",
+          "sha256": "247bc0fa1214cd431480faaa1468e4ba2e066149d0666bc693e71465bb44a2ab",
+          "url": "https://api.github.com/repos/zalando/postgres-operator/issues/1722/comments?per_page=100"
+        },
+        {
+          "bytes": 1068,
+          "derived_from": "K04/issue.json",
+          "path": "K04/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "327f490b0933cb13d9276413b0d3c9e86e8208d8aacb7d1566ea605863d7cf6a",
+          "url": "https://github.com/zalando/postgres-operator/issues/1722"
+        }
+      ],
+      "id": "K04",
+      "incident_group": "zalando/postgres-operator:1722",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 1/1; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "overlap",
+        "training": "unknown"
+      },
+      "repository": "zalando/postgres-operator",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/zalando/postgres-operator/issues/1722",
+      "split": "regression",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 5014,
+          "path": "K05/issue.json",
+          "role": "raw",
+          "sha256": "211fce0c80b1f61f581ffb3bf401d2c7587ec7af74c72f6c5ac9e162f3d19495",
+          "url": "https://api.github.com/repos/prometheus/prometheus/issues/14195"
+        },
+        {
+          "bytes": 3960,
+          "path": "K05/comments.json",
+          "role": "oracle",
+          "sha256": "f976922a1261bc205c60a81bc92a4aba833846cdd988e002d5659bd12bb851da",
+          "url": "https://api.github.com/repos/prometheus/prometheus/issues/14195/comments?per_page=100"
+        },
+        {
+          "bytes": 2541,
+          "derived_from": "K05/issue.json",
+          "path": "K05/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "08ad907dca80147bd609db71e1b7f1132fa30feb47e420e8da99f728f93aaa27",
+          "url": "https://github.com/prometheus/prometheus/issues/14195"
+        }
+      ],
+      "id": "K05",
+      "incident_group": "prometheus/prometheus:14195",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 2/2; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "overlap",
+        "training": "unknown"
+      },
+      "repository": "prometheus/prometheus",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/prometheus/prometheus/issues/14195",
+      "split": "regression",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "failure_classifier",
+        "incident_similarity",
+        "patch_selector"
+      ],
+      "commits": {},
+      "evidence_tier": "original_report",
+      "files": [
+        {
+          "bytes": 11384,
+          "path": "K06/issue.json",
+          "role": "raw",
+          "sha256": "ce150cef96b4382205d5b1d706259a1d59578bc3fb0c0a63cc6796fe9b5b216e",
+          "url": "https://api.github.com/repos/bitnami/charts/issues/20222"
+        },
+        {
+          "bytes": 95498,
+          "path": "K06/comments.json",
+          "role": "oracle",
+          "sha256": "a738fb5697e7ca8aa61263216b7f7f358dbd0a5e338dfd75739df68b907958e4",
+          "url": "https://api.github.com/repos/bitnami/charts/issues/20222/comments?per_page=100"
+        },
+        {
+          "bytes": 4787,
+          "derived_from": "K06/issue.json",
+          "path": "K06/report.txt",
+          "projection": "github_report_body",
+          "role": "input",
+          "sha256": "d4af579b2c8fceb91cbe1a258f9cee9ba6dcd90c7809e40e57c494906a4bf27b",
+          "url": "https://github.com/bitnami/charts/issues/20222"
+        }
+      ],
+      "id": "K06",
+      "incident_group": "bitnami/charts:20222",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Issue closure or an error marker is not causal or repair proof.",
+        "Comments acquired: 21/21; immutable local snapshot hashes, mutable upstream issue URL."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": "bitnami/charts",
+      "reproduction_status": "report_only",
+      "reviews": [],
+      "source_kind": "public_report",
+      "source_url": "https://github.com/bitnami/charts/issues/20222",
+      "split": "development",
+      "system": null,
+      "task_id": null,
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "trace_anomaly"
+      ],
+      "commits": {},
+      "evidence_tier": "recorded_telemetry",
+      "files": [
+        {
+          "archive_bytes": 2829139841,
+          "bytes": 1256254711,
+          "compressed_bytes": 132740194,
+          "compressed_start": 427745027,
+          "crc32": "7fae95c9",
+          "member": "Bank/telemetry/2021_03_04/trace/trace_span.csv",
+          "path": "openrca/Bank/telemetry/2021_03_04/trace/trace_span.csv",
+          "role": "input",
+          "sha256": "b0babcbd67be0e68b7970151733cfa4d9e1ae60668e15a0f32281362a2a8f545",
+          "url": "https://drive.usercontent.google.com/download?id=1enBrdPT3wLG94ITGbSOwUFg9fkLR-16R&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2829139841,
+          "bytes": 617331,
+          "compressed_bytes": 103173,
+          "compressed_start": 604965743,
+          "crc32": "153b826f",
+          "member": "Bank/telemetry/2021_03_04/metric/metric_app.csv",
+          "path": "openrca/Bank/telemetry/2021_03_04/metric/metric_app.csv",
+          "role": "input",
+          "sha256": "80932766feb1a7611a17ed27a8070b044f429b69138c1ab3cb2e501fa45300c1",
+          "url": "https://drive.usercontent.google.com/download?id=1enBrdPT3wLG94ITGbSOwUFg9fkLR-16R&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2829139841,
+          "bytes": 56803,
+          "compressed_bytes": 5345,
+          "compressed_start": 143,
+          "crc32": "148c0107",
+          "member": "Bank/query.csv",
+          "path": "openrca/Bank/query.csv",
+          "role": "oracle",
+          "sha256": "605d3b5c863928caf1611d97858379765858595e150efad2f77d2f733774f588",
+          "url": "https://drive.usercontent.google.com/download?id=1enBrdPT3wLG94ITGbSOwUFg9fkLR-16R&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2829139841,
+          "bytes": 8668,
+          "compressed_bytes": 1680,
+          "compressed_start": 5658,
+          "crc32": "97fcebcc",
+          "member": "Bank/record.csv",
+          "path": "openrca/Bank/record.csv",
+          "role": "oracle",
+          "sha256": "eea788a8c6d07d5d9567067d1e740fe71f3221d8357f0e12e1c643c42cbd15f7",
+          "url": "https://drive.usercontent.google.com/download?id=1enBrdPT3wLG94ITGbSOwUFg9fkLR-16R&export=download&confirm=t"
+        },
+        {
+          "bytes": 224,
+          "derived_from": "openrca/Bank/query.csv",
+          "member": "Bank/query.csv",
+          "path": "O01/instruction.txt",
+          "projection": "csv_instruction",
+          "role": "input",
+          "row_id": "task_1",
+          "sha256": "13d0b36873ce8d9414a7338a723aba24efe3e879ae2d097aa57c26e7e22a5c74",
+          "url": "https://drive.usercontent.google.com/download?id=1enBrdPT3wLG94ITGbSOwUFg9fkLR-16R&export=download&confirm=t"
+        }
+      ],
+      "id": "O01",
+      "incident_group": "Bank:task_1",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Full original matching-day trace/metric members acquired; ZIP CRC and SHA-256 checked.",
+        "Dataset event truth does not establish per-span anomaly labels or verified healthy baselines.",
+        "Original archive byte ranges pinned; complete multi-gigabyte archive SHA not claimed."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": null,
+      "reproduction_status": "telemetry_downloaded",
+      "reviews": [],
+      "source_kind": "recorded_telemetry",
+      "source_url": "https://github.com/microsoft/OpenRCA/tree/2a481ae63cb045c3eadbeca9eddaa10ec1151979",
+      "split": "development",
+      "system": "Bank",
+      "task_id": "task_1",
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "trace_anomaly"
+      ],
+      "commits": {},
+      "evidence_tier": "recorded_telemetry",
+      "files": [
+        {
+          "archive_bytes": 3071992930,
+          "bytes": 1165827254,
+          "compressed_bytes": 225993629,
+          "compressed_start": 2841231475,
+          "crc32": "8e8bc58f",
+          "member": "Telecom/telemetry/2020_04_11/trace/trace_span.csv",
+          "path": "openrca/Telecom/telemetry/2020_04_11/trace/trace_span.csv",
+          "role": "input",
+          "sha256": "4a75e1ac9430d7b19b14f77dd985bef9e3252c46b59c8b2afa5dae9bcda788dd",
+          "url": "https://drive.usercontent.google.com/download?id=1cyOKpqyAP4fy-QiJ6a_cKuwR7D46zyVe&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 3071992930,
+          "bytes": 15952,
+          "compressed_bytes": 3486,
+          "compressed_start": 3071970403,
+          "crc32": "1933274d",
+          "member": "Telecom/telemetry/2020_04_11/metric/metric_app.csv",
+          "path": "openrca/Telecom/telemetry/2020_04_11/metric/metric_app.csv",
+          "role": "input",
+          "sha256": "1a533b149e44cd13e1a0bca579ded7fb1ae9d4a5fbdd4137ee3845ccf6b256f5",
+          "url": "https://drive.usercontent.google.com/download?id=1cyOKpqyAP4fy-QiJ6a_cKuwR7D46zyVe&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 3071992930,
+          "bytes": 20356,
+          "compressed_bytes": 2396,
+          "compressed_start": 149,
+          "crc32": "a14f2523",
+          "member": "Telecom/query.csv",
+          "path": "openrca/Telecom/query.csv",
+          "role": "oracle",
+          "sha256": "c2726ea18183a05c83dfb22796d20cb7a371ce4db51ce3da3fda3f6e793735b5",
+          "url": "https://drive.usercontent.google.com/download?id=1cyOKpqyAP4fy-QiJ6a_cKuwR7D46zyVe&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 3071992930,
+          "bytes": 3030,
+          "compressed_bytes": 645,
+          "compressed_start": 2721,
+          "crc32": "50939211",
+          "member": "Telecom/record.csv",
+          "path": "openrca/Telecom/record.csv",
+          "role": "oracle",
+          "sha256": "a98aa504db6604d6008dc815d3a30babb96caedc199bffcaf70b6677da2f65e2",
+          "url": "https://drive.usercontent.google.com/download?id=1cyOKpqyAP4fy-QiJ6a_cKuwR7D46zyVe&export=download&confirm=t"
+        },
+        {
+          "bytes": 243,
+          "derived_from": "openrca/Telecom/query.csv",
+          "member": "Telecom/query.csv",
+          "path": "O02/instruction.txt",
+          "projection": "csv_instruction",
+          "role": "input",
+          "row_id": "task_2",
+          "sha256": "eafafa24d17c87719e903ce670d2c53af9e26e4a706a458bb323ca60d5d88a1e",
+          "url": "https://drive.usercontent.google.com/download?id=1cyOKpqyAP4fy-QiJ6a_cKuwR7D46zyVe&export=download&confirm=t"
+        }
+      ],
+      "id": "O02",
+      "incident_group": "Telecom:task_2",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Full original matching-day trace/metric members acquired; ZIP CRC and SHA-256 checked.",
+        "Dataset event truth does not establish per-span anomaly labels or verified healthy baselines.",
+        "Original archive byte ranges pinned; complete multi-gigabyte archive SHA not claimed."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": null,
+      "reproduction_status": "telemetry_downloaded",
+      "reviews": [],
+      "source_kind": "recorded_telemetry",
+      "source_url": "https://github.com/microsoft/OpenRCA/tree/2a481ae63cb045c3eadbeca9eddaa10ec1151979",
+      "split": "development",
+      "system": "Telecom",
+      "task_id": "task_2",
+      "terms_status": "local_only_pending_review"
+    },
+    {
+      "capabilities": [
+        "trace_anomaly"
+      ],
+      "commits": {},
+      "evidence_tier": "recorded_telemetry",
+      "files": [
+        {
+          "archive_bytes": 2865427796,
+          "bytes": 1357227973,
+          "compressed_bytes": 309290867,
+          "compressed_start": 2169445894,
+          "crc32": "51472b94",
+          "member": "Market/cloudbed-1/telemetry/2022_03_20/trace/trace_span.csv",
+          "path": "openrca/Market/cloudbed-1/telemetry/2022_03_20/trace/trace_span.csv",
+          "role": "input",
+          "sha256": "42057b3325dc32bda37fc98feaf07a9edb48bcf394f5b511e18b38f23670f550",
+          "url": "https://drive.usercontent.google.com/download?id=1aDbqFHhYGgywLDfq54O7Ln8wgiv-BqGJ&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2865427796,
+          "bytes": 1009707,
+          "compressed_bytes": 199718,
+          "compressed_start": 2831778760,
+          "crc32": "2cbd2de7",
+          "member": "Market/cloudbed-1/telemetry/2022_03_20/metric/metric_service.csv",
+          "path": "openrca/Market/cloudbed-1/telemetry/2022_03_20/metric/metric_service.csv",
+          "role": "input",
+          "sha256": "07d4f251a8e8acff46f38726479b39278af6e668cf4a2e8cd596ef91433e5f33",
+          "url": "https://drive.usercontent.google.com/download?id=1aDbqFHhYGgywLDfq54O7Ln8wgiv-BqGJ&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2865427796,
+          "bytes": 33649,
+          "compressed_bytes": 3327,
+          "compressed_start": 5576,
+          "crc32": "2b7124c4",
+          "member": "Market/cloudbed-1/query.csv",
+          "path": "openrca/Market/cloudbed-1/query.csv",
+          "role": "oracle",
+          "sha256": "3512ba2d72648f251e7e01733f079c492a4ff573de557a0223ea538bd9c06742",
+          "url": "https://drive.usercontent.google.com/download?id=1aDbqFHhYGgywLDfq54O7Ln8wgiv-BqGJ&export=download&confirm=t"
+        },
+        {
+          "archive_bytes": 2865427796,
+          "bytes": 5356,
+          "compressed_bytes": 1251,
+          "compressed_start": 9099,
+          "crc32": "5c6271e8",
+          "member": "Market/cloudbed-1/record.csv",
+          "path": "openrca/Market/cloudbed-1/record.csv",
+          "role": "oracle",
+          "sha256": "6246b65915ecaa948037875a149a3d50afdc730371c8b4e3785799995d589324",
+          "url": "https://drive.usercontent.google.com/download?id=1aDbqFHhYGgywLDfq54O7Ln8wgiv-BqGJ&export=download&confirm=t"
+        },
+        {
+          "bytes": 309,
+          "derived_from": "openrca/Market/cloudbed-1/query.csv",
+          "member": "Market/cloudbed-1/query.csv",
+          "path": "O03/instruction.txt",
+          "projection": "csv_instruction",
+          "role": "input",
+          "row_id": "task_6",
+          "sha256": "b99c84c9a5136cdae9d08d8c446d2c0b2f1c69b630ea4dcb6d9b3bf0fd9439e3",
+          "url": "https://drive.usercontent.google.com/download?id=1aDbqFHhYGgywLDfq54O7Ln8wgiv-BqGJ&export=download&confirm=t"
+        }
+      ],
+      "id": "O03",
+      "incident_group": "Market:task_6",
+      "input_review": "pending",
+      "label_sha256": null,
+      "label_status": "pending",
+      "notes": [
+        "Original evidence acquired without executing model predictions.",
+        "No independent human label or answer-leakage review yet.",
+        "Local research cache only; redistribution and data terms require review.",
+        "Full original matching-day trace/metric members acquired; ZIP CRC and SHA-256 checked.",
+        "Dataset event truth does not establish per-span anomaly labels or verified healthy baselines.",
+        "Original archive byte ranges pinned; complete multi-gigabyte archive SHA not claimed."
+      ],
+      "overlap": {
+        "index": "clear",
+        "prior_evaluation": "clear",
+        "training": "unknown"
+      },
+      "repository": null,
+      "reproduction_status": "telemetry_downloaded",
+      "reviews": [],
+      "source_kind": "recorded_telemetry",
+      "source_url": "https://github.com/microsoft/OpenRCA/tree/2a481ae63cb045c3eadbeca9eddaa10ec1151979",
+      "split": "development",
+      "system": "Market",
+      "task_id": "task_6",
+      "terms_status": "local_only_pending_review"
+    }
+  ],
+  "created_at": "2026-10-27T05:16:47.714230+00:00",
+  "schema_version": 1,
+  "status": "engineering_snapshot_not_final_test"
+}

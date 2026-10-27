@@ -58,6 +58,13 @@ jobs:
           path: |
             local-inference-qualification.json
             incident-isolation-qualification.json
+      - name: Validate production-readiness preparation
+        run: python agent/scripts/prepare_model_readiness.py --output model-readiness-preparation
+      - name: Upload production-readiness preparation
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-readiness-preparation-${{ github.sha }}
+          path: model-readiness-preparation/
       - name: Test dispatch
         working-directory: dispatch
         run: python -m pytest -q
