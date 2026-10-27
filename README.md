@@ -248,6 +248,20 @@ where applicable. Rule paths can overlap final refusals. Effective overrides and
 reported separately; learned
 execution does not mean the learned answer determined the final decision.
 
+### Original-source development evaluation (#78, Phase 2)
+
+The [paired development report](docs/model-readiness-phase-2.md) uses original
+Kubernetes reports, reproduced Python failures and OpenRCA telemetry. All five
+capabilities remain deferred; these results do not establish production accuracy.
+
+| Capability | Model-off versus model-on result | Decision |
+| --- | --- | --- |
+| Classification | Same decisions on 6 reports; 2 policy stops, 4 model abstentions | More evidence needed |
+| Ranking | Both: top-1 1/3, top-3 2/3; 0 wins, 3 ties, 0 regressions | No observed benefit |
+| Similarity | 0 returned matches in 6 queries; relevance labels pending | More evidence needed |
+| Trace anomaly | 3 native telemetry sources blocked on compatibility/baseline requirements | Not scored |
+| Patch selection | 6 report precondition checks; 0 proposals or validated repairs | Not qualified |
+
 ## Roadmap
 
 The [release milestones](docs/release-milestones-2026-10-18.md) track acceptance

@@ -399,3 +399,29 @@ def test_cli_success_dispatch(
         )
         evaluation.main()
         assert json.loads(capsys.readouterr().out)["status"] == "control_" + stage
+
+
+def test_committed_original_evidence_is_bound_and_metrics_recompute() -> None:
+    """Offline evidence audit; does not claim to re-fetch the original source cache."""
+    manifest, protocol = evaluation.context()
+    directory = evaluation.ROOT / "docs/evidence/issue-78/phase-2"
+    rows, _ = evaluation.validate_predictions(directory, manifest, protocol)
+    summary = json.loads((directory / "summary.json").read_text())
+    assert len(rows) == 48
+    assert summary["prediction_seal_sha256"] == digest_file(directory / "seal.json")
+    assert summary["capabilities"]["candidate_ranker"][
+        "development_file_oracle_metrics"
+    ] == ranking_metrics(summary["ranking_cases"])
+    assert all(
+        c["decision"] == "keep_deferred" for c in summary["capabilities"].values()
+    )
+    assert all(
+        c["final_quality_metrics"] is None for c in summary["capabilities"].values()
+    )
+    for case in manifest["cases"]:
+        oracle = {f["path"] for f in case["files"] if f["role"] == "oracle"}
+        assert all(
+            not oracle.intersection(f["path"] for f in r["inputs"])
+            for r in rows
+            if r["case_id"] == case["id"]
+        )
