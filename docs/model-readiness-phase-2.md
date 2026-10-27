@@ -116,7 +116,7 @@ RAPHAEL_READINESS_CACHE=/absolute/path/to/production_readiness_phase1 \
 
 Output directories must be empty/new; prior experiments are not silently overwritten. The script writes no source changes, runs no downloaded code, rebuilds no index, trains/tunes no model and publishes/deploys nothing. Local fixtures only use loopback HTTP. Learning and external LLMs are off, publication is dry-run, and test credentials replace inherited publication credentials while the evaluation runs.
 
-Evidence: [sealed predictions](evidence/issue-78/phase-2/predictions.jsonl), [execution seal](evidence/issue-78/phase-2/seal.json), [machine-readable scores](evidence/issue-78/phase-2/summary.json), [generated five-capability summary](evidence/issue-78/phase-2/evaluation-summary.md). All source hashes in the seal identify the executed code revision; later evidence/documentation commits do not change those runtime files.
+Evidence: [sealed predictions](evidence/issue-78/phase-2/predictions.jsonl), [execution seal](evidence/issue-78/phase-2/seal.json), [machine-readable scores](evidence/issue-78/phase-2/summary.json), [generated five-capability summary](evidence/issue-78/phase-2/evaluation-summary.md). All source hashes in the seal identify the executed code revision; later runtime changes do not inherit these scores. Historical evidence audits verify the frozen dataset independently of current source hashes; new scoring still requires an exact current-source match.
 
 ## Performance and verification limits
 

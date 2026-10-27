@@ -262,6 +262,20 @@ capabilities remain deferred; these results do not establish production accuracy
 | Trace anomaly | 3 native telemetry sources blocked on compatibility/baseline requirements | Not scored |
 | Patch selection | 6 report precondition checks; 0 proposals or validated repairs | Not qualified |
 
+### Runtime reliability (#78, Phase 3)
+
+The [installed-runtime report](docs/model-readiness-phase-3.md) found and fixed
+missing wheel-packaged validation schemas. The measured 2-CPU / 2-GiB local
+gateway remains **deferred**: memory stability failed; this is not pilot approval.
+
+| Check | Measured result | Status |
+| --- | --- | --- |
+| Cold / warm latency | Cold p95 1.252 s; warm p95 ≤1.663 ms, 1,000 calls/capability | Proposed limits pass |
+| Two-hour load | 28,788 mixed jobs; 3.998 jobs/s; zero errors/output mismatches; worst capability p95/p99 48.928/59.413 ms | Gateway latency/throughput pass |
+| Memory | 135.715 MiB peak; 28.598% first-to-last window growth, versus ≤10% limit | **Stability fails** |
+| Faults / ownership | 38 fault rows, 96 scope checks, 24 concurrent invalid-output denials; six owned OOM/kill recoveries ≤1.061 s | Recorded controls pass |
+| Production readiness | Provider, downstream crash/cleanup and model-quality acceptance remain open | Deferred; default-off |
+
 ## Roadmap
 
 The [release milestones](docs/release-milestones-2026-10-18.md) track acceptance

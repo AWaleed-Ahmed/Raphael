@@ -1,0 +1,247 @@
+{
+  "excluded": [
+    {
+      "id": "B02",
+      "reason": "no_graph_candidates; no ranking call counted"
+    },
+    {
+      "id": "O01",
+      "reason": "native_OpenRCA_contract_and_verified_owned_baseline_unavailable"
+    },
+    {
+      "id": "O02",
+      "reason": "native_OpenRCA_contract_and_verified_owned_baseline_unavailable"
+    },
+    {
+      "id": "O03",
+      "reason": "native_OpenRCA_contract_and_verified_owned_baseline_unavailable"
+    }
+  ],
+  "input_bundle_sha256": "be570e7a4e899c6ffb3754fc033dc542861a718b57bcd21319070e12b54be825",
+  "input_file_sha256": "68cf863a8307d444e8ec001cc1aba0902be3c6a73f97860805d0486e420585af",
+  "jobs": [
+    {
+      "capability": "candidate_ranker",
+      "id": "B01:candidate_ranker",
+      "input_sha256": "5648309d24ac50d4b8a943a53ed88b9fb60b6cec1539a172a3940086da6a8f01",
+      "source_ids": [
+        "B01"
+      ],
+      "tier": "phase2_graph_candidates"
+    },
+    {
+      "capability": "candidate_ranker",
+      "id": "B03:candidate_ranker",
+      "input_sha256": "e84c392ba1741d30ca654020ee39ea9618a98b1663ca6dbac558e8af2a63661f",
+      "source_ids": [
+        "B03"
+      ],
+      "tier": "phase2_graph_candidates"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K01:failure_classifier",
+      "input_sha256": "fc3bfc00133b77039c7c60da3dd06aabb3ab0dbd93d4f33d4d8590a368aab184",
+      "source_ids": [
+        "K01"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K01:incident_similarity",
+      "input_sha256": "fc3bfc00133b77039c7c60da3dd06aabb3ab0dbd93d4f33d4d8590a368aab184",
+      "source_ids": [
+        "K01"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K01:patch_selector",
+      "input_sha256": "fc3bfc00133b77039c7c60da3dd06aabb3ab0dbd93d4f33d4d8590a368aab184",
+      "source_ids": [
+        "K01"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K02:failure_classifier",
+      "input_sha256": "6214c827cb370e51d3bc298ec6f1ca9212e7023fea0524ca35b73511bc0dcdf0",
+      "source_ids": [
+        "K02"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K02:incident_similarity",
+      "input_sha256": "6214c827cb370e51d3bc298ec6f1ca9212e7023fea0524ca35b73511bc0dcdf0",
+      "source_ids": [
+        "K02"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K02:patch_selector",
+      "input_sha256": "6214c827cb370e51d3bc298ec6f1ca9212e7023fea0524ca35b73511bc0dcdf0",
+      "source_ids": [
+        "K02"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K03:failure_classifier",
+      "input_sha256": "07eb3a681deb2829b6155425ceb306fafc8eace1a005745b33866035737eaa46",
+      "source_ids": [
+        "K03"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K03:incident_similarity",
+      "input_sha256": "07eb3a681deb2829b6155425ceb306fafc8eace1a005745b33866035737eaa46",
+      "source_ids": [
+        "K03"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K03:patch_selector",
+      "input_sha256": "07eb3a681deb2829b6155425ceb306fafc8eace1a005745b33866035737eaa46",
+      "source_ids": [
+        "K03"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K04:failure_classifier",
+      "input_sha256": "47ac452df67af1b1016d79820c7430d7aa5e7a6c350ceba45c602540b773937a",
+      "source_ids": [
+        "K04"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K04:incident_similarity",
+      "input_sha256": "47ac452df67af1b1016d79820c7430d7aa5e7a6c350ceba45c602540b773937a",
+      "source_ids": [
+        "K04"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K04:patch_selector",
+      "input_sha256": "47ac452df67af1b1016d79820c7430d7aa5e7a6c350ceba45c602540b773937a",
+      "source_ids": [
+        "K04"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K05:failure_classifier",
+      "input_sha256": "3df3c20497e38f56b4ca48cfed52a10ea14c75d74705833cf9d03eb9ca6ed2d9",
+      "source_ids": [
+        "K05"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K05:incident_similarity",
+      "input_sha256": "3df3c20497e38f56b4ca48cfed52a10ea14c75d74705833cf9d03eb9ca6ed2d9",
+      "source_ids": [
+        "K05"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K05:patch_selector",
+      "input_sha256": "3df3c20497e38f56b4ca48cfed52a10ea14c75d74705833cf9d03eb9ca6ed2d9",
+      "source_ids": [
+        "K05"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "failure_classifier",
+      "id": "K06:failure_classifier",
+      "input_sha256": "90f44fabf2784ba7fa3fac4163ae74306987a92a94161e119920c035f3495c95",
+      "source_ids": [
+        "K06"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "incident_similarity",
+      "id": "K06:incident_similarity",
+      "input_sha256": "90f44fabf2784ba7fa3fac4163ae74306987a92a94161e119920c035f3495c95",
+      "source_ids": [
+        "K06"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "K06:patch_selector",
+      "input_sha256": "90f44fabf2784ba7fa3fac4163ae74306987a92a94161e119920c035f3495c95",
+      "source_ids": [
+        "K06"
+      ],
+      "tier": "original_report_gateway_diagnostic"
+    },
+    {
+      "capability": "trace_anomaly",
+      "id": "R65-trace-0",
+      "input_sha256": "5b1af9f6560952e7267000cc1a70db2eca481422032f75c618ac1a0477e2fa6d",
+      "source_ids": [
+        "https://huggingface.co/datasets/phamquiluan/RCAEval/tree/main/re3ob_adservice_f3_1"
+      ],
+      "tier": "prior_source_linked_projection_operational_regression_only"
+    },
+    {
+      "capability": "trace_anomaly",
+      "id": "R65-trace-1",
+      "input_sha256": "dc62ae2972d0d97193cf52a7709bd9d59ae594cf26fbe0dd1d28b98d3390581c",
+      "source_ids": [
+        "https://huggingface.co/datasets/phamquiluan/RCAEval/tree/main/re3ob_adservice_f3_1"
+      ],
+      "tier": "prior_source_linked_projection_operational_regression_only"
+    },
+    {
+      "capability": "trace_anomaly",
+      "id": "R65-trace-2",
+      "input_sha256": "921cdd79638246e51dc62b34e7774150645d2c3d42ade180027911ff61076669",
+      "source_ids": [
+        "https://huggingface.co/datasets/phamquiluan/RCAEval/tree/main/re3ob_adservice_f3_1"
+      ],
+      "tier": "prior_source_linked_projection_operational_regression_only"
+    },
+    {
+      "capability": "patch_selector",
+      "id": "R65-patch-learned-refusal",
+      "input_sha256": "cc439266734b9ec987298b152dc8cc704e8db5d59b25e304140d497cf304b657",
+      "source_ids": [
+        "https://github.com/fission/fission.io/issues/102"
+      ],
+      "tier": "prior_source_linked_gateway_projection_advisory_only"
+    }
+  ],
+  "manifest_sha256": "0fda15c1601ec75a6cd2b77407b6be434d1538587be52a45625a62eed492e3dd",
+  "policy": {
+    "external_llm": false,
+    "learning": false,
+    "publication": "dry_run"
+  },
+  "protocol_sha256": "c1684ed46fc8963fec4904a46143bd3acc08c623211650927cc52fdee78445e6"
+}

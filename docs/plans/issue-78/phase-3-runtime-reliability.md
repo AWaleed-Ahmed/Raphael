@@ -1,6 +1,7 @@
 # Phase 3 — Runtime performance, resilience, and safety testing
 
-Date: 2026-10-27. Status: proposed implementation plan.
+Date: 2026-10-27. Status: implementation and local measurement completed; acceptance remains deferred.
+Results: [Phase 3 report](../../model-readiness-phase-3.md). Memory growth fails the frozen gate; provider, complete graph and downstream crash/recovery requirements remain open.
 Tracking: #78 checkpoints **10–13**; CPU/dependency measurements also satisfy the corresponding #66 criteria.
 Prerequisites: [Phase 1](phase-1-data-and-acceptance.md), [Phase 2](phase-2-model-evaluation.md). Next: [Phase 4](phase-4-operations-and-rollback.md).
 

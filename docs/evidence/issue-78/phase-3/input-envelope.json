@@ -1,0 +1,218 @@
+[
+  {
+    "candidates": 5,
+    "capability": "candidate_ranker",
+    "id": "B01:candidate_ranker",
+    "issue_characters": 0,
+    "state_json_bytes": 1562,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 4,
+    "capability": "candidate_ranker",
+    "id": "B03:candidate_ranker",
+    "issue_characters": 0,
+    "state_json_bytes": 1557,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K01:failure_classifier",
+    "issue_characters": 1822,
+    "state_json_bytes": 5968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K01:incident_similarity",
+    "issue_characters": 1822,
+    "state_json_bytes": 5968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K01:patch_selector",
+    "issue_characters": 1822,
+    "state_json_bytes": 5968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K02:failure_classifier",
+    "issue_characters": 3405,
+    "state_json_bytes": 9184,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K02:incident_similarity",
+    "issue_characters": 3405,
+    "state_json_bytes": 9184,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K02:patch_selector",
+    "issue_characters": 3405,
+    "state_json_bytes": 9184,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K03:failure_classifier",
+    "issue_characters": 10399,
+    "state_json_bytes": 16955,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K03:incident_similarity",
+    "issue_characters": 10399,
+    "state_json_bytes": 16955,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K03:patch_selector",
+    "issue_characters": 10399,
+    "state_json_bytes": 16955,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K04:failure_classifier",
+    "issue_characters": 1048,
+    "state_json_bytes": 4299,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K04:incident_similarity",
+    "issue_characters": 1048,
+    "state_json_bytes": 4299,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K04:patch_selector",
+    "issue_characters": 1048,
+    "state_json_bytes": 4299,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K05:failure_classifier",
+    "issue_characters": 2470,
+    "state_json_bytes": 7220,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K05:incident_similarity",
+    "issue_characters": 2470,
+    "state_json_bytes": 7220,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K05:patch_selector",
+    "issue_characters": 2470,
+    "state_json_bytes": 7220,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "failure_classifier",
+    "id": "K06:failure_classifier",
+    "issue_characters": 4722,
+    "state_json_bytes": 10968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "incident_similarity",
+    "id": "K06:incident_similarity",
+    "issue_characters": 4722,
+    "state_json_bytes": 10968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "K06:patch_selector",
+    "issue_characters": 4722,
+    "state_json_bytes": 10968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "trace_anomaly",
+    "id": "R65-trace-0",
+    "issue_characters": 0,
+    "state_json_bytes": 1574,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "trace_anomaly",
+    "id": "R65-trace-1",
+    "issue_characters": 0,
+    "state_json_bytes": 2194,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "trace_anomaly",
+    "id": "R65-trace-2",
+    "issue_characters": 0,
+    "state_json_bytes": 481,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  },
+  {
+    "candidates": 0,
+    "capability": "patch_selector",
+    "id": "R65-patch-learned-refusal",
+    "issue_characters": 0,
+    "state_json_bytes": 968,
+    "token_count": null,
+    "token_count_reason": "no tokenizer/model-token budget in local estimators"
+  }
+]

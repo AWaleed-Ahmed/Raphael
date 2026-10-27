@@ -1,0 +1,55 @@
+{
+  "actual_wall_seconds": 65.03370128300048,
+  "batch_period_seconds": 0.05,
+  "completed_jobs_per_second": 20.0,
+  "concurrency": 1,
+  "counts": {
+    "steady_accepted_jobs": 1200,
+    "steady_completed_jobs": 1200,
+    "steady_output_mismatches": 0,
+    "steady_runtime_errors": 0,
+    "warmup_accepted_jobs": 100,
+    "warmup_completed_jobs": 100,
+    "warmup_output_mismatches": 0,
+    "warmup_runtime_errors": 0
+  },
+  "gateway_latency_ms": {
+    "candidate_ranker": {
+      "max": 12.101387999791768,
+      "p50": 7.021454999630805,
+      "p95": 7.807386000422412,
+      "p99": 8.269202999144909
+    },
+    "failure_classifier": {
+      "max": 7.008086000496405,
+      "p50": 4.08363699898473,
+      "p95": 4.35856399963086,
+      "p99": 4.676381000535912
+    },
+    "incident_similarity": {
+      "max": 6.756825998309068,
+      "p50": 3.9916570003697416,
+      "p95": 4.330357000071672,
+      "p99": 4.593847999785794
+    },
+    "patch_selector": {
+      "max": 6.636723001065548,
+      "p50": 0.22239899954001885,
+      "p95": 5.020848000640399,
+      "p99": 5.255492998912814
+    },
+    "trace_anomaly": {
+      "max": 6.032856999809155,
+      "p50": 3.815977999693132,
+      "p95": 4.161506998570985,
+      "p99": 4.53233000007458
+    }
+  },
+  "input_bundle_sha256": "be570e7a4e899c6ffb3754fc033dc542861a718b57bcd21319070e12b54be825",
+  "python": "3.12.3",
+  "runtime_path": "/tmp/phase3/runtime-v2/lib/python3.12/site-packages/raphael_agent/__init__.py",
+  "status": "measured_not_qualified",
+  "steady_seconds": 60.0,
+  "traffic": "closed_loop_bounded_batches; one call/capability per mixed job",
+  "warmup_seconds": 5.0
+}

@@ -1,0 +1,70 @@
+{
+  "boundary": "complete measured cgroup including worker threads and benchmark I/O cache; no historical anon/file or RSS series was captured; cause unproven; no subtraction to force a pass",
+  "decision": "fail",
+  "growth_gate_percent": 10,
+  "memory_growth_percent": 28.597792926820077,
+  "steady_peak_bytes": 142307328,
+  "steady_peak_gate_bytes": 1610612736,
+  "windows": [
+    {
+      "median_memory_bytes": 108752896.0,
+      "samples": 600,
+      "start_steady_seconds": 0
+    },
+    {
+      "median_memory_bytes": 113831936.0,
+      "samples": 600,
+      "start_steady_seconds": 600
+    },
+    {
+      "median_memory_bytes": 118517760,
+      "samples": 597,
+      "start_steady_seconds": 1200
+    },
+    {
+      "median_memory_bytes": 122068992.0,
+      "samples": 600,
+      "start_steady_seconds": 1800
+    },
+    {
+      "median_memory_bytes": 126062592.0,
+      "samples": 600,
+      "start_steady_seconds": 2400
+    },
+    {
+      "median_memory_bytes": 129826816.0,
+      "samples": 600,
+      "start_steady_seconds": 3000
+    },
+    {
+      "median_memory_bytes": 116178944.0,
+      "samples": 600,
+      "start_steady_seconds": 3600
+    },
+    {
+      "median_memory_bytes": 119349248.0,
+      "samples": 600,
+      "start_steady_seconds": 4200
+    },
+    {
+      "median_memory_bytes": 124563456.0,
+      "samples": 600,
+      "start_steady_seconds": 4800
+    },
+    {
+      "median_memory_bytes": 129441792.0,
+      "samples": 600,
+      "start_steady_seconds": 5400
+    },
+    {
+      "median_memory_bytes": 134688768.0,
+      "samples": 600,
+      "start_steady_seconds": 6000
+    },
+    {
+      "median_memory_bytes": 139853824.0,
+      "samples": 600,
+      "start_steady_seconds": 6600
+    }
+  ]
+}
