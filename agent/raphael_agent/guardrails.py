@@ -91,6 +91,13 @@ def go_nogo_checks(*, require_token_for_live: bool = True) -> list[GuardrailChec
             detail=f"RAPHAEL_PARTNER_MODE={partner}",
         )
     )
+    from raphael_agent.model_gateway import ModelGateway, model_mode
+
+    checks.append(GuardrailCheck(
+        id="local_models_off_or_shadow",
+        ok=not ModelGateway().enabled and model_mode() in {"active", "off", "shadow"},
+        detail="Experimental local models must remain off or isolated in shadow for this pilot check",
+    ))
     allow = live_publish_failure_classes()
     checks.append(
         GuardrailCheck(

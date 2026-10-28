@@ -7,15 +7,71 @@ authoritative when artifacts or runtime dependencies are unavailable.
 
 from __future__ import annotations
 
+import hashlib
 import importlib
+import json
 import math
 import os
 import sys
+import threading
+from datetime import datetime, timezone
+from time import perf_counter
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .incident_scope import IncidentScope, incident_similarity_scores, scope_for_run
 from .model_outputs import PATCH_TEMPLATES, execution_source, probability, valid_output
+
+
+CAPABILITIES = {
+    "classify_failure": "failure_classifier",
+    "rank_candidates": "candidate_ranker",
+    "retrieve_incidents": "incident_similarity",
+    "detect_trace": "trace_anomaly",
+    "select_patch": "patch_selector",
+}
+
+
+def model_mode() -> str:
+    """Unknown configuration fails closed; shadow runs in a separate observer."""
+    mode = os.environ.get("RAPHAEL_MODEL_MODE", "active").strip().lower()
+    return mode if mode in {"active", "off", "shadow"} else "invalid"
+
+
+def capability_disabled_reason(capability: str, *, observer: bool = False) -> str | None:
+    if os.environ.get("RAPHAEL_MODEL_ENABLED", "0").strip().lower() in {"0", "false", "no", "off", ""}:
+        return "disabled_by_environment"
+    if model_mode() != ("shadow" if observer else "active"):
+        return "disabled_by_mode"
+    selected = os.environ.get("RAPHAEL_MODEL_CAPABILITIES")
+    if selected is not None:
+        names = {name.strip() for name in selected.split(",") if name.strip()}
+        if names - set(CAPABILITIES.values()):
+            return "invalid_capability_configuration"
+        if capability not in names:
+            return "disabled_capability"
+    stop_file = os.environ.get("RAPHAEL_MODEL_STOP_FILE")
+    if stop_file:
+        try:
+            Path(stop_file).stat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return "stop_control_unavailable"
+        else:
+            return "stopped_by_operator"
+    return None
+
+
+def model_influence_revoked(state: dict[str, Any]) -> bool:
+    """Previously accepted predictions cannot outlive their admission control."""
+    return any(
+        isinstance(result, dict) and result and result.get("available") is not False
+        and capability_disabled_reason(capability) is not None
+        for capability, result in (state.get("model_results") or {}).items()
+        if capability in CAPABILITIES.values()
+    )
 
 
 DEFAULT_MODEL_ROOT = Path(sys.prefix) / "share" / "raphael" / "models"
@@ -42,21 +98,30 @@ class ModelGateway:
     ``RAPHAEL_MODEL_ENABLED=1`` explicitly opts in to an available runtime.
     """
 
-    def __init__(self, model_root: Path | str | None = None) -> None:
+    def __init__(self, model_root: Path | str | None = None, *, observer: bool = False) -> None:
         self.model_root = Path(
             model_root or os.environ.get("RAPHAEL_MODEL_ROOT") or DEFAULT_MODEL_ROOT
         ).expanduser().resolve()
         self._predict_module: Any | None = None
-        self._load_error: str | None = None
+        self._observer = observer
+        self._call = threading.local()
+
+    @property
+    def _load_error(self) -> str | None:
+        return getattr(self._call, "error", None)
+
+    @_load_error.setter
+    def _load_error(self, value: str | None) -> None:
+        self._call.error = value
 
     @property
     def enabled(self) -> bool:
-        return os.environ.get("RAPHAEL_MODEL_ENABLED", "0").strip().lower() not in {
-            "0",
-            "false",
-            "no",
-            "off",
-        }
+        return any(capability_disabled_reason(name, observer=self._observer) is None
+                   for name in CAPABILITIES.values())
+
+    def audit_metadata(self) -> dict[str, Any]:
+        """Only fixed taxonomy, hashes and numeric measurements, never raw inputs."""
+        return dict(getattr(self._call, "audit", {}))
 
     def _load(self) -> Any | None:
         if not self.enabled:
@@ -80,10 +145,30 @@ class ModelGateway:
         top_k: int = 5,
         scope: IncidentScope | None = None,
     ) -> dict[str, Any] | None:
-        module = self._load()
-        if module is None:
-            return None
+        from .local_inference.artifacts import ArtifactUnavailable, TRUSTED_ARTIFACTS, RUNTIME_VERSIONS
+
+        capability = CAPABILITIES[method]
+        self._load_error = None
+        self._call.audit = {
+            "capability": capability, "gate_version": "1", "mode": model_mode(),
+            "attempted": False, "learned_execution": False,
+            "required_runtime_versions": dict(RUNTIME_VERSIONS),
+            "agent_version": __version__,
+            "python_version": ".".join(map(str, sys.version_info[:3])),
+        }
+        started = perf_counter()
+        result = None
         try:
+            self._call.audit["input_sha256"] = hashlib.sha256(
+                json.dumps(payload, sort_keys=True, allow_nan=False).encode()
+            ).hexdigest()
+            self._load_error = capability_disabled_reason(capability, observer=self._observer)
+            if self._load_error:
+                return None
+            module = self._load()
+            if module is None:
+                return None
+            self._call.audit["attempted"] = True
             function = getattr(module, method)
             if method == "retrieve_incidents":
                 result = function(self.model_root, payload, top_k, scope=scope)
@@ -91,14 +176,34 @@ class ModelGateway:
                 result = function(self.model_root, payload)
             if not valid_output(method, result, payload, scope):
                 self._load_error = "invalid_model_output"
+                result = None
                 return None
-            self._load_error = None
+            self._call.audit.update(
+                learned_execution=bool(result.get("learned_execution")),
+                prediction_source=execution_source(result),
+                manifest_sha256=TRUSTED_ARTIFACTS[capability][0],
+                artifact_sha256=TRUSTED_ARTIFACTS[capability][1],
+            )
+            for key in ("confidence", "anomaly_probability", "allowed_probability", "template_confidence"):
+                if probability(result.get(key)):
+                    self._call.audit[key] = result[key]
+            # A stop requested while an estimator was running discards its result.
+            self._load_error = capability_disabled_reason(capability, observer=self._observer)
+            if self._load_error:
+                result = None
+                return None
             return {**result, "execution_source": execution_source(result)}
         except Exception as exc:  # noqa: BLE001 - deterministic fallback must survive
-            from .local_inference.artifacts import ArtifactUnavailable
-
             self._load_error = str(exc) if isinstance(exc, ArtifactUnavailable) else type(exc).__name__
+            result = None
             return None
+        finally:
+            self._call.audit.update(
+                completed_at=datetime.now(timezone.utc).isoformat(),
+                elapsed_ms=round((perf_counter() - started) * 1000, 3),
+                source=execution_source(result, self._load_error),
+                reason=self._load_error,
+            )
 
     @staticmethod
     def _observation(state: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +305,7 @@ class ModelGateway:
             payload["baseline_error_span_count"] = baseline.get("error_span_count", 0)
             payload["baseline_status_code"] = baseline.get("status_code", 200)
         result = self._invoke("detect_trace", payload)
+        self._call.audit["baseline_status"] = baseline_status
         return {**result, "baseline_status": baseline_status} if result is not None else None
 
     def classify_failure(self, state: dict[str, Any]) -> dict[str, Any] | None:
@@ -211,13 +317,15 @@ class ModelGateway:
     ) -> dict[str, Any] | None:
         """Adapt the current incident to the historical similarity model."""
         scope = None
-        if self.enabled:
+        if capability_disabled_reason("incident_similarity", observer=self._observer) is None:
             from .local_inference.artifacts import ArtifactUnavailable
 
             try:
                 scope = scope_for_run(state)
             except ArtifactUnavailable as exc:
                 self._load_error = str(exc)
+                self._call.audit = {"capability": "incident_similarity", "attempted": False,
+                                    "source": "unavailable_fallback", "reason": str(exc)}
                 return None
         return self._invoke(
             "retrieve_incidents", self._failure_record(state), top_k=top_k, scope=scope
@@ -262,6 +370,9 @@ class ModelGateway:
     ) -> dict[str, Any] | None:
         """Rank canonical FaultCandidate rows and return contract-safe rows."""
         if not candidates:
+            self._load_error = None
+            self._call.audit = {"capability": "candidate_ranker", "attempted": False,
+                                "source": "not_applicable", "reason": "no_candidates"}
             return None
         rows = [self._candidate_record(candidate, state, comparisons) for candidate in candidates]
         prediction = self._invoke("rank_candidates", rows)
@@ -286,6 +397,9 @@ class ModelGateway:
         """Adapt diagnosis + top candidate to the bounded patch selector."""
         from raphael_agent.image_pull import is_image_pull
         if is_image_pull(state.get("failure_signature") or {}):
+            self._load_error = None
+            self._call.audit = {"capability": "patch_selector", "attempted": False,
+                                "source": "not_applicable", "reason": "image_pull_policy"}
             return None
         diagnosis = state.get("diagnosis") or {}
         classification = diagnosis.get("classification") or {}
