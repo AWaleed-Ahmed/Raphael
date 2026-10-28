@@ -127,7 +127,7 @@ def valid_output(
 def execution_source(result: dict[str, Any] | None, error: str | None = None) -> str:
     """Describe the effective answer separately from estimator execution."""
     if result is None:
-        if error == "disabled_by_environment":
+        if error in {"disabled_by_environment", "disabled_by_mode", "disabled_capability", "stopped_by_operator"}:
             return "disabled"
         return "unavailable_fallback" if error else "not_applicable"
     if result.get("abstained") or result.get("policy_allowed") is False:

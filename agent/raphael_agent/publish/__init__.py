@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from raphael_agent.model_gateway import model_influence_revoked
 from raphael_agent.publish.branch import branch_name_for_run, pr_title_for_run
 from raphael_agent.publish.config import (
     base_branch,
@@ -129,6 +130,11 @@ def _build_fix_snippet(run: dict[str, Any], files: list[dict[str, Any]]) -> str:
         parts.append("```")
         parts.append("")
     return "\n".join(parts).strip() + "\n"
+
+
+def _require_model_admission(run: dict[str, Any]) -> None:
+    if model_influence_revoked(run):
+        raise RuntimeError("Model admission revoked; reconcile any completed remote writes before retrying")
 
 
 def _publish_issue_snippet(
@@ -257,6 +263,7 @@ def _publish_issue_snippet(
 
     client = github or GitHubPublisher(deadline_at=(run.get("budget_snapshot") or {}).get("deadline_at"))
     try:
+        _require_model_admission(run)
         comment = client.create_issue_comment(
             owner,
             name,
@@ -325,6 +332,11 @@ def publish(
             if (run.get("trigger") or {}).get("kind") == "github_issue"
             else "draft_pr"
         )
+    if model_influence_revoked(run):
+        return _fail(error="model_admission_revoked",
+                     message="Restart this incident with inference disabled before publication",
+                     result_id=run.get("result_id"), branch="", base=base_branch(),
+                     mode=effective_publish_mode(run), delivery=delivery)
     if delivery == "issue_snippet":
         return _publish_issue_snippet(run, github=github)
 
@@ -459,11 +471,13 @@ def publish(
             from_sha = client.get_ref_sha(owner, name, base)
         except GitHubApiError:
             from_sha = head_sha
+        _require_model_admission(run)
         client.ensure_branch(owner, name, branch=branch, from_sha=from_sha)
         existing_pr = client.find_open_pr(owner, name, head_branch=branch)
         committed: list[str] = []
         if existing_pr is None:
             for entry in files:
+                _require_model_admission(run)
                 client.put_file(
                     owner,
                     name,
@@ -473,6 +487,7 @@ def publish(
                     message=f"raphael: {title} ({result_id})",
                 )
                 committed.append(entry["path"])
+        _require_model_admission(run)
         pr = existing_pr or client.create_draft_pr(
             owner,
             name,

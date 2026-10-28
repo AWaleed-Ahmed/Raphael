@@ -6,7 +6,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 from raphael_agent.schema_util import validate_agent
 from raphael_agent.timeutil import utc_now
@@ -64,19 +64,20 @@ class JsonlFeedbackRecorder:
     def record_pr_outcome(self, event: dict[str, Any]) -> None:
         self.record(event)
 
-    def read_all(self) -> list[dict[str, Any]]:
+    def iter_events(self) -> Iterator[dict[str, Any]]:
         if not self.path.is_file():
-            return []
-        rows: list[dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-        return rows
+            return
+        with self.path.open(encoding="utf-8") as source:
+            for line in source:
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(row, dict):
+                    yield row
+
+    def read_all(self) -> list[dict[str, Any]]:
+        return list(self.iter_events())
 
 
 def _for_schema(event: dict[str, Any]) -> dict[str, Any]:

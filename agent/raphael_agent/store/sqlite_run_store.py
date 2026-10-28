@@ -9,6 +9,7 @@ import json
 import os
 import sqlite3
 import threading
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -107,19 +108,18 @@ class SqliteRunStore(RunStore):
         return json.loads(row["payload"])
 
     def iter_runs(self) -> Iterator[dict[str, Any]]:
-        with self._lock:
-            with self._connect() as conn:
-                rows = conn.execute(
-                    "SELECT payload FROM runs ORDER BY updated_at ASC"
-                ).fetchall()
-        if not rows:
+        found = False
+        with closing(self._connect()) as conn:
+            with self._lock:
+                rows = conn.execute("SELECT payload FROM runs ORDER BY updated_at ASC")
+            for row in rows:
+                found = True
+                try:
+                    yield json.loads(row["payload"])
+                except json.JSONDecodeError:
+                    continue
+        if not found:
             yield from super().iter_runs()
-            return
-        for row in rows:
-            try:
-                yield json.loads(row["payload"])
-            except json.JSONDecodeError:
-                continue
 
     def append_decision(self, decision: dict[str, Any]) -> None:
         super().append_decision(decision)

@@ -35,7 +35,7 @@ from raphael_agent.localization import (
     resolve_anchor,
 )
 from raphael_agent.localization.supabase_catalog import span_name
-from raphael_agent.model_gateway import ModelGateway, model_error
+from raphael_agent.model_gateway import ModelGateway, model_error, model_influence_revoked
 from raphael_agent.model_outputs import execution_source
 from raphael_agent.sandbox_client import SandboxApiError, SandboxClient
 from raphael_agent.sandbox_config import secret_fixture_args
@@ -108,12 +108,28 @@ def _model_audit(state: RunState, node: str, capability: str, result: dict[str, 
                  gateway: ModelGateway) -> list[dict[str, Any]]:
     source = execution_source(result, model_error(gateway))
     learned = bool((result or {}).get("learned_execution"))
+    metadata = gateway.audit_metadata()
+    if isinstance(metadata, dict):
+        learned = bool(metadata.get("learned_execution", learned))
     return append_audit(state, node, "model_execution",
-                        f"capability={capability} source={source} learned_execution={learned}")
+                        f"capability={capability} source={source} learned_execution={learned} "
+                        + json.dumps(metadata if isinstance(metadata, dict) else {}, sort_keys=True))
 
 
 def _budget_halt_updates(state: RunState, node: str) -> dict[str, Any] | None:
     """If a budget is exhausted, return state updates that stop the run (no publish)."""
+    if model_influence_revoked(state):
+        return {
+            "current_node": node, "status": "failed_closed", "terminal_reason": "policy_blocked",
+            "updated_at": utc_now(),
+            "escalation_report": _escalation(
+                state, reason_code="policy_blocked",
+                summary="Local model admission was revoked",
+                what_happened="A previously accepted prediction is no longer enabled",
+                why_no_fix="Restart this incident with inference disabled before taking further action",
+            ),
+            "audit_events": append_audit(state, node, "model_stopped", "admission_revoked"),
+        }
     halt = check_budgets(state, node=node)
     if halt is None:
         return None
