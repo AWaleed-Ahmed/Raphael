@@ -13,7 +13,7 @@ from raphael_agent.publish.pr_body import build_pr_body
 from raphael_agent.schema_util import validate_agent
 
 
-def _base_run(**overrides: Any) -> dict[str, Any]:
+def _base_run(*, finalized: bool = False, **overrides: Any) -> dict[str, Any]:
     run: dict[str, Any] = {
         "run_id": "run-publish-1",
         "tenant_id": "local-dev",
@@ -107,6 +107,16 @@ def _base_run(**overrides: Any) -> dict[str, Any]:
         "active_patch_id": "patch-1",
     }
     run.update(overrides)
+    if finalized:
+        run["validated_fix_record"] = {
+            **{key: run[key] for key in ("result_id", "run_id", "sandbox_id", "repository")},
+            "base_commit_sha": run["commit_sha"],
+            "validation": run["validation_results"][-1],
+            "patch": {"files": [
+                {key: entry[key] for key in ("path", "content")}
+                for entry in run["candidate_patches"][0]["files"]
+            ]},
+        }
     return run
 
 
@@ -237,7 +247,7 @@ def test_publish_live_uses_github_client(monkeypatch):
         "html_url": "https://github.com/raphael/demo/pull/42",
         "number": 42,
     }
-    result = publish(_base_run(), github=gh)
+    result = publish(_base_run(finalized=True), github=gh)
     assert result["ok"] is True
     assert result["dry_run"] is False
     assert result["pull_request_url"].endswith("/pull/42")
@@ -258,7 +268,7 @@ def test_publish_live_idempotent_open_pr(monkeypatch):
         "html_url": "https://github.com/raphael/demo/pull/7",
         "number": 7,
     }
-    result = publish(_base_run(), github=gh)
+    result = publish(_base_run(finalized=True), github=gh)
     assert result["idempotent_replay"] is True
     gh.put_file.assert_not_called()
     gh.create_draft_pr.assert_not_called()

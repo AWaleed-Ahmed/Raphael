@@ -79,7 +79,7 @@ def test_live_requires_all_gates(monkeypatch):
     monkeypatch.setenv("RAPHAEL_PUBLISH_MODE", "live")
     monkeypatch.setenv("RAPHAEL_LIVE_PUBLISH_FAILURE_CLASSES", "probe_misconfiguration")
     monkeypatch.setenv("RAPHAEL_GITHUB_TOKEN", "test-token")
-    run = _base_run()
+    run = _base_run(finalized=True)
     assert live_publish_allowed(run) is True
     gh = MagicMock()
     gh.get_ref_sha.return_value = "sha"
