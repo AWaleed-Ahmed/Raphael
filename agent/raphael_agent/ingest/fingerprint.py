@@ -11,6 +11,7 @@ Layers:
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -347,13 +348,28 @@ def build_fingerprint(seed: dict[str, Any]) -> str:
     service = str((seed.get("correlation") or {}).get("workload") or name or "workload")
     env = str(seed.get("target_environment") or "default")
     tenant = str(seed.get("tenant_id") or "local-dev")
+    # Ownership IDs are opaque: log-noise cleanup can collapse distinct UUIDs.
+    scope = {
+        "tenant_id": tenant,
+        **{
+            key: seed[key]
+            for key in ("company_id", "client_id")
+            if seed.get(key) is not None
+        },
+    }
+    tenant = (
+        "scope:"
+        + hashlib.sha256(json.dumps(scope, sort_keys=True).encode()).hexdigest()[:20]
+    )
     commit = str(seed.get("commit_sha") or "HEAD")[:12]
 
     correlation = seed.get("correlation") or {}
     existing = str(correlation.get("provisional_failure_key") or "")
     # APM normalizers already compute the canonical Layer 2 key.
     if existing.startswith("v1|"):
-        return existing
+        parts = existing.split("|", 2)
+        if len(parts) == 3:
+            return f"v1|{_clean_component(tenant, 'default')}|{parts[2]}"
     symptom = str(correlation.get("workflow_name") or correlation.get("check_name") or "failure")
     operation = str(correlation.get("deployment_config_path") or correlation.get("namespace") or "deploy")
     error_class = str(correlation.get("provisional_failure_key") or "error")

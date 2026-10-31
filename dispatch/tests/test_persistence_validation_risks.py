@@ -31,6 +31,10 @@ def test_dispatch_invalid_report_returns_failed_terminal_and_persists(tmp_path, 
     action = orchestrator.receive_result(result_for(action, result=create_result(job_id)))["messages"][0]
     action = orchestrator.receive_result(result_for(action, result=deploy_result()))["messages"][0]
     with TestClient(create_app(orchestrator)) as client:
+        claimed = client.get("/v1/tenants/test/jobs/next",
+                             headers={"Authorization": "Bearer connector"})
+        assert claimed.status_code == 200
+        action = claimed.json()["messages"][0]
         response = client.post("/v1/results", headers={"Authorization": "Bearer connector"},
                                json=result_for(action, result=observe_result()))
     assert response.status_code == 200

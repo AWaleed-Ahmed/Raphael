@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 from raphael_agent.store import RunStore
 from raphael_agent.timeutil import utc_now
@@ -32,7 +32,11 @@ def _duration_seconds(run: dict[str, Any]) -> float | None:
     return max(0.0, (end - start).total_seconds())
 
 
-def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
+def summarize_store(
+    store: RunStore | None = None,
+    *,
+    run_filter: Callable[[dict[str, Any]], bool] | None = None,
+) -> dict[str, Any]:
     """Aggregate lightweight operator metrics from durable RunStore docs."""
     store = store or RunStore()
     runs_total = 0
@@ -42,7 +46,15 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
     status_counts: Counter[str] = Counter()
     publish_modes: Counter[str] = Counter()
     patch_attempts_total = 0
+
+    def allowed_reference(row: dict[str, Any]) -> bool:
+        run_id = row.get("run_id")
+        run = store.get_run(str(run_id)) if run_id else None
+        return run is not None and (run_filter is None or run_filter(run))
+
     for run in store.iter_runs():
+        if run_filter is not None and not run_filter(run):
+            continue
         runs_total += 1
         models.observe(run)
         status_counts[str(run.get("status") or "unknown")] += 1
@@ -59,14 +71,20 @@ def summarize_store(store: RunStore | None = None) -> dict[str, Any]:
 
     ingest_counts: Counter[str] = Counter()
     for decision in store.iter_decisions() if hasattr(store, "iter_decisions") else []:
+        if run_filter is not None and not allowed_reference(decision):
+            continue
         ingest_counts[str(decision.get("decision") or "unknown")] += 1
     # Fallback: read decisions jsonl if helper missing
-    if not ingest_counts:
+    if not ingest_counts and run_filter is None:
         ingest_counts = _read_decisions(store)
 
     avg_duration = duration_total / duration_count if duration_count else None
-    feedback = summarize_feedback()
-    learning = summarize_learning()
+    feedback = summarize_feedback(
+        event_filter=allowed_reference if run_filter else None
+    )
+    learning = (
+        summarize_learning() if run_filter is None else {"snapshot_loaded": False}
+    )
     return {
         "generated_at": utc_now(),
         "runs_total": runs_total,
@@ -105,7 +123,9 @@ def summarize_learning() -> dict[str, Any]:
     }
 
 
-def summarize_feedback() -> dict[str, Any]:
+def summarize_feedback(
+    *, event_filter: Callable[[dict[str, Any]], bool] | None = None
+) -> dict[str, Any]:
     """Aggregate FR-065 feedback.jsonl outcomes (deepened audit, no ML)."""
     from raphael_agent.feedback import JsonlFeedbackRecorder
 
@@ -114,6 +134,8 @@ def summarize_feedback() -> dict[str, Any]:
     by_source: Counter[str] = Counter()
     total = 0
     for row in rows:
+        if event_filter is not None and not event_filter(row):
+            continue
         total += 1
         by_outcome[str(row.get("outcome") or "unknown")] += 1
         by_source[str(row.get("source") or "unknown")] += 1

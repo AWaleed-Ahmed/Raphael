@@ -164,6 +164,9 @@ def test_actions_feedback_retry_escalate_cancel(client, tmp_path, monkeypatch):
 
 
 def test_auth_requires_token_when_set(client, monkeypatch):
+    monkeypatch.delenv("RAPHAEL_ALLOW_INSECURE_LOCAL", raising=False)
+    monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", "local-dev")
+    assert client.get("/v1/runs").status_code == 401
     monkeypatch.setenv("RAPHAEL_INTERFACE_TOKEN", "secret-token")
     denied = client.get("/v1/runs")
     assert denied.status_code == 401

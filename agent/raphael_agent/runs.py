@@ -12,7 +12,7 @@ import os
 import threading
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jsonschema import ValidationError
 
@@ -173,6 +173,7 @@ def list_runs(
     pull_request_number: int | None = None,
     limit: int = 20,
     cursor: str | None = None,
+    run_filter: Callable[[dict[str, Any]], bool] | None = None,
 ) -> dict[str, Any]:
     if limit < 1 or limit > 100:
         raise RunApiError("invalid_request", "limit must be between 1 and 100")
@@ -180,6 +181,8 @@ def list_runs(
     rows.sort(key=lambda r: r.get("updated_at") or r.get("created_at") or "", reverse=True)
     filtered: list[dict[str, Any]] = []
     for run in rows:
+        if run_filter is not None and not run_filter(run):
+            continue
         run_owner, run_name = _repo_owner_name(run)
         if owner and run_owner != owner:
             continue
@@ -224,10 +227,13 @@ def find_latest_run_for_github_number(
     owner: str,
     repo: str,
     number: int,
+    run_filter: Callable[[dict[str, Any]], bool] | None = None,
 ) -> dict[str, Any] | None:
     """Latest run whose issue_number or pull_request_number matches ``number``."""
     matches: list[dict[str, Any]] = []
     for run in store.iter_runs():
+        if run_filter is not None and not run_filter(run):
+            continue
         run_owner, run_name = _repo_owner_name(run)
         if run_owner != owner or run_name != repo:
             continue
@@ -275,7 +281,13 @@ def _maybe_run_graph(run: dict[str, Any], store: RunStore) -> dict[str, Any]:
     return dict(final)
 
 
-def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
+def create_run(
+    body: dict[str, Any],
+    *,
+    store: RunStore,
+    scope: str | None = None,
+    ownership: dict[str, str] | None = None,
+) -> dict[str, Any]:
     try:
         validate_agent("run_create_request.json", body)
     except ValidationError as exc:
@@ -283,7 +295,12 @@ def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
 
     action_id = str(body["action_id"])
     fingerprint = _payload_fingerprint(body)
-    replay = _replay_or_conflict(store, action_id, fingerprint)
+    scoped_action_id = (
+        hashlib.sha256(f"{scope}:{action_id}".encode()).hexdigest()
+        if scope
+        else action_id
+    )
+    replay = _replay_or_conflict(store, scoped_action_id, fingerprint)
     if replay is not None:
         return replay
 
@@ -293,7 +310,7 @@ def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
     event: dict[str, Any] = {
         "run_id": f"run-{uuid.uuid4().hex[:12]}",
         "trigger_kind": body["trigger_kind"],
-        "event_id": action_id,
+        "event_id": scoped_action_id,
         "repository": body["repository"],
         "commit_sha": body["commit_sha"],
         "raw_ref": f"interface:create:{action_id}",
@@ -318,6 +335,11 @@ def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
             event[key] = body[key]
 
     seed = normalize_failed_run_event(event)
+    if ownership:
+        seed.update(ownership)
+        from raphael_agent.ingest.fingerprint import build_fingerprint
+
+        seed["failure_fingerprint"] = build_fingerprint(seed)
     try:
         decision, run = accept_normalized_event(
             seed,
@@ -346,7 +368,11 @@ def create_run(body: dict[str, Any], *, store: RunStore) -> dict[str, Any]:
     }
     validate_agent("run_create_response.json", result)
     _record_result(
-        store, action_id=action_id, fingerprint=fingerprint, kind="create", result=result
+        store,
+        action_id=scoped_action_id,
+        fingerprint=fingerprint,
+        kind="create",
+        result=result,
     )
     return result
 
@@ -381,6 +407,9 @@ def _seed_from_parent(parent: dict[str, Any], *, sandbox_mode: str) -> dict[str,
         if parent.get(key) is not None:
             event[key] = parent[key]
     seed = normalize_failed_run_event(event)
+    for key in ("company_id", "client_id"):
+        if parent.get(key) is not None:
+            seed[key] = parent[key]
     if parent.get("failure_fingerprint"):
         seed["failure_fingerprint"] = parent["failure_fingerprint"]
     if parent.get("correlation"):
@@ -398,7 +427,7 @@ def _seed_from_parent(parent: dict[str, Any], *, sandbox_mode: str) -> dict[str,
 
 
 def apply_run_action(
-    run_id: str, body: dict[str, Any], *, store: RunStore
+    run_id: str, body: dict[str, Any], *, store: RunStore, scope: str | None = None
 ) -> dict[str, Any]:
     try:
         validate_agent("run_action_request.json", body)
@@ -408,7 +437,12 @@ def apply_run_action(
     action_id = str(body["action_id"])
     verb = str(body["verb"])
     fingerprint = _payload_fingerprint({"run_id": run_id, **body})
-    replay = _replay_or_conflict(store, action_id, fingerprint)
+    scoped_action_id = (
+        hashlib.sha256(f"{scope}:{action_id}".encode()).hexdigest()
+        if scope
+        else action_id
+    )
+    replay = _replay_or_conflict(store, scoped_action_id, fingerprint)
     if replay is not None:
         return replay
 
@@ -547,6 +581,10 @@ def apply_run_action(
         result["terminal_reason"] = terminal_reason
     validate_agent("run_action_response.json", result)
     _record_result(
-        store, action_id=action_id, fingerprint=fingerprint, kind="action", result=result
+        store,
+        action_id=scoped_action_id,
+        fingerprint=fingerprint,
+        kind="action",
+        result=result,
     )
     return result

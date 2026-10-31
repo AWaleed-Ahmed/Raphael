@@ -106,7 +106,16 @@ def submit_to_dispatch(
         # This is private, same-process context. It is deliberately not added
         # to the strict connector-v1 job envelope.
         initial_evidence = run.get("evidence") if isinstance(run.get("evidence"), list) else []
-        result = orchestrator.intake(envelope, tenant_id=tenant_id, initial_evidence=initial_evidence)
+        result = orchestrator.intake(
+            envelope,
+            tenant_id=tenant_id,
+            initial_evidence=initial_evidence,
+            ownership={
+                key: seed[key]
+                for key in ("tenant_id", "company_id", "client_id")
+                if seed.get(key) is not None
+            },
+        )
 
         # Store correlation metadata on the run record
         bridge_meta = seed.get("_bridge_metadata", {})

@@ -8,6 +8,8 @@ import json
 import os
 from typing import Any
 
+from raphael_agent.access import InterfacePrincipal
+
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest.issue_config import (
     default_commit_sha_fallback,
@@ -40,8 +42,9 @@ def verify_github_signature(
     """Verify ``X-Hub-Signature-256``. Fail closed when a secret is configured."""
     configured = secret if secret is not None else webhook_secret()
     if not configured:
-        # Local/dev: allow unsigned when secret unset (document in README).
-        return
+        if os.environ.get("RAPHAEL_ALLOW_INSECURE_LOCAL") == "1":
+            return
+        raise WebhookAuthError("GitHub webhook secret is not configured")
     if not signature_header or not signature_header.startswith("sha256="):
         raise WebhookAuthError("missing or malformed X-Hub-Signature-256")
     digest = hmac.new(
@@ -50,8 +53,38 @@ def verify_github_signature(
         hashlib.sha256,
     ).hexdigest()
     expected = "sha256=" + digest
-    if not hmac.compare_digest(expected, signature_header):
+    if not hmac.compare_digest(expected.encode(), signature_header.encode()):
         raise WebhookAuthError("invalid webhook signature")
+
+
+def github_scope(payload: dict[str, Any]) -> InterfacePrincipal | None:
+    """Resolve operator-owned installation/repository scope before any side effect."""
+    raw = os.environ.get("RAPHAEL_GITHUB_INSTALLATIONS", "").strip()
+    if not raw and os.environ.get("RAPHAEL_ALLOW_INSECURE_LOCAL") == "1":
+        return None
+    try:
+        installation = str((payload.get("installation") or {}).get("id") or "")
+        repo = payload.get("repository") or {}
+        owner = repo.get("owner") or {}
+        name = f"{owner.get('login')}/{repo.get('name')}".lower()
+        claims = json.loads(raw)[installation][name]
+        tenant = claims["tenant_id"]
+        if not isinstance(tenant, str) or not tenant.strip():
+            raise ValueError
+        for key in ("company_id", "client_id"):
+            if key in claims and (
+                not isinstance(claims[key], str) or not claims[key].strip()
+            ):
+                raise ValueError
+        return InterfacePrincipal(
+            tenant,
+            "producer",
+            (name,),
+            claims.get("company_id"),
+            claims.get("client_id"),
+        )
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise WebhookAuthError("installation or repository is not authorized") from None
 
 
 def _resolve_default_branch_sha(owner: str, repo: str, branch: str | None) -> str | None:
@@ -105,14 +138,31 @@ def parse_github_webhook(
     if not isinstance(payload, dict):
         raise ValueError("webhook JSON must be an object")
 
+    identity = github_scope(payload)
+
+    def scoped(seed: dict[str, Any]) -> dict[str, Any]:
+        if identity is not None:
+            seed.update(identity.ownership)
+            repo = seed["repository"]
+            repo["clone_url"] = f"https://github.com/{repo['owner']}/{repo['name']}.git"
+            namespace = identity.namespace
+            seed["run_id"] += f"-{namespace}"
+            seed["trigger"]["event_id"] += f"-{namespace}"
+            from raphael_agent.ingest.fingerprint import build_fingerprint
+
+            seed["failure_fingerprint"] = build_fingerprint(seed)
+        return seed
+
     received_at = utc_now()
     ref = raw_ref or f"github:{event_name}:{delivery_id or 'unknown'}"
 
     if event_name == "workflow_run":
         try:
             return (
-                normalize_github_workflow_run(
-                    payload, raw_ref=ref, received_at=received_at
+                scoped(
+                    normalize_github_workflow_run(
+                        payload, raw_ref=ref, received_at=received_at
+                    )
                 ),
                 "",
             )
@@ -122,8 +172,10 @@ def parse_github_webhook(
     if event_name == "check_run":
         try:
             return (
-                normalize_github_check_run(
-                    payload, raw_ref=ref, received_at=received_at
+                scoped(
+                    normalize_github_check_run(
+                        payload, raw_ref=ref, received_at=received_at
+                    )
                 ),
                 "",
             )
@@ -133,8 +185,10 @@ def parse_github_webhook(
     if event_name == "deployment_status":
         try:
             return (
-                normalize_github_deployment_status(
-                    payload, raw_ref=ref, received_at=received_at
+                scoped(
+                    normalize_github_deployment_status(
+                        payload, raw_ref=ref, received_at=received_at
+                    )
                 ),
                 "",
             )
@@ -161,12 +215,14 @@ def parse_github_webhook(
                     "(set RAPHAEL_DEFAULT_COMMIT_SHA or RAPHAEL_GITHUB_TOKEN)",
                 )
             return (
-                normalize_github_issue(
-                    payload,
-                    raw_ref=ref,
-                    received_at=received_at,
-                    trigger_label=issue_trigger_label(),
-                    commit_sha=sha,
+                scoped(
+                    normalize_github_issue(
+                        payload,
+                        raw_ref=ref,
+                        received_at=received_at,
+                        trigger_label=issue_trigger_label(),
+                        commit_sha=sha,
+                    )
                 ),
                 "",
             )
