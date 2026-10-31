@@ -53,7 +53,10 @@ def _try_dispatch_bridge(seed: dict[str, Any], run: dict[str, Any] | None) -> bo
         return False
     try:
         result = submit_to_dispatch(seed, run)
-        return result.get("submitted", False)
+        if result.get("submitted", False):
+            _store().save_run(dict(run))
+            return True
+        return False
     except Exception:  # noqa: BLE001
         return False
 
