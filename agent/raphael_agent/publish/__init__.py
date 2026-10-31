@@ -377,15 +377,21 @@ def publish(
             mode=mode,
         )
 
-    # Require at least one passing validation when recorded.
-    validations = run.get("validation_results") or []
+    # The frozen result takes precedence over earlier validation attempts.
     record = run.get("validated_fix_record") or {}
-    if record.get("validation"):
-        validations = list(validations) + [record["validation"]]
-    if validations and not any(v.get("passed") and not v.get("fail_closed") for v in validations):
+    validations = (
+        [record["validation"]]
+        if record.get("validation")
+        else run.get("validation_results") or []
+    )
+    if (
+        not validations
+        or not validations[-1].get("passed")
+        or validations[-1].get("fail_closed")
+    ):
         return _fail(
             error="validation_not_passed",
-            message="Publish fail-closed: no passing validation_results for this run",
+            message="Publish fail-closed: the finalized or latest validation did not pass",
             result_id=result_id,
             branch=branch,
             base=base,
@@ -464,13 +470,28 @@ def publish(
             mode=mode,
         )
 
+    frozen_files = (record.get("patch") or {}).get("files")
+    if (
+        record.get("result_id") != result_id
+        or record.get("run_id") != run.get("run_id")
+        or record.get("sandbox_id") != run.get("sandbox_id")
+        or record.get("repository") != {"owner": owner, "name": name}
+        or not run.get("commit_sha")
+        or record.get("base_commit_sha") != run.get("commit_sha")
+        or frozen_files != [{"path": f["path"], "content": f["content"]} for f in files]
+    ):
+        return _fail(
+            error="validated_patch_mismatch",
+            message="Live publication requires the exact patch and identity frozen by sandbox finalization",
+            result_id=result_id,
+            branch=branch,
+            base=base,
+            mode=mode,
+        )
+
     client = github or GitHubPublisher(deadline_at=(run.get("budget_snapshot") or {}).get("deadline_at"))
     try:
-        head_sha = run.get("commit_sha") or client.get_ref_sha(owner, name, base)
-        try:
-            from_sha = client.get_ref_sha(owner, name, base)
-        except GitHubApiError:
-            from_sha = head_sha
+        from_sha = run["commit_sha"]
         _require_model_admission(run)
         client.ensure_branch(owner, name, branch=branch, from_sha=from_sha)
         existing_pr = client.find_open_pr(owner, name, head_branch=branch)
