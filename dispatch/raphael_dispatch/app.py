@@ -82,7 +82,24 @@ def _error(exc: Exception) -> JSONResponse:
     return JSONResponse({"valid": False, "error": str(exc)}, status_code=getattr(exc, "status_code", 422))
 
 
+def _legacy_denied(request: Request) -> JSONResponse | None:
+    from raphael_agent.http_api.auth import insecure_local
+
+    if (
+        insecure_local(request)
+        and not os.environ.get("RAPHAEL_DISPATCH_TOKENS", "").strip()
+    ):
+        return None
+    return JSONResponse(
+        {"valid": False, "error": "use authenticated tenant job endpoints"},
+        status_code=403,
+    )
+
+
 async def intake_job(request: Request) -> JSONResponse:
+    denied = _legacy_denied(request)
+    if denied is not None:
+        return denied
     try:
         result = await asyncio.to_thread(request.app.state.orchestrator.intake, await _json_body(request))
     except (ProtocolValidationError, OrchestrationError) as exc:
@@ -97,7 +114,10 @@ async def receive_result(request: Request) -> JSONResponse:
         get_schemas().validate_envelope(envelope)
         job_id = envelope.get("payload", {}).get("job_id")
         tenant_id = await asyncio.to_thread(request.app.state.orchestrator.result_tenant, job_id)
-        if tenant_id != principal.tenant_id:
+        ownership = await asyncio.to_thread(
+            request.app.state.orchestrator.job_ownership, job_id
+        )
+        if tenant_id != principal.tenant_id or not principal.allows(ownership):
             return JSONResponse({"valid": False, "error": "tenant does not own job"}, status_code=403)
         # Graph hooks can block for seconds (for example model-backed diagnosis).
         # Keep the event loop available to authenticate and process lease heartbeats.
@@ -114,6 +134,9 @@ async def receive_result(request: Request) -> JSONResponse:
 
 
 async def reap_leases(request: Request) -> JSONResponse:
+    denied = _legacy_denied(request)
+    if denied is not None:
+        return denied
     try:
         terminals = await asyncio.to_thread(request.app.state.orchestrator.reap_expired)
     except (ProtocolValidationError, OrchestrationError) as exc:
@@ -123,6 +146,9 @@ async def reap_leases(request: Request) -> JSONResponse:
 
 async def choose_next_action(request: Request) -> JSONResponse:
     """Compatibility endpoint backed by the real intake state machine."""
+    denied = _legacy_denied(request)
+    if denied is not None:
+        return denied
     try:
         result = await asyncio.to_thread(request.app.state.orchestrator.intake, await _json_body(request))
     except (ProtocolValidationError, OrchestrationError) as exc:
@@ -139,7 +165,12 @@ async def submit_tenant_job(request: Request) -> JSONResponse:
         if request.path_params["tenant_id"] != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not match bearer token"}, status_code=403)
         envelope = await _json_body(request)
-        result = await asyncio.to_thread(request.app.state.orchestrator.intake, envelope, tenant_id=principal.tenant_id)
+        result = await asyncio.to_thread(
+            request.app.state.orchestrator.intake,
+            envelope,
+            tenant_id=principal.tenant_id,
+            ownership=principal.ownership,
+        )
         job_id = envelope["payload"]["job_id"]
         return JSONResponse({"job_id": job_id, "status": "queued"}, status_code=202)
     except (ProtocolValidationError, OrchestrationError, AuthError, KeyError) as exc:
@@ -153,7 +184,10 @@ async def next_tenant_job(request: Request) -> JSONResponse:
         if request.path_params["tenant_id"] != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not match bearer token"}, status_code=403)
         result = await asyncio.to_thread(
-            request.app.state.orchestrator.next_tenant_action, principal.tenant_id, principal.connector_id
+            request.app.state.orchestrator.next_tenant_action,
+            principal.tenant_id,
+            principal.connector_id,
+            principal.ownership,
         )
         return JSONResponse(result)
     except AuthError as exc:
@@ -165,6 +199,13 @@ async def renew_tenant_job_lease(request: Request) -> JSONResponse:
         principal = principal_from_request(request.headers.get("authorization"), "connector")
         if request.path_params["tenant_id"] != principal.tenant_id:
             return JSONResponse({"valid": False, "error": "tenant does not match bearer token"}, status_code=403)
+        ownership = await asyncio.to_thread(
+            request.app.state.orchestrator.job_ownership, request.path_params["job_id"]
+        )
+        if not principal.allows(ownership):
+            return JSONResponse(
+                {"valid": False, "error": "job is not accessible"}, status_code=403
+            )
         body = await _json_body(request)
         get_schemas().validate_payload("lease_renewal", body)
         result = await asyncio.to_thread(

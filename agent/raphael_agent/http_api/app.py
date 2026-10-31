@@ -11,7 +11,15 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from raphael_agent.http_api.auth import check_interface_auth, error_envelope
+from raphael_agent.http_api.auth import (
+    check_interface_auth,
+    error_envelope,
+    insecure_local,
+    principal,
+    scoped_run,
+    scope_key,
+    bind_ingest_scope,
+)
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest import (
     WebhookAuthError,
@@ -63,15 +71,24 @@ async def health(_: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "service": "raphael-agent", "phase": "phase6-dual-path"})
 
 
-async def metrics(_: Request) -> JSONResponse:
+async def metrics(request: Request) -> JSONResponse:
     from raphael_agent.metrics import summarize_store
 
-    return JSONResponse(summarize_store(_store()))
+    denied = check_interface_auth(request)
+    if denied is not None:
+        return denied
+    identity = principal(request)
+    return JSONResponse(
+        summarize_store(_store(), run_filter=identity.allows if identity else None)
+    )
 
 
-async def go_nogo(_: Request) -> JSONResponse:
+async def go_nogo(request: Request) -> JSONResponse:
     from raphael_agent.guardrails import go_nogo_verdict
 
+    denied = check_interface_auth(request, "operator")
+    if denied is not None:
+        return denied
     verdict = go_nogo_verdict()
     return JSONResponse(verdict, status_code=200 if verdict["go"] else 409)
 
@@ -79,7 +96,7 @@ async def go_nogo(_: Request) -> JSONResponse:
 async def post_feedback(request: Request) -> JSONResponse:
     from raphael_agent.feedback import default_feedback_recorder, normalize_feedback_event
 
-    denied = check_interface_auth(request)
+    denied = check_interface_auth(request, "producer")
     if denied is not None:
         return denied
     try:
@@ -90,6 +107,20 @@ async def post_feedback(request: Request) -> JSONResponse:
         return JSONResponse({"error": "body_must_be_object"}, status_code=400)
     try:
         body = dict(body)
+        identity = principal(request)
+        if identity is not None:
+            run = _store().get_run(str(body.get("run_id") or ""))
+            if not scoped_run(request, run):
+                return error_envelope("not_found", "run not found", status=404)
+            from raphael_agent.feedback import feedback_from_run
+
+            body = feedback_from_run(
+                run,
+                outcome=str(body.get("outcome") or "other"),
+                source="http",
+                notes=body.get("notes"),
+                actor=f"{identity.role}:{identity.tenant_id}",
+            )
         body.setdefault("source", "http")
         event = normalize_feedback_event(body)
         recorded = default_feedback_recorder().record(event)
@@ -125,6 +156,7 @@ async def list_runs_http(request: Request) -> JSONResponse:
             pull_request_number=_opt_int("pull_request_number"),
             limit=limit,
             cursor=qp.get("cursor") or None,
+            run_filter=principal(request).allows if principal(request) else None,
         )
     except RunApiError as exc:
         return error_envelope(exc.code, exc.message, status=exc.status)
@@ -134,7 +166,7 @@ async def list_runs_http(request: Request) -> JSONResponse:
 
 
 async def create_run_http(request: Request) -> JSONResponse:
-    denied = check_interface_auth(request)
+    denied = check_interface_auth(request, "producer")
     if denied is not None:
         return denied
     try:
@@ -144,7 +176,38 @@ async def create_run_http(request: Request) -> JSONResponse:
     if not isinstance(body, dict):
         return error_envelope("invalid_request", "body_must_be_object", status=400)
     try:
-        result = create_run(body, store=_store())
+        identity = principal(request)
+        if identity is not None:
+            if any(
+                key in body and body[key] != value
+                for key, value in identity.ownership.items()
+            ):
+                return error_envelope(
+                    "forbidden", "ownership does not match credentials", status=403
+                )
+            if not identity.allows(
+                {**identity.ownership, "repository": body.get("repository")}
+            ):
+                return error_envelope(
+                    "forbidden", "repository is not permitted", status=403
+                )
+            if body.get("workspace_path") and not insecure_local(request):
+                return error_envelope(
+                    "forbidden", "server workspace paths are not accepted", status=403
+                )
+            repo = body.get("repository") or {}
+            canonical = f"https://github.com/{repo.get('owner')}/{repo.get('name')}.git"
+            if repo.get("clone_url") and repo["clone_url"] != canonical:
+                return error_envelope(
+                    "forbidden", "repository clone URL is not permitted", status=403
+                )
+            body["actor"] = f"{identity.role}:{identity.tenant_id}"
+        result = create_run(
+            body,
+            store=_store(),
+            scope=scope_key(request),
+            ownership=identity.ownership if identity else None,
+        )
     except RunApiError as exc:
         return error_envelope(exc.code, exc.message, status=exc.status)
     except Exception as exc:  # noqa: BLE001
@@ -154,7 +217,7 @@ async def create_run_http(request: Request) -> JSONResponse:
 
 
 async def run_action_http(request: Request) -> JSONResponse:
-    denied = check_interface_auth(request)
+    denied = check_interface_auth(request, "operator")
     if denied is not None:
         return denied
     run_id = request.path_params["run_id"]
@@ -165,7 +228,13 @@ async def run_action_http(request: Request) -> JSONResponse:
     if not isinstance(body, dict):
         return error_envelope("invalid_request", "body_must_be_object", status=400)
     try:
-        result = apply_run_action(run_id, body, store=_store())
+        if not scoped_run(request, _store().get_run(run_id)):
+            return error_envelope("not_found", "run not found", status=404)
+        if principal(request):
+            body["actor"] = f"{principal(request).role}:{principal(request).tenant_id}"
+        result = apply_run_action(
+            run_id, body, store=_store(), scope=scope_key(request)
+        )
     except RunApiError as exc:
         return error_envelope(exc.code, exc.message, status=exc.status)
     except Exception as exc:  # noqa: BLE001
@@ -178,6 +247,22 @@ async def github_webhook(request: Request) -> JSONResponse:
     event_name = request.headers.get("x-github-event", "")
     delivery_id = request.headers.get("x-github-delivery")
     signature = request.headers.get("x-hub-signature-256")
+    from raphael_agent.ingest.github import github_scope, webhook_secret
+
+    try:
+        if not webhook_secret() and not insecure_local(request):
+            raise WebhookAuthError("GitHub webhook secret is not configured")
+        verify_github_signature(body, signature)
+        payload = json.loads(body)
+        if not isinstance(payload, dict):
+            raise ValueError("webhook JSON must be an object")
+        identity = github_scope(payload)
+        if identity is not None and delivery_id:
+            delivery_id = f"{identity.namespace}:{delivery_id}"
+    except WebhookAuthError as exc:
+        return error_envelope("unauthorized", str(exc), status=401)
+    except (ValueError, UnicodeDecodeError):
+        return error_envelope("invalid_request", "invalid webhook JSON", status=400)
 
     if event_name == "issue_comment":
         from raphael_agent.github_commands import (
@@ -210,7 +295,7 @@ async def github_webhook(request: Request) -> JSONResponse:
                 status_code=400,
             )
         result = handle_issue_comment_event(
-            payload, delivery_id=delivery_id, store=_store()
+            payload, delivery_id=delivery_id, store=_store(), scope=identity
         )
         return JSONResponse(result, status_code=202)
 
@@ -344,6 +429,10 @@ async def github_webhook(request: Request) -> JSONResponse:
 
 async def k8s_webhook(request: Request) -> JSONResponse:
     """FR-002: accept workload-health failure events (sidecar / file forwarder)."""
+    denied = check_interface_auth(request, "producer")
+    if denied is not None:
+        return denied
+
     from raphael_agent.ingest.k8s_watcher import k8s_watcher_enabled, normalize_k8s_workload
 
     if not k8s_watcher_enabled():
@@ -382,6 +471,9 @@ async def k8s_webhook(request: Request) -> JSONResponse:
         store.append_decision(decision)
         return JSONResponse(decision, status_code=202)
 
+    denied = bind_ingest_scope(request, seed)
+    if denied is not None:
+        return denied
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "skipped")
     if should_auto_run_graph():
         mode = sandbox_mode if sandbox_mode != "skipped" else "recorded_stub"
@@ -434,6 +526,10 @@ async def k8s_webhook(request: Request) -> JSONResponse:
 
 
 async def alertmanager_webhook(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request, "producer")
+    if denied is not None:
+        return denied
+
     from raphael_agent.ingest.apm_webhook import normalize_alertmanager_webhook
 
     try:
@@ -445,6 +541,9 @@ async def alertmanager_webhook(request: Request) -> JSONResponse:
 
     seed = normalize_alertmanager_webhook(payload)
     store = _store()
+    denied = bind_ingest_scope(request, seed)
+    if denied is not None:
+        return denied
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
@@ -497,6 +596,10 @@ async def alertmanager_webhook(request: Request) -> JSONResponse:
 
 
 async def datadog_webhook(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request, "producer")
+    if denied is not None:
+        return denied
+
     from raphael_agent.ingest.apm_webhook import normalize_datadog_webhook
 
     try:
@@ -508,6 +611,9 @@ async def datadog_webhook(request: Request) -> JSONResponse:
 
     seed = normalize_datadog_webhook(payload)
     store = _store()
+    denied = bind_ingest_scope(request, seed)
+    if denied is not None:
+        return denied
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
@@ -560,6 +666,10 @@ async def datadog_webhook(request: Request) -> JSONResponse:
 
 
 async def cloudwatch_webhook(request: Request) -> JSONResponse:
+    denied = check_interface_auth(request, "producer")
+    if denied is not None:
+        return denied
+
     from raphael_agent.ingest.apm_webhook import normalize_cloudwatch_webhook
 
     try:
@@ -571,6 +681,9 @@ async def cloudwatch_webhook(request: Request) -> JSONResponse:
 
     seed = normalize_cloudwatch_webhook(payload)
     store = _store()
+    denied = bind_ingest_scope(request, seed)
+    if denied is not None:
+        return denied
     sandbox_mode = os.environ.get("RAPHAEL_AGENT_SANDBOX_MODE", "recorded_stub")
 
     if should_auto_run_graph():
@@ -628,8 +741,8 @@ async def get_run(request: Request) -> JSONResponse:
         return denied
     run_id = request.path_params["run_id"]
     run = _store().get_run(run_id)
-    if run is None:
-        return error_envelope("not_found", f"run not found: {run_id}", status=404)
+    if not scoped_run(request, run):
+        return error_envelope("not_found", "run not found", status=404)
     return JSONResponse(run)
 
 

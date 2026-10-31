@@ -80,6 +80,24 @@ def accept_normalized_event(
     fingerprint = seed["failure_fingerprint"]
     tenant_id = seed["tenant_id"]
 
+    existing = store.get_run(seed["run_id"])
+    if existing is not None:
+        if (
+            existing.get("tenant_id") != tenant_id
+            or existing.get("repository") != seed.get("repository")
+            or existing.get("commit_sha") != seed.get("commit_sha")
+        ):
+            raise ValueError("run identity conflicts with an existing event")
+        decision = _decision(
+            decision="duplicate",
+            event_id=str(event_id),
+            fingerprint=fingerprint,
+            reason="event already accepted",
+            existing_run_id=existing["run_id"],
+        )
+        store.append_decision(decision)
+        return decision, None
+
     if raw_payload is not None:
         raw_ref = store.save_raw_event(str(event_id), raw_payload)
         trigger = dict(seed.get("trigger") or {})

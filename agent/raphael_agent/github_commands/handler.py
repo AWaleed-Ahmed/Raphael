@@ -42,6 +42,7 @@ from raphael_agent.github_commands.replies import (
     render_status,
 )
 from raphael_agent.graph.state import append_audit
+from raphael_agent.access import InterfacePrincipal
 from raphael_agent.runs import IN_FLIGHT, RunApiError, apply_run_action, create_run, find_latest_run_for_github_number
 from raphael_agent.store import RunStore
 from raphael_agent.timeutil import utc_now
@@ -147,13 +148,22 @@ def resolve_run(
     issue_number: int | None,
     issue_body: str | None,
     comment_body: str | None,
+    scope: InterfacePrincipal | None = None,
 ) -> dict[str, Any] | None:
     """Explicit arg → thread marker → store lookup by Issue/PR number."""
+    def allowed(run: dict[str, Any]) -> bool:
+        repository = run.get("repository") or {}
+        return (
+            str(repository.get("owner", "")).lower() == owner.lower()
+            and str(repository.get("name", "")).lower() == repo.lower()
+            and (scope is None or scope.allows(run))
+        )
+
     explicit, missing, _rest = _explicit_run_id(parsed, store)
     if explicit:
         found = store.get_run(explicit)
         if found is not None:
-            return found
+            return found if allowed(found) else None
         if missing:
             return {"run_id": explicit, "_missing": True}
 
@@ -161,12 +171,12 @@ def resolve_run(
     if marker:
         found = store.get_run(marker)
         if found is not None:
-            return found
+            return found if allowed(found) else None
 
     if issue_number is None:
         return None
     return find_latest_run_for_github_number(
-        store, owner=owner, repo=repo, number=int(issue_number)
+        store, owner=owner, repo=repo, number=int(issue_number), run_filter=allowed
     )
 
 
@@ -188,6 +198,7 @@ def handle_issue_comment_event(
     rate_limiter: CommandRateLimiter | None = None,
     idempotency: CommandIdempotencyStore | None = None,
     prefix: str | None = None,
+    scope: InterfacePrincipal | None = None,
 ) -> dict[str, Any]:
     """Process an authenticated ``issue_comment`` payload. Never raises to HTTP 500."""
     action = str(payload.get("action") or "").lower()
@@ -203,6 +214,8 @@ def handle_issue_comment_event(
     owner, repo = _repo(payload)
     comment_id = str(comment.get("id") or "") or None
     actor = _login(comment.get("user") or {}) or _login(sender)
+    if scope is not None and comment_id:
+        comment_id = f"{scope.namespace}:{comment_id}"
 
     if _is_self_comment(comment, sender):
         return {"decision": "ignored", "reason": "bot self-comment"}
@@ -320,6 +333,7 @@ def handle_issue_comment_event(
         issue_number=issue_n,
         issue_body=str(issue.get("body") or "") or None,
         comment_body=str(comment.get("body") or "") or None,
+        scope=scope,
     )
 
     if parsed.verb == "help":
@@ -699,7 +713,12 @@ def handle_issue_comment_event(
                 "notes": "github issue_comment /raphael diagnose",
             }
             try:
-                created = create_run(request, store=store)
+                created = create_run(
+                    request,
+                    store=store,
+                    scope=scope.key if scope else None,
+                    ownership=scope.ownership if scope else None,
+                )
             except RunApiError as exc:
                 reply = _redact(f"Diagnose failed: {exc.message}\n")
                 result = {
@@ -791,7 +810,12 @@ def handle_issue_comment_event(
                 "notes": "github issue_comment /raphael fix",
             }
             try:
-                created = create_run(request, store=store)
+                created = create_run(
+                    request,
+                    store=store,
+                    scope=scope.key if scope else None,
+                    ownership=scope.ownership if scope else None,
+                )
             except RunApiError as exc:
                 reply = _redact(f"Fix failed: {exc.message}\n")
                 result = {

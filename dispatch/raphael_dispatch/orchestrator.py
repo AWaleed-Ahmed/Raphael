@@ -245,6 +245,7 @@ class Orchestrator:
         *,
         tenant_id: str | None = None,
         initial_evidence: list[dict[str, Any]] | None = None,
+        ownership: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         get_schemas().validate_envelope(job_envelope)
         if job_envelope.get("kind") != "job":
@@ -259,7 +260,10 @@ class Orchestrator:
                 existing = persisted
                 self.jobs[job_id] = existing
         if existing is not None:
-            if tenant_id and existing.get("tenant_id") != tenant_id:
+            if (tenant_id and existing.get("tenant_id") != tenant_id) or (
+                ownership
+                and any(existing.get(key) != value for key, value in ownership.items())
+            ):
                 raise OrchestrationError("job_id belongs to a different tenant")
             if existing.get("dispatch", {}).get("patch_payloads_omitted"):
                 return {"messages": [self._lost_patch_context(existing)], "idempotent_replay": True}
@@ -270,6 +274,8 @@ class Orchestrator:
         state = self._state_for_job(job, initial_evidence=initial_evidence)
         if tenant_id:
             state["tenant_id"] = tenant_id
+        if ownership:
+            state.update(ownership)
         self.jobs[job_id] = state
         action = self._issue_action(state, "create_sandbox", self._create_args(state))
         self._save(state)
@@ -285,8 +291,14 @@ class Orchestrator:
         ]
 
     @state_transaction
-    def next_tenant_action(self, tenant_id: str, connector_id: str) -> dict[str, Any]:
+    def next_tenant_action(
+        self, tenant_id: str, connector_id: str, ownership: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         for state in sorted(self.tenant_jobs(tenant_id), key=lambda item: item.get("created_at") or item["run_id"]):
+            if ownership and any(
+                state.get(key) != value for key, value in ownership.items()
+            ):
+                continue
             claim = self._claim_action(state, connector_id)
             if claim:
                 return {"messages": [state["dispatch"]["pending_action"]], "pending": True,
@@ -391,6 +403,12 @@ class Orchestrator:
                 self.jobs[job_id] = state
         return state.get("tenant_id") if state is not None else None
 
+    @state_transaction
+    def job_ownership(self, job_id: str) -> dict[str, Any]:
+        self.result_tenant(job_id)
+        state = self.jobs.get(job_id) or {}
+        return {key: state.get(key) for key in ("tenant_id", "company_id", "client_id")}
+
     def receive_result(self, result_envelope: dict[str, Any], connector_id: str | None = None) -> dict[str, Any]:
         get_schemas().validate_envelope(result_envelope)
         if result_envelope.get("kind") != "result":
@@ -404,8 +422,11 @@ class Orchestrator:
             state = self.jobs.get(job_id)
             if state is None:
                 raise OrchestrationError(f"unknown job_id: {job_id}")
-            claim = state["dispatch"].get("claim")
-            if connector_id is not None and claim and claim.get("connector_id") != connector_id:
+            processed = state["dispatch"].get("processed_actions", {}).get(action_id)
+            claim = processed or state["dispatch"].get("claim")
+            if connector_id is not None and (
+                not claim or claim.get("connector_id") != connector_id
+            ):
                 raise OrchestrationError("connector does not own the active claim")
             if action_key in self._processing_actions:
                 raise ResultInProgress("result for action is already being processed")
