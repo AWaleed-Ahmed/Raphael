@@ -15,6 +15,7 @@ from raphael_agent.feedback import (
 from raphael_agent.http_api import create_app
 from raphael_agent.publish import publish
 from raphael_agent.schema_util import validate_agent
+from raphael_agent.store import RunStore
 from tests.test_publish import _base_run
 
 
@@ -72,6 +73,8 @@ def test_http_feedback_endpoint(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("RAPHAEL_FEEDBACK_RECORDER", "jsonl")
     monkeypatch.setenv("RAPHAEL_INTERFACE_TOKEN", "feedback-token")
+    monkeypatch.setenv("RAPHAEL_AGENT_TENANT_ID", "local-dev")
+    monkeypatch.delenv("RAPHAEL_ALLOW_INSECURE_LOCAL", raising=False)
     client = TestClient(create_app())
     denied = client.post(
         "/v1/feedback",
@@ -82,6 +85,13 @@ def test_http_feedback_endpoint(monkeypatch, tmp_path: Path):
         },
     )
     assert denied.status_code == 401
+    missing = client.post(
+        "/v1/feedback",
+        headers={"Authorization": "Bearer feedback-token"},
+        json={"outcome": "accepted", "run_id": "r-http"},
+    )
+    assert missing.status_code == 404
+    RunStore(tmp_path).save_run(_base_run(run_id="r-http"))
     resp = client.post(
         "/v1/feedback",
         headers={"Authorization": "Bearer feedback-token"},
