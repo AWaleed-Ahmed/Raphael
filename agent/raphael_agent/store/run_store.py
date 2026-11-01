@@ -104,5 +104,7 @@ class RunStore:
         return sum(
             1
             for run in self.iter_runs()
-            if run.get("tenant_id") == tenant_id and run.get("status") in active
+            if run.get("tenant_id") == tenant_id
+            and run.get("status") in active
+            and not run.get("dispatch_job_id")
         )

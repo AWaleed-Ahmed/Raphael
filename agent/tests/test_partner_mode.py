@@ -43,7 +43,7 @@ def test_allowlist_class_enables_live(monkeypatch):
         "html_url": "https://github.com/raphael/demo/pull/9",
         "number": 9,
     }
-    result = publish(_base_run(), github=gh)
+    result = publish(_base_run(finalized=True), github=gh)
     assert result["ok"] is True
     assert result["dry_run"] is False
     assert result["mode"] == "live"
