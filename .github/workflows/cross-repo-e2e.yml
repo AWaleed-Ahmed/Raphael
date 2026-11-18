@@ -81,9 +81,8 @@ jobs:
       - name: Preload test workload image
         run: |
           docker pull busybox:1.37.0
-          kind load docker-image busybox:1.37.0 --name raphael-fixture-proof
           docker pull busybox:1.36.1
-          kind load docker-image busybox:1.36.1 --name raphael-fixture-proof
+          bash e2e/kind_load_image.sh raphael-fixture-proof busybox:1.37.0 busybox:1.36.1
       - name: Prove fixture consumption and missing-fixture control
         run: python -u e2e/run_secret_fixture_kind.py
       - name: Upload fixture proof and real HTTP traces
@@ -137,11 +136,11 @@ jobs:
       - name: Preload required healthy image
         run: |
           docker pull us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4
-          kind load docker-image us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4 --name raphael-remediation-proof
           docker pull hashicorp/http-echo:1.0
-          kind load docker-image hashicorp/http-echo:1.0 --name raphael-remediation-proof
           docker tag hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
-          kind load docker-image hashicorp/http-echo:missing-healthy-proof --name raphael-remediation-proof
+          bash e2e/kind_load_image.sh raphael-remediation-proof \
+            us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4 \
+            hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
       - name: Prove required image repair, probe repair and refusal controls
         run: python -u e2e/run_kind_verification.py
       - name: Prove Google Online Boutique image repair and missing-baseline refusal
