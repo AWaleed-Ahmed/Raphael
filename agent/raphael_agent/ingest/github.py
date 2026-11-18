@@ -9,6 +9,7 @@ import os
 from typing import Any
 
 from raphael_agent.access import InterfacePrincipal
+from raphael_agent.identity import IdentityStore, db_only
 
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest.issue_config import (
@@ -42,7 +43,7 @@ def verify_github_signature(
     """Verify ``X-Hub-Signature-256``. Fail closed when a secret is configured."""
     configured = secret if secret is not None else webhook_secret()
     if not configured:
-        if os.environ.get("RAPHAEL_ALLOW_INSECURE_LOCAL") == "1":
+        if os.environ.get("RAPHAEL_ALLOW_INSECURE_LOCAL") == "1" and not db_only():
             return
         raise WebhookAuthError("GitHub webhook secret is not configured")
     if not signature_header or not signature_header.startswith("sha256="):
@@ -58,7 +59,20 @@ def verify_github_signature(
 
 
 def github_scope(payload: dict[str, Any]) -> InterfacePrincipal | None:
-    """Resolve operator-owned installation/repository scope before any side effect."""
+    """Resolve installation/repository scope before any side effect.
+
+    Installations recorded from GitHub App webhooks win; the operator-owned
+    RAPHAEL_GITHUB_INSTALLATIONS mapping is the fallback outside db mode.
+    """
+    installation_id = (payload.get("installation") or {}).get("id")
+    repo = payload.get("repository") or {}
+    full_name = f"{(repo.get('owner') or {}).get('login')}/{repo.get('name')}".lower()
+    if isinstance(installation_id, int):
+        tenant = IdentityStore().tenant_for_repo(installation_id, full_name)
+        if tenant is not None:
+            return InterfacePrincipal(tenant, "producer", (full_name,))
+    if db_only():
+        raise WebhookAuthError("installation or repository is not authorized")
     raw = os.environ.get("RAPHAEL_GITHUB_INSTALLATIONS", "").strip()
     if not raw and os.environ.get("RAPHAEL_ALLOW_INSECURE_LOCAL") == "1":
         return None

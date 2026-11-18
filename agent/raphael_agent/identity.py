@@ -141,6 +141,21 @@ class IdentityStore:
             )
         conn.close()
 
+    def update_tenant_repos(
+        self, tenant_id: str, *, added: list[str], removed: list[str]
+    ) -> None:
+        conn = self._connect(create=True)
+        with conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO tenant_repos (tenant_id, repo_full_name) VALUES (?, ?)",
+                [(tenant_id, repo.lower()) for repo in added],
+            )
+            conn.executemany(
+                "DELETE FROM tenant_repos WHERE tenant_id = ? AND repo_full_name = ?",
+                [(tenant_id, repo.lower()) for repo in removed],
+            )
+        conn.close()
+
     def disable_tenant(self, tenant_id: str) -> None:
         conn = self._connect(create=True)
         now = _iso(_now())
@@ -208,6 +223,21 @@ class IdentityStore:
         conn.close()
         return connector_id, token
 
+    def list_connectors(self, tenant_id: str) -> list[dict[str, Any]]:
+        """Connector metadata for one tenant, newest first. Never includes hashes."""
+        conn = self._connect(create=False)
+        if conn is None:
+            return []
+        try:
+            rows = conn.execute(
+                """SELECT connector_id, label, created_at, last_used_at, revoked_at
+                   FROM connectors WHERE tenant_id = ? ORDER BY created_at DESC, connector_id""",
+                (tenant_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [dict(row) for row in rows]
+
     def revoke_connector(self, tenant_id: str, connector_id: str) -> bool:
         conn = self._connect(create=False)
         if conn is None:
@@ -260,6 +290,32 @@ class IdentityStore:
         if not repos:
             return None
         return {"tenant_id": selected["tenant_id"], "role": selected["role"], "repositories": repos}
+
+    def tenant_status(self, tenant_id: str) -> str | None:
+        conn = self._connect(create=False)
+        if conn is None:
+            return None
+        try:
+            row = conn.execute("SELECT status FROM tenants WHERE tenant_id = ?", (tenant_id,)).fetchone()
+        finally:
+            conn.close()
+        return None if row is None else row["status"]
+
+    def tenant_for_repo(self, installation_id: int, repo_full_name: str) -> str | None:
+        """Active tenant that owns ``installation_id`` and has the repo selected."""
+        conn = self._connect(create=False)
+        if conn is None:
+            return None
+        try:
+            row = conn.execute(
+                """SELECT t.tenant_id FROM tenants t
+                   JOIN tenant_repos r ON r.tenant_id = t.tenant_id
+                   WHERE t.installation_id = ? AND t.status = 'active' AND r.repo_full_name = ?""",
+                (installation_id, repo_full_name.lower()),
+            ).fetchone()
+        finally:
+            conn.close()
+        return None if row is None else row["tenant_id"]
 
     def connector_principal(self, token: str) -> dict[str, str] | None:
         conn = self._connect(create=False)

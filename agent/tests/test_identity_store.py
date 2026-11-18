@@ -92,6 +92,18 @@ def test_connector_lifecycle(store):
     assert store.revoke_connector("gh-100", connector_id) is False  # already revoked
 
 
+def test_list_connectors_is_tenant_scoped_and_hides_hashes(store):
+    first, _ = store.create_connector("gh-100", label="a")
+    second, _ = store.create_connector("gh-100", label="b")
+    store.create_connector("gh-200", label="other")
+    store.revoke_connector("gh-100", first)
+    listed = store.list_connectors("gh-100")
+    assert {row["connector_id"] for row in listed} == {first, second}
+    assert all(set(row) == {"connector_id", "label", "created_at", "last_used_at", "revoked_at"} for row in listed)
+    assert next(row for row in listed if row["connector_id"] == first)["revoked_at"] is not None
+    assert IdentityStore(store.path.with_name("absent.sqlite3")).list_connectors("gh-100") == []
+
+
 def test_connector_records_last_use(store):
     _, token = store.create_connector("gh-100")
     store.connector_principal(token)
@@ -109,6 +121,21 @@ def test_disabling_tenant_blocks_sessions_and_revokes_connectors(store):
     store.upsert_tenant("gh-100", installation_id=3, github_account_id=100, github_login="acme", account_type="Organization")
     assert store.session_principal(session, "gh-100") is not None
     assert store.connector_principal(connector) is None
+
+
+def test_incremental_repo_updates(store):
+    store.update_tenant_repos("gh-100", added=["Acme/Jobs", "acme/api"], removed=["acme/web"])
+    token = store.create_session(7, "octo", {"gh-100": "operator"})
+    assert store.session_principal(token, "gh-100")["repositories"] == ["acme/api", "acme/jobs"]
+
+
+def test_tenant_for_repo_requires_matching_installation_and_active_tenant(store):
+    assert store.tenant_for_repo(1, "ACME/api") == "gh-100"
+    assert store.tenant_for_repo(2, "acme/api") is None      # other installation
+    assert store.tenant_for_repo(1, "acme/unlisted") is None  # repo not selected
+    store.disable_tenant("gh-100")
+    assert store.tenant_for_repo(1, "acme/api") is None
+    assert IdentityStore(store.path.with_name("absent.sqlite3")).tenant_for_repo(1, "acme/api") is None
 
 
 def test_default_path_follows_data_dir(tmp_path, monkeypatch):
