@@ -46,7 +46,11 @@ jobs:
           cache-from: type=gha,scope=core-amd64
           cache-to: type=gha,mode=max,scope=core-amd64
       - name: Start container
-        run: docker run -d --name core -p 8091:8091 -v core-data:/data raphael-core:ci
+        # Throwaway dispatch credential so the smoke test reaches contract validation.
+        run: |
+          docker run -d --name core -p 8091:8091 -v core-data:/data \
+            -e RAPHAEL_DISPATCH_TOKENS='{"ci-producer":{"tenant_id":"ci","role":"producer"}}' \
+            raphael-core:ci
       - name: Health endpoint responds
         run: |
           for i in $(seq 1 30); do
@@ -59,6 +63,13 @@ jobs:
         run: test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/v1/runs)" = 401
       - name: Dispatch API fails closed without a token
         run: test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/v1/tenants/x/jobs/next)" = 401
+      - name: Dispatch loads its contracts (invalid job is rejected with 422, not 500)
+        run: |
+          code="$(curl -s -o body.json -w '%{http_code}' -X POST \
+            -H 'Authorization: Bearer ci-producer' -H 'Content-Type: application/json' \
+            -d '{"verb":"create_sandbox","payload":{}}' http://127.0.0.1:8091/v1/tenants/ci/jobs)"
+          cat body.json; echo
+          test "$code" = 422
       - name: Runs as non-root with safe defaults
         run: |
           test "$(docker exec core whoami)" = raphael

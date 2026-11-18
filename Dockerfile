@@ -12,17 +12,26 @@ WORKDIR /src
 RUN python -m venv /opt/venv
 COPY requirements-bootstrap.txt ./
 RUN /opt/venv/bin/python -m pip install --require-hashes -r requirements-bootstrap.txt
-# agent/pyproject.toml installs ../contracts as data files, so keep the layout.
 COPY contracts ./contracts
 COPY agent ./agent
 COPY dispatch ./dispatch
-RUN /opt/venv/bin/python -m pip install ./agent ./dispatch
+# Install third-party dependencies only. Core still reads repo-relative files
+# (contracts/, CONTRACTS_VERSION, reply templates, fixtures), so it runs from
+# the source tree copied into /app below; run.py puts agent/ and dispatch/
+# first on sys.path.
+RUN /opt/venv/bin/python -m pip install ./agent ./dispatch \
+    && /opt/venv/bin/python -m pip uninstall -y raphael-agent raphael-dispatch
 
 FROM python:3.12-slim
 RUN useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin raphael \
     && mkdir -p /data && chown raphael:raphael /data
 COPY --from=build /opt/venv /opt/venv
-COPY run.py /app/run.py
+WORKDIR /app
+COPY run.py CONTRACTS_VERSION ./
+COPY contracts ./contracts
+COPY agent ./agent
+COPY dispatch ./dispatch
+COPY interface/github-native/templates ./interface/github-native/templates
 # Safe defaults: listen on all interfaces inside the container, keep state on
 # the /data volume, never publish to GitHub and keep local ML off (v1 scope).
 ENV PATH=/opt/venv/bin:$PATH \
