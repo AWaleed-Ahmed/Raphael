@@ -1,7 +1,7 @@
 {
   "artifact": "model.joblib",
-  "artifact_bytes": 120859,
-  "artifact_sha256": "c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80",
+  "artifact_bytes": 46006,
+  "artifact_sha256": "97628b5467befd828f3b7464ed4aae9fd7eb36a95162468952753fb7ab929327",
   "created_at_unix": 1786902166,
   "dataset_files": [
     {
@@ -34,5 +34,14 @@
   ],
   "model_name": "failure_classifier",
   "python_version": "3.12.3",
-  "training_seconds": 1.217
+  "training_seconds": 1.217,
+  "source_artifact_sha256": "c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80",
+  "weight_edits": [
+    "failure_classifier E1 generator-only fingerprint tokens: zeroed 1741 columns x 12 classes",
+    "failure_classifier E2 field-name-only tokens: zeroed 7 columns x 12 classes",
+    "failure_classifier E3 generic-reason tokens: zeroed 3 columns x 12 classes",
+    "failure_classifier E3: removed ['CrashLoopBackOff'] from known_normalized_reasons",
+    "failure_classifier E4: re-solved intercepts; empty input max prob 0.840 -> 0.083",
+    "failure_classifier E5: anchored 71 reasons to their 100%-pure training class at >=0.6"
+  ]
 }
