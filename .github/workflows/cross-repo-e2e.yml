@@ -61,6 +61,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-bootstrap.txt
+            agent/pyproject.toml
+            dispatch/pyproject.toml
       - name: Install Raphael
         run: |
           python -m pip install --require-hashes -r requirements-bootstrap.txt
@@ -71,6 +76,9 @@ jobs:
           ref: ${{ env.IGNIS_REF }}
           path: ignis
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ignis/controller -> target
       - name: Build real Ignis
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
       - name: Create disposable kind cluster
@@ -114,6 +122,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-bootstrap.txt
+            agent/pyproject.toml
+            dispatch/pyproject.toml
       - name: Install Raphael
         run: |
           python -m pip install --require-hashes -r requirements-bootstrap.txt
@@ -126,6 +139,75 @@ jobs:
           ref: ${{ env.IGNIS_REF }}
           path: ignis
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ignis/controller -> target
+      - name: Build pinned Ignis
+        run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
+      - name: Create owned disposable cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: raphael-remediation-proof
+          wait: 120s
+      - name: Preload required healthy image
+        run: |
+          docker pull hashicorp/http-echo:1.0
+          docker tag hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
+          bash e2e/kind_load_image.sh raphael-remediation-proof \
+            hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
+      - name: Prove required image repair, probe repair and refusal controls
+        run: python -u e2e/run_kind_verification.py
+      - name: Prove real local models through production hooks and kind repair
+        run: python -u e2e/run_model_graph_kind.py
+      - name: Upload actual Kubernetes and real-hook proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kind-remediation-${{ github.run_id }}
+          path: e2e/kind-remediation-out/
+          if-no-files-found: warn
+      - name: Destroy owned cluster
+        if: always()
+        run: kind delete cluster --name raphael-remediation-proof
+
+  # Split from kind-remediation so its ~2.5 min proof runs in parallel. It uses
+  # its own disposable cluster; the name matches e2e/cluster.py CONTEXT.
+  kind-google-image:
+    needs: [resolve-ignis]
+    name: Google Online Boutique image repair (disposable kind)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IGNIS_REF: ${{ needs.resolve-ignis.outputs.ref }}
+      RAPHAEL_FIXTURES_DIR: ${{ github.workspace }}/ignis/fixtures/secret_fixtures
+      E2E_IGNIS_BIN: ${{ github.workspace }}/ignis/controller/target/release/raphael-sandbox-controller
+      RAPHAEL_PARTNER_MODE: dry_run
+      RAPHAEL_PUBLISH_MODE: dry_run
+      GITHUB_TOKEN: ""
+      RAPHAEL_GITHUB_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-bootstrap.txt
+            agent/pyproject.toml
+            dispatch/pyproject.toml
+      - name: Install Raphael
+        run: |
+          python -m pip install --require-hashes -r requirements-bootstrap.txt
+          python -m pip install -e 'agent[local-inference]' -e dispatch
+      - uses: actions/checkout@v4
+        with:
+          repository: AWaleed-Ahmed/Ignis
+          ref: ${{ env.IGNIS_REF }}
+          path: ignis
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ignis/controller -> target
       - name: Build pinned Ignis
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
       - name: Create owned disposable cluster
@@ -136,22 +218,15 @@ jobs:
       - name: Preload required healthy image
         run: |
           docker pull us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4
-          docker pull hashicorp/http-echo:1.0
-          docker tag hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
           bash e2e/kind_load_image.sh raphael-remediation-proof \
-            us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4 \
-            hashicorp/http-echo:1.0 hashicorp/http-echo:missing-healthy-proof
-      - name: Prove required image repair, probe repair and refusal controls
-        run: python -u e2e/run_kind_verification.py
+            us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice:v0.10.4
       - name: Prove Google Online Boutique image repair and missing-baseline refusal
         run: python -u e2e/run_google_image_proof.py
-      - name: Prove real local models through production hooks and kind repair
-        run: python -u e2e/run_model_graph_kind.py
-      - name: Upload actual Kubernetes and real-hook proof
+      - name: Upload Google image repair proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kind-remediation-${{ github.run_id }}
+          name: kind-google-image-${{ github.run_id }}
           path: e2e/kind-remediation-out/
           if-no-files-found: warn
       - name: Destroy owned cluster
@@ -185,6 +260,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-bootstrap.txt
+            agent/pyproject.toml
+            dispatch/pyproject.toml
 
       - name: Install Raphael packages
         run: |
@@ -224,6 +304,11 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Ignis build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ignis/controller -> target
 
       - name: Build Ignis controller and embedded connector
         run: cargo build --release --locked --manifest-path ignis/controller/Cargo.toml
