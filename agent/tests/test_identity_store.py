@@ -111,6 +111,21 @@ def test_disabling_tenant_blocks_sessions_and_revokes_connectors(store):
     assert store.connector_principal(connector) is None
 
 
+def test_incremental_repo_updates(store):
+    store.update_tenant_repos("gh-100", added=["Acme/Jobs", "acme/api"], removed=["acme/web"])
+    token = store.create_session(7, "octo", {"gh-100": "operator"})
+    assert store.session_principal(token, "gh-100")["repositories"] == ["acme/api", "acme/jobs"]
+
+
+def test_tenant_for_repo_requires_matching_installation_and_active_tenant(store):
+    assert store.tenant_for_repo(1, "ACME/api") == "gh-100"
+    assert store.tenant_for_repo(2, "acme/api") is None      # other installation
+    assert store.tenant_for_repo(1, "acme/unlisted") is None  # repo not selected
+    store.disable_tenant("gh-100")
+    assert store.tenant_for_repo(1, "acme/api") is None
+    assert IdentityStore(store.path.with_name("absent.sqlite3")).tenant_for_repo(1, "acme/api") is None
+
+
 def test_default_path_follows_data_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("RAPHAEL_IDENTITY_DB", raising=False)
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))
