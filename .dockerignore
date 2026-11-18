@@ -2,6 +2,8 @@
 *
 !run.py
 !requirements-bootstrap.txt
+!CONTRACTS_VERSION
+!interface/github-native/templates/
 !contracts/
 !agent/
 !dispatch/
