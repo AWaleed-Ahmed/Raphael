@@ -92,6 +92,18 @@ def test_connector_lifecycle(store):
     assert store.revoke_connector("gh-100", connector_id) is False  # already revoked
 
 
+def test_list_connectors_is_tenant_scoped_and_hides_hashes(store):
+    first, _ = store.create_connector("gh-100", label="a")
+    second, _ = store.create_connector("gh-100", label="b")
+    store.create_connector("gh-200", label="other")
+    store.revoke_connector("gh-100", first)
+    listed = store.list_connectors("gh-100")
+    assert {row["connector_id"] for row in listed} == {first, second}
+    assert all(set(row) == {"connector_id", "label", "created_at", "last_used_at", "revoked_at"} for row in listed)
+    assert next(row for row in listed if row["connector_id"] == first)["revoked_at"] is not None
+    assert IdentityStore(store.path.with_name("absent.sqlite3")).list_connectors("gh-100") == []
+
+
 def test_connector_records_last_use(store):
     _, token = store.create_connector("gh-100")
     store.connector_principal(token)

@@ -223,6 +223,21 @@ class IdentityStore:
         conn.close()
         return connector_id, token
 
+    def list_connectors(self, tenant_id: str) -> list[dict[str, Any]]:
+        """Connector metadata for one tenant, newest first. Never includes hashes."""
+        conn = self._connect(create=False)
+        if conn is None:
+            return []
+        try:
+            rows = conn.execute(
+                """SELECT connector_id, label, created_at, last_used_at, revoked_at
+                   FROM connectors WHERE tenant_id = ? ORDER BY created_at DESC, connector_id""",
+                (tenant_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [dict(row) for row in rows]
+
     def revoke_connector(self, tenant_id: str, connector_id: str) -> bool:
         conn = self._connect(create=False)
         if conn is None:
