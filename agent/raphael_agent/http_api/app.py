@@ -250,15 +250,20 @@ async def github_webhook(request: Request) -> JSONResponse:
     event_name = request.headers.get("x-github-event", "")
     delivery_id = request.headers.get("x-github-delivery")
     signature = request.headers.get("x-hub-signature-256")
+    from raphael_agent.identity import db_only
     from raphael_agent.ingest.github import github_scope, webhook_secret
+    from raphael_agent.ingest.installations import INSTALLATION_EVENTS, handle_installation_event
 
     try:
-        if not webhook_secret() and not insecure_local(request):
+        if not webhook_secret() and (db_only() or not insecure_local(request)):
             raise WebhookAuthError("GitHub webhook secret is not configured")
         verify_github_signature(body, signature)
         payload = json.loads(body)
         if not isinstance(payload, dict):
             raise ValueError("webhook JSON must be an object")
+        if event_name in INSTALLATION_EVENTS:
+            # Lifecycle events carry no repository, so they bypass repo scoping.
+            return JSONResponse(handle_installation_event(event_name, payload), status_code=202)
         identity = github_scope(payload)
         if identity is not None and delivery_id:
             delivery_id = f"{identity.namespace}:{delivery_id}"
