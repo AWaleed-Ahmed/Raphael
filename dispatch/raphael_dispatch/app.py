@@ -84,9 +84,11 @@ def _error(exc: Exception) -> JSONResponse:
 
 def _legacy_denied(request: Request) -> JSONResponse | None:
     from raphael_agent.http_api.auth import insecure_local
+    from raphael_agent.identity import db_only
 
     if (
         insecure_local(request)
+        and not db_only()
         and not os.environ.get("RAPHAEL_DISPATCH_TOKENS", "").strip()
     ):
         return None

@@ -32,6 +32,21 @@ class Principal:
 
 
 def principal_from_request(authorization: str | None, role: str) -> Principal:
+    from raphael_agent.identity import CONNECTOR_PREFIX, IdentityStore, db_only
+
+    bearer = authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
+    if bearer.startswith(CONNECTOR_PREFIX):
+        claims = IdentityStore().connector_principal(bearer)
+        if claims is None:
+            raise AuthError("invalid token or role")
+        if role != "connector":
+            error = AuthError("token role is not permitted for this endpoint")
+            error.status_code = 403
+            raise error
+        return Principal(claims["tenant_id"], "connector", claims["connector_id"])
+    if db_only():
+        # Production profile: only identity-store credentials are accepted.
+        raise AuthError("invalid token or role")
     raw = os.environ.get("RAPHAEL_DISPATCH_TOKENS", "").strip()
     if not raw:
         raise AuthError("RAPHAEL_DISPATCH_TOKENS is not configured")
