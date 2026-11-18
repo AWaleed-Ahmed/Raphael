@@ -276,6 +276,16 @@ class IdentityStore:
             return None
         return {"tenant_id": selected["tenant_id"], "role": selected["role"], "repositories": repos}
 
+    def tenant_status(self, tenant_id: str) -> str | None:
+        conn = self._connect(create=False)
+        if conn is None:
+            return None
+        try:
+            row = conn.execute("SELECT status FROM tenants WHERE tenant_id = ?", (tenant_id,)).fetchone()
+        finally:
+            conn.close()
+        return None if row is None else row["status"]
+
     def tenant_for_repo(self, installation_id: int, repo_full_name: str) -> str | None:
         """Active tenant that owns ``installation_id`` and has the repo selected."""
         conn = self._connect(create=False)
