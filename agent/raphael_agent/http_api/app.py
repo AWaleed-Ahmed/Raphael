@@ -20,6 +20,7 @@ from raphael_agent.http_api.auth import (
     scope_key,
     bind_ingest_scope,
 )
+from raphael_agent.identity import IdentityStore
 from raphael_agent.timeutil import utc_now
 from raphael_agent.ingest import (
     WebhookAuthError,
@@ -243,6 +244,62 @@ async def run_action_http(request: Request) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         return error_envelope("invalid_request", str(exc), status=400)
     return JSONResponse(result, status_code=200)
+
+
+MAX_ACTIVE_CONNECTORS = 10
+
+
+def _connector_tenant(request: Request, role: str | None) -> tuple[str | None, JSONResponse | None]:
+    denied = check_interface_auth(request, role)
+    if denied is not None:
+        return None, denied
+    identity = principal(request)
+    if identity is None:
+        return None, error_envelope("forbidden", "a tenant identity is required", status=403)
+    return identity.tenant_id, None
+
+
+async def list_connectors_http(request: Request) -> JSONResponse:
+    tenant, denied = _connector_tenant(request, None)
+    if denied is not None:
+        return denied
+    return JSONResponse({"connectors": IdentityStore().list_connectors(tenant)})
+
+
+async def create_connector_http(request: Request) -> JSONResponse:
+    tenant, denied = _connector_tenant(request, "operator")
+    if denied is not None:
+        return denied
+    try:
+        body = await request.json() if await request.body() else {}
+    except Exception:  # noqa: BLE001
+        return error_envelope("invalid_request", "invalid_json", status=400)
+    label = body.get("label", "") if isinstance(body, dict) else None
+    if not isinstance(label, str) or len(label.strip()) > 64:
+        return error_envelope("invalid_request", "label must be a string of at most 64 characters", status=400)
+    store = IdentityStore()
+    if store.tenant_status(tenant) != "active":
+        return error_envelope("conflict", "tenant is not an active GitHub App installation", status=409)
+    active = [row for row in store.list_connectors(tenant) if row["revoked_at"] is None]
+    if len(active) >= MAX_ACTIVE_CONNECTORS:
+        return error_envelope("conflict", "active connector limit reached; revoke one first", status=409)
+    connector_id, token = store.create_connector(tenant, label=label.strip())
+    # The raw token is returned exactly once; only its hash is stored.
+    return JSONResponse(
+        {"connector_id": connector_id, "tenant_id": tenant, "label": label.strip(), "token": token},
+        status_code=201,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def revoke_connector_http(request: Request) -> JSONResponse:
+    tenant, denied = _connector_tenant(request, "operator")
+    if denied is not None:
+        return denied
+    connector_id = request.path_params["connector_id"]
+    if not IdentityStore().revoke_connector(tenant, connector_id):
+        return error_envelope("not_found", "connector not found", status=404)
+    return JSONResponse({"connector_id": connector_id, "revoked": True})
 
 
 async def github_webhook(request: Request) -> JSONResponse:
@@ -770,6 +827,9 @@ def create_app() -> Starlette:
             Route("/v1/runs", create_run_http, methods=["POST"]),
             Route("/v1/runs/{run_id}/actions", run_action_http, methods=["POST"]),
             Route("/v1/runs/{run_id}", get_run, methods=["GET"]),
+            Route("/v1/connectors", list_connectors_http, methods=["GET"]),
+            Route("/v1/connectors", create_connector_http, methods=["POST"]),
+            Route("/v1/connectors/{connector_id}", revoke_connector_http, methods=["DELETE"]),
         ]
     )
 
