@@ -1,0 +1,110 @@
+name: Core container
+
+# Builds the raphael-core image and smoke-tests it. arm64 is built too because
+# the free Oracle Always Free VM is ARM. Nothing is pushed.
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - run.py
+      - requirements-bootstrap.txt
+      - agent/**
+      - dispatch/**
+      - contracts/**
+      - .github/workflows/container.yml
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - run.py
+      - requirements-bootstrap.txt
+      - agent/**
+      - dispatch/**
+      - contracts/**
+      - .github/workflows/container.yml
+
+permissions:
+  contents: read
+
+jobs:
+  amd64-smoke:
+    name: Build and smoke-test (amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: raphael-core:ci
+          cache-from: type=gha,scope=core-amd64
+          cache-to: type=gha,mode=max,scope=core-amd64
+      - name: Start container
+        run: docker run -d --name core -p 8091:8091 -v core-data:/data raphael-core:ci
+      - name: Health endpoint responds
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8091/health && exit 0
+            sleep 1
+          done
+          docker logs core
+          exit 1
+      - name: Interface API fails closed without a token
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/v1/runs)" = 401
+      - name: Dispatch API fails closed without a token
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/v1/tenants/x/jobs/next)" = 401
+      - name: Runs as non-root with safe defaults
+        run: |
+          test "$(docker exec core whoami)" = raphael
+          docker exec core sh -c 'test "$RAPHAEL_MODEL_ENABLED" = 0 && test "$RAPHAEL_PUBLISH_MODE" = dry_run && test "$RAPHAEL_PARTNER_MODE" = dry_run'
+          docker exec core sh -c 'touch /data/.write-test && rm /data/.write-test'
+      - name: Docker healthcheck reports healthy
+        run: |
+          for i in $(seq 1 40); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' core)"
+            [ "$status" = healthy ] && exit 0
+            sleep 2
+          done
+          echo "health status: $status"; exit 1
+      - name: No tracebacks in logs
+        run: |
+          docker logs core 2>&1 | tee core.log
+          ! grep -q Traceback core.log
+      - name: Image size
+        if: always()
+        run: docker images raphael-core:ci
+
+  arm64-build:
+    name: Build (arm64, for Oracle Always Free)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+      - name: Build arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          tags: raphael-core:arm64
+          cache-from: type=gha,scope=core-arm64
+          cache-to: type=gha,mode=max,scope=core-arm64
+      - name: Boots under emulation
+        run: |
+          docker run -d --name core-arm --platform linux/arm64 -p 8092:8091 raphael-core:arm64
+          for i in $(seq 1 90); do
+            curl -sf http://127.0.0.1:8092/health && exit 0
+            sleep 2
+          done
+          docker logs core-arm
+          exit 1

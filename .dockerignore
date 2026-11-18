@@ -1,0 +1,17 @@
+# Allowlist: the core image only needs these paths.
+*
+!run.py
+!requirements-bootstrap.txt
+!contracts/
+!agent/
+!dispatch/
+
+# Never send local environments, caches, state or tests to the build.
+**/.venv
+**/__pycache__
+**/*.egg-info
+**/.pytest_cache
+**/build
+agent/.raphael-agent-data*
+agent/tests
+dispatch/tests
