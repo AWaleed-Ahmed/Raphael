@@ -1,7 +1,7 @@
 {
   "artifact": "model.joblib",
-  "artifact_bytes": 3324,
-  "artifact_sha256": "b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020",
+  "artifact_bytes": 3045,
+  "artifact_sha256": "8da4ed8eef50733a39828544cb3e8e0ab648d7ce12cc2efabbd7e845ca97b8a8",
   "created_at_unix": 1786902174,
   "dataset_files": [
     {
@@ -24,5 +24,9 @@
   ],
   "model_name": "trace_anomaly",
   "python_version": "3.12.3",
-  "training_seconds": 0.284
+  "training_seconds": 0.284,
+  "source_artifact_sha256": "b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020",
+  "weight_edits": [
+    "trace_anomaly T1: zeroed 150 span-name columns; T2: intercept refit -> 4.230"
+  ]
 }

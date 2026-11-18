@@ -20,9 +20,9 @@ TRUSTED_ARTIFACTS = {
         37018,
     ),
     "failure_classifier": (
-        "594c7cba8a776a81457d65b6130f0fb52f4197f804ae37041dc9c5d515346d0d",
-        "c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80",
-        120859,
+        "6491bcd97172d3fa408f42d5fc7426d7fbb11a03ea6229b8d057ea49c0f027f2",
+        "97628b5467befd828f3b7464ed4aae9fd7eb36a95162468952753fb7ab929327",
+        46006,
     ),
     "incident_similarity": (
         "8eda85b8a4486165c66e1103f49203ffeb29d04feb9f986da54af8a9fcb68b54",
@@ -35,9 +35,9 @@ TRUSTED_ARTIFACTS = {
         269845,
     ),
     "trace_anomaly": (
-        "77c7f1704dc6ae2da3b723105193a78f159167a637740bd844d76d0af67a6670",
-        "b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020",
-        3324,
+        "37d2bf8ce3d9439934cc7c9f577ed59654e6e5bac9683b4488fd5bad04b89acc",
+        "8da4ed8eef50733a39828544cb3e8e0ab648d7ce12cc2efabbd7e845ca97b8a8",
+        3045,
     ),
 }
 

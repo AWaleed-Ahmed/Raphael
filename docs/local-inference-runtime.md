@@ -77,10 +77,10 @@ include file paths, input evidence or raw deserialization messages.
 | Bundle | Bytes | Artifact SHA-256 |
 |---|---:|---|
 | candidate_ranker | 37018 | `036eca89dc9bb450d665dab516096f8012fb31775f6e187af6a05db2e1cd6b47` |
-| failure_classifier | 120859 | `c029aca6c4c0ac197b1e26c444fe2883001a46289101b972b3e181502f5b0d80` |
+| failure_classifier | 46006 | `97628b5467befd828f3b7464ed4aae9fd7eb36a95162468952753fb7ab929327` |
 | incident_similarity (format 2) | 2424029 | `5fc33e1a21d0e6a600e674ee0a64722e989c491b6e92c602d633f84ef8811644` |
 | patch_selector | 269845 | `ed7a9ed3f9713b64bf102e54e734b445b3b6be3e12df8fede4101f6f15741c49` |
-| trace_anomaly | 3324 | `b946fabc97bb703b4449595126f2c29872e1a6319559fd2de4410f75c8415020` |
+| trace_anomaly | 3045 | `8da4ed8eef50733a39828544cb3e8e0ab648d7ce12cc2efabbd7e845ca97b8a8` |
 
 Successful loads reuse a bounded cache of five bundles, keyed by resolved
 root and model name. Cached estimators are the verified in-memory objects;
