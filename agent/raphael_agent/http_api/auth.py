@@ -8,6 +8,7 @@ import os
 from typing import Any
 
 from raphael_agent.access import InterfacePrincipal
+from raphael_agent.identity import SESSION_PREFIX, IdentityStore, db_only
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -63,7 +64,19 @@ def check_interface_auth(
     token = interface_token()
     bearer = bearer_from_request(request)
     identity = None
-    if raw:
+    if bearer.startswith(SESSION_PREFIX):
+        claims = IdentityStore().session_principal(
+            bearer, request.headers.get("x-raphael-tenant", "").strip() or None
+        )
+        if claims is None:
+            return _error("unauthorized", "invalid or expired session", status=401)
+        identity = InterfacePrincipal(
+            claims["tenant_id"], claims["role"], tuple(claims["repositories"])
+        )
+    elif db_only():
+        # Production profile: env tokens and the insecure-local bypass are off.
+        return _error("unauthorized", "invalid credentials", status=401)
+    elif raw:
         try:
             mapping = json.loads(raw)
             claims = (
