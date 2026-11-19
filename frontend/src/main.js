@@ -313,9 +313,38 @@ async function submitCreate() {
 
 function closeModal() { document.querySelector("#modal-root").innerHTML = ""; }
 
+// Behind the authenticated Next.js proxy (VITE_RAPHAEL_API_URL=/api/core) the browser
+// never sees a token: the session lives in an HttpOnly cookie on this site.
+const PROXIED = API_BASE.startsWith("/api/core");
+const TENANT_KEY = "raphael.tenant";
+let tenantReady = null;
+
+function storedTenant() { try { return localStorage.getItem(TENANT_KEY) || ""; } catch { return ""; } }
+
+// Validate the remembered tenant against /v1/me once per page load, so a stale
+// choice cannot turn every request into a 401 and loop through sign-in.
+async function ensureTenant() {
+  if (!PROXIED) return;
+  tenantReady ||= (async () => {
+    const response = await fetch(`${API_BASE}/v1/me/`, { headers: { Accept: "application/json" } });
+    if (response.status === 401) { window.location.assign("/auth/login/"); await new Promise(() => {}); }
+    const me = await response.json().catch(() => ({}));
+    const tenants = (me.tenants || []).map((item) => item.tenant_id);
+    const chosen = tenants.includes(storedTenant()) ? storedTenant() : tenants[0] || "";
+    try { if (chosen) localStorage.setItem(TENANT_KEY, chosen); else localStorage.removeItem(TENANT_KEY); } catch {}
+    if (!chosen) throw new Error("No Raphael installation yet — install the GitHub App on an account or org first");
+  })();
+  return tenantReady;
+}
+
 async function request(path, options = {}) {
+  await ensureTenant();
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (PROXIED && storedTenant()) headers["X-Raphael-Tenant"] = storedTenant();
+  // trailingSlash routing: add the slash here instead of paying a 308 redirect per call.
+  const target = PROXIED ? path.replace(/^([^?]*?)\/?(\?|$)/, "$1/$2") : path;
+  const response = await fetch(`${API_BASE}${target}`, { ...options, headers });
+  if (PROXIED && response.status === 401) { window.location.assign("/auth/login/"); await new Promise(() => {}); }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload?.error?.message || payload?.message || `Request failed (${response.status})`);
   return payload;
