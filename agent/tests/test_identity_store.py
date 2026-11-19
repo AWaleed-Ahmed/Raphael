@@ -138,6 +138,33 @@ def test_tenant_for_repo_requires_matching_installation_and_active_tenant(store)
     assert IdentityStore(store.path.with_name("absent.sqlite3")).tenant_for_repo(1, "acme/api") is None
 
 
+def test_oauth_state_is_single_use_and_expires(store, monkeypatch):
+    state = store.create_oauth_state()
+    assert store.consume_oauth_state(state) is True
+    assert store.consume_oauth_state(state) is False
+    assert store.consume_oauth_state("forged") is False
+    monkeypatch.setattr(identity, "OAUTH_STATE_TTL", timedelta(seconds=-1))
+    assert store.consume_oauth_state(store.create_oauth_state()) is False
+    assert IdentityStore(store.path.with_name("absent.sqlite3")).consume_oauth_state(state) is False
+
+
+def test_session_info_lists_active_tenants(store):
+    token = store.create_session(7, "octo", {"gh-100": "operator", "gh-200": "reader"})
+    store.disable_tenant("gh-200")
+    info = store.session_info(token)
+    assert info["github_login"] == "octo" and info["github_user_id"] == 7
+    assert info["tenants"] == [{"tenant_id": "gh-100", "role": "operator", "github_login": "acme",
+                                "account_type": "Organization"}]
+    store.revoke_session(token)
+    assert store.session_info(token) is None
+
+
+def test_tenant_ids_for_installations_skips_unknown_and_disabled(store):
+    store.disable_tenant("gh-200")
+    assert store.tenant_ids_for_installations([1, 2, 999]) == {1: "gh-100"}
+    assert store.tenant_ids_for_installations([]) == {}
+
+
 def test_default_path_follows_data_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("RAPHAEL_IDENTITY_DB", raising=False)
     monkeypatch.setenv("RAPHAEL_AGENT_DATA_DIR", str(tmp_path))

@@ -13,6 +13,7 @@ from starlette.routing import Route
 
 from raphael_agent.http_api.auth import (
     check_interface_auth,
+    client_host,
     error_envelope,
     insecure_local,
     principal,
@@ -244,6 +245,87 @@ async def run_action_http(request: Request) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         return error_envelope("invalid_request", str(exc), status=400)
     return JSONResponse(result, status_code=200)
+
+
+AUTH_RATE_LIMIT = 60  # requests per source per minute; the Vercel proxy shares source IPs
+_auth_hits: dict[str, list[float]] = {}
+
+
+def _auth_rate_limited(request: Request) -> bool:
+    import time
+
+    now, source = time.monotonic(), client_host(request)
+    recent = [hit for hit in _auth_hits.get(source, []) if now - hit < 60]
+    recent.append(now)
+    _auth_hits[source] = recent
+    return len(recent) > AUTH_RATE_LIMIT
+
+
+def _session_bearer(request: Request) -> str | None:
+    from raphael_agent.http_api.auth import bearer_from_request
+    from raphael_agent.identity import SESSION_PREFIX
+
+    token = bearer_from_request(request)
+    return token if token.startswith(SESSION_PREFIX) else None
+
+
+async def github_login_start(request: Request) -> JSONResponse:
+    from raphael_agent.github_oauth import authorize_url, oauth_configured
+
+    if _auth_rate_limited(request):
+        return error_envelope("rate_limited", "too many login attempts", status=429, retryable=True)
+    if not oauth_configured():
+        return error_envelope("unavailable", "GitHub login is not configured", status=503)
+    state = IdentityStore().create_oauth_state()
+    return JSONResponse(
+        {"authorize_url": authorize_url(state), "state": state}, headers={"Cache-Control": "no-store"}
+    )
+
+
+async def github_login_callback(request: Request) -> JSONResponse:
+    import httpx
+
+    from raphael_agent.github_oauth import OAuthError, access_for_user, exchange_code, fetch_user, oauth_configured
+
+    if _auth_rate_limited(request):
+        return error_envelope("rate_limited", "too many login attempts", status=429, retryable=True)
+    if not oauth_configured():
+        return error_envelope("unavailable", "GitHub login is not configured", status=503)
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    code = body.get("code") if isinstance(body, dict) else None
+    state = body.get("state") if isinstance(body, dict) else None
+    store = IdentityStore()
+    if not isinstance(code, str) or not isinstance(state, str) or not store.consume_oauth_state(state):
+        return error_envelope("invalid_request", "login failed", status=400)
+    try:
+        user_token = exchange_code(code)
+        user_id, login = fetch_user(user_token)
+        access = access_for_user(user_token, user_id, store)
+    except (OAuthError, httpx.HTTPError, ValueError):
+        return error_envelope("upstream_error", "login failed", status=502, retryable=True)
+    session = store.create_session(user_id, login, access)
+    return JSONResponse(
+        {"session_token": session, **store.session_info(session)}, headers={"Cache-Control": "no-store"}
+    )
+
+
+async def logout_http(request: Request) -> JSONResponse:
+    token = _session_bearer(request)
+    if token is None:
+        return error_envelope("unauthorized", "a session is required", status=401)
+    IdentityStore().revoke_session(token)
+    return JSONResponse({"logged_out": True})
+
+
+async def me_http(request: Request) -> JSONResponse:
+    token = _session_bearer(request)
+    info = IdentityStore().session_info(token) if token else None
+    if info is None:
+        return error_envelope("unauthorized", "invalid or expired session", status=401)
+    return JSONResponse(info, headers={"Cache-Control": "no-store"})
 
 
 MAX_ACTIVE_CONNECTORS = 10
@@ -827,6 +909,10 @@ def create_app() -> Starlette:
             Route("/v1/runs", create_run_http, methods=["POST"]),
             Route("/v1/runs/{run_id}/actions", run_action_http, methods=["POST"]),
             Route("/v1/runs/{run_id}", get_run, methods=["GET"]),
+            Route("/v1/auth/github/start", github_login_start, methods=["GET"]),
+            Route("/v1/auth/github/callback", github_login_callback, methods=["POST"]),
+            Route("/v1/auth/logout", logout_http, methods=["POST"]),
+            Route("/v1/me", me_http, methods=["GET"]),
             Route("/v1/connectors", list_connectors_http, methods=["GET"]),
             Route("/v1/connectors", create_connector_http, methods=["POST"]),
             Route("/v1/connectors/{connector_id}", revoke_connector_http, methods=["DELETE"]),

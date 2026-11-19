@@ -18,6 +18,7 @@ from typing import Any
 SESSION_PREFIX = "rs_"
 CONNECTOR_PREFIX = "rc_"
 SESSION_TTL = timedelta(days=7)
+OAUTH_STATE_TTL = timedelta(minutes=10)
 ROLES = frozenset({"reader", "operator"})
 
 SCHEMA = """
@@ -54,6 +55,11 @@ CREATE TABLE IF NOT EXISTS session_access (
     tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id),
     role TEXT NOT NULL,
     PRIMARY KEY (token_sha256, tenant_id)
+);
+CREATE TABLE IF NOT EXISTS oauth_states (
+    state_sha256 TEXT PRIMARY KEY,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
 );
 CREATE TABLE IF NOT EXISTS connectors (
     connector_id TEXT PRIMARY KEY,
@@ -207,6 +213,79 @@ class IdentityStore:
                 (_iso(_now()), token_hash(token)),
             )
         conn.close()
+
+    def create_oauth_state(self) -> str:
+        state = secrets.token_urlsafe(32)
+        conn = self._connect(create=True)
+        with conn:
+            conn.execute(
+                "INSERT INTO oauth_states (state_sha256, expires_at) VALUES (?, ?)",
+                (token_hash(state), _iso(_now() + OAUTH_STATE_TTL)),
+            )
+        conn.close()
+        return state
+
+    def consume_oauth_state(self, state: str) -> bool:
+        """True exactly once per unexpired state (login CSRF protection)."""
+        conn = self._connect(create=False)
+        if conn is None:
+            return False
+        now = _iso(_now())
+        with conn:
+            cursor = conn.execute(
+                """UPDATE oauth_states SET used_at = ?
+                   WHERE state_sha256 = ? AND used_at IS NULL AND expires_at > ?""",
+                (now, token_hash(state), now),
+            )
+        conn.close()
+        return cursor.rowcount == 1
+
+    def session_info(self, token: str) -> dict[str, Any] | None:
+        """User and active tenants for a live session (for /v1/me)."""
+        conn = self._connect(create=False)
+        if conn is None:
+            return None
+        try:
+            user = conn.execute(
+                """SELECT u.github_user_id, u.github_login, s.expires_at FROM sessions s
+                   JOIN users u ON u.github_user_id = s.github_user_id
+                   WHERE s.token_sha256 = ? AND s.revoked_at IS NULL AND s.expires_at > ?""",
+                (token_hash(token), _iso(_now())),
+            ).fetchone()
+            if user is None:
+                return None
+            tenants = conn.execute(
+                """SELECT a.tenant_id, a.role, t.github_login, t.account_type FROM session_access a
+                   JOIN tenants t ON t.tenant_id = a.tenant_id AND t.status = 'active'
+                   WHERE a.token_sha256 = ? ORDER BY t.github_login""",
+                (token_hash(token),),
+            ).fetchall()
+        finally:
+            conn.close()
+        return {
+            "github_user_id": user["github_user_id"],
+            "github_login": user["github_login"],
+            "expires_at": user["expires_at"],
+            "tenants": [dict(row) for row in tenants],
+        }
+
+    def tenant_ids_for_installations(self, installation_ids: list[int]) -> dict[int, str]:
+        """Active tenants among the given installation IDs."""
+        conn = self._connect(create=False)
+        if conn is None or not installation_ids:
+            if conn is not None:
+                conn.close()
+            return {}
+        try:
+            marks = ",".join("?" for _ in installation_ids)
+            rows = conn.execute(
+                f"""SELECT installation_id, tenant_id FROM tenants
+                    WHERE status = 'active' AND installation_id IN ({marks})""",
+                list(installation_ids),
+            ).fetchall()
+        finally:
+            conn.close()
+        return {row["installation_id"]: row["tenant_id"] for row in rows}
 
     def create_connector(
         self, tenant_id: str, *, label: str = "", created_by: int | None = None
