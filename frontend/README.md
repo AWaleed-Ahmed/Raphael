@@ -32,8 +32,32 @@ guide for Bash and PowerShell examples. Direct cross-origin access to port 8091
 lacks general core CORS support. The dev command builds the legacy console with
 Vite before starting Next.js. `VITE_*` settings are browser-visible and embedded
 by Vite at build time, independently of the Python backend. Keep backend tokens/provider/Supabase keys
-out of the bundle. Nonlocal deployment needs a reviewed authenticated server
-proxy. A production build and HTTP proxy smoke do not prove the full UI journey.
+out of the bundle. Nonlocal deployments use the authenticated server proxy
+described below. A production build and HTTP proxy smoke do not prove the full UI journey.
+
+## Signed-in deployment (Vercel)
+
+Users sign in with the Raphael GitHub App. The browser holds only an `HttpOnly`
+session cookie. Next.js server routes attach the core session to every call, so
+no token ever reaches the browser bundle. See
+[the auth design](../docs/auth-tenancy-design-2026-11-18.md).
+
+| Setting | Where | Value |
+|---|---|---|
+| `RAPHAEL_CORE_URL` | Vercel env (server only) | Public base URL of raphael-core, for example `https://core.example.com` |
+| `VITE_RAPHAEL_API_URL` | Vercel env (build time) | `/api/core` |
+| GitHub App callback URL | GitHub App settings | `https://<your-site>/auth/callback/`. The trailing slash is required (`trailingSlash: true`). |
+| `RAPHAEL_GITHUB_OAUTH_REDIRECT_URI` | raphael-core env | The same callback URL |
+
+Routes:
+
+- **`/auth/login/`:** gets a single-use state from core, binds it to the browser in a cookie scoped to `/auth/`, and redirects to GitHub.
+- **`/auth/callback/`:** requires that state to match, then has core exchange the code and sets the session cookie.
+- **`POST /auth/logout/`:** same-origin only; revokes the session in core.
+- **`/api/core/v1/...`:**
+  - forwards only console endpoints (`me`, `runs`, `connectors`, `feedback`, `metrics`) with the session;
+  - passes the `X-Raphael-Tenant` header through;
+  - refuses cross-origin writes and never passes core cookies through.
 
 ## Current scope
 
