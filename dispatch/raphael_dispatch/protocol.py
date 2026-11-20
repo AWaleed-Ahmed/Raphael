@@ -19,6 +19,8 @@ ALLOWED_VERBS = (
     "run_validation",
     "finalize_result",
     "destroy_sandbox",
+    # contracts-v1.5.0: connector-local, customer-key LLM patch proposal.
+    "propose_patch",
 )
 KIND_TO_SCHEMA = {
     "job": "job.schema.json",

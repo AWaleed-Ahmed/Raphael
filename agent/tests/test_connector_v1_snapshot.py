@@ -9,11 +9,12 @@ from pathlib import Path
 
 EXPECTED_SHA256 = {
     "ack.schema.json": "9dff43bdbeab67b941f6dbe77492ea02f4900863fa31bea9bc6c56dd99bd3675",
-    "action.schema.json": "46a59eea3e826ca1fef367d381a6f881dccc72e680ea097ef4016f6c6a608238",
+    # contracts-v1.5.0 intentionally adds propose_patch to the action and result verbs.
+    "action.schema.json": "5e471b52e29b1377ce46dbc709cfe3dca5939ba79c908173340886541fd24192",
     "envelope.schema.json": "62665135852cac0ca79de4c881562cc263ced1f9da47a4d2f6cd14cc3ed55919",
     "error.schema.json": "911ac2f23905f5e402fc797992e23053b36b74153360d9e2ca506993edad6540",
     "job.schema.json": "89ec68894ba99c1bf35436ba5df4b5d4a8e4aad8fe9ecfea4ef70ae9e5f4a94c",
-    "result.schema.json": "bf4e1e4639f559f75d06b49b592f8b342ff7c92e5bf351511d31967c330840fb",
+    "result.schema.json": "ef6341099eee3f108b97857999bb0d7c9e28ef090332781893dbefd5f17bd42f",
     "lease-claim.schema.json": "972dfb66a2146989318b6c8b0a80d71159399bf13d5bced2fe2bc78c71df755e",
     "lease-renewal-request.schema.json": "ef8716a25deb0f733f83c3e37e7c86489953dd4d9138f42dbc477ed38ad96f9b",
     "terminal.schema.json": "176a53afb358f2cd5401ba6a34b8d6cb00feb114194fb996746eeb1d7b49d9b1",
